@@ -25,8 +25,8 @@ except ImportError:
 # 1. CẤU HÌNH GIAO DIỆN & CSS (NEXT-GEN TERMINAL UI)
 # ============================================================
 st.set_page_config(
-    page_title="TradeDesk Pro",
-    page_icon="⚡",
+    page_title="TradeDesk EvB",
+    page_icon="🦦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
