@@ -22,7 +22,7 @@ except ImportError:
     HAS_SMC = False
 
 # ============================================================
-# 1. CẤU HÌNH GIAO DIỆN & CSS (ARCHITECTURAL BLUEPRINT)
+# 1. CẤU HÌNH GIAO DIỆN & CSS (ARCHITECTURAL BLUEPRINT + XIMITECH EFFECTS)
 # ============================================================
 st.set_page_config(
     page_title="TradeDesk Pro | Bản Vẽ Kỹ Thuật",
@@ -47,6 +47,36 @@ st.markdown("""
         font-family: 'Roboto Mono', monospace;
     }
     
+    /* Hiệu ứng Loading toàn trang (XimiTech style) */
+    .stApp::before {
+        content: "ĐANG KẾT NỐI DỮ LIỆU...";
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: #003366;
+        color: #00FFFF;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 20px;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.5s ease-out;
+        pointer-events: none;
+    }
+    .stApp.loaded::before { opacity: 0; }
+    
+    /* Scroll Reveal Effect (Hiệu ứng cuộn) */
+    .reveal {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+    }
+    .reveal.active {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
     /* Đảm bảo vùng biểu đồ không chặn thao tác vuốt cảm ứng */
     .stPlotlyChart {
         touch-action: pan-y pinch-zoom !important;
@@ -97,7 +127,7 @@ st.markdown("""
         box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
     }
     
-    /* Nút bấm (Technical Stamp) */
+    /* Nút bấm (Technical Stamp + XimiTech Hover) */
     .stButton>button { 
         width: 100%; 
         border-radius: 0px !important; 
@@ -107,7 +137,7 @@ st.markdown("""
         font-family: 'Roboto Mono', monospace !important;
         text-transform: uppercase;
         padding: 8px 12px; 
-        transition: all 0.2s ease;
+        transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
     .stButton>button:hover { 
         background: rgba(255, 255, 255, 0.1) !important;
@@ -157,6 +187,11 @@ st.markdown("""
         background: rgba(0, 51, 102, 0.6);
         padding: 15px;
         min-height: 150px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .smc-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 255, 255, 0.2);
     }
     .smc-title {
         color: #00FFFF;
@@ -180,6 +215,29 @@ st.markdown("""
     footer {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     </style>
+    
+    <script>
+    // Script để kích hoạt hiệu ứng scroll reveal và loading
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hiệu ứng loading toàn trang
+        setTimeout(function() {
+            document.querySelector('.stApp').classList.add('loaded');
+        }, 500);
+        
+        // Hiệu ứng scroll reveal
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                }
+            });
+        }, { threshold: 0.1 });
+        
+        document.querySelectorAll('.reveal').forEach((el) => {
+            observer.observe(el);
+        });
+    });
+    </script>
 """, unsafe_allow_html=True)
 
 # Cursor Crosshair (Tọa độ X/Y)
@@ -263,7 +321,7 @@ def format_vn_price(value) -> str:
     except: return str(value)
 
 def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
-    """Thẻ KPI phong cách Bản vẽ kỹ thuật (Drafting Card)"""
+    """Thẻ KPI phong cách Bản vẽ kỹ thuật (Drafting Card) + hiệu ứng hover"""
     border_color = "rgba(255,255,255,0.8)"
     text_color = "#00FFFF"
     delta_color = "rgba(255,255,255,0.7)"
@@ -279,7 +337,7 @@ def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
         delta_html = f"<div style='color: {delta_color}; font-size: 12px; font-weight: bold; margin-top: 5px; border-top: 1px dashed rgba(255,255,255,0.3); padding-top: 5px;'>[{delta_text}]</div>"
         
     html_code = f"""
-    <div style="
+    <div class="reveal" style="
         background-color: transparent;
         padding: 15px;
         border: 1px solid {border_color};
@@ -289,14 +347,13 @@ def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
         display: flex;
         flex-direction: column;
         justify-content: center;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     ">
-        <!-- Crosshairs (Dấu cộng 4 góc) -->
         <div style="position: absolute; top: -5px; left: -5px; color: {border_color}; font-size: 14px;">+</div>
         <div style="position: absolute; top: -5px; right: -5px; color: {border_color}; font-size: 14px;">+</div>
         <div style="position: absolute; bottom: -5px; left: -5px; color: {border_color}; font-size: 14px;">+</div>
         <div style="position: absolute; bottom: -5px; right: -5px; color: {border_color}; font-size: 14px;">+</div>
         
-        <!-- Measurement Labels -->
         <div style="position: absolute; top: -10px; left: 10px; background: #003366; padding: 0 4px; color: rgba(255,255,255,0.6); font-size: 10px;">DIM: 240 x 110</div>
         
         <div style="color: rgba(255,255,255,0.8); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">{label}</div>
@@ -443,7 +500,7 @@ run_bot_engine(df, ticker, timeframe)
 
 # TITLE BLOCK
 st.markdown(f"""
-    <div class='title-block'>
+    <div class='title-block reveal'>
         <div>
             <p style='color: #00FFFF; font-weight: bold; letter-spacing: 2px;'>DỰ ÁN:</p>
             <h1>{selected_asset.split(' - ')[1]}</h1>
@@ -467,12 +524,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 # KHU VỰC 1: BIỂU ĐỒ
 # ------------------------------------------------------------
 if menu_selection == "📐 BIỂU ĐỒ KỸ THUẬT":
-    # Giới hạn 300 nến để chống lag trên điện thoại
     chart_df = df.tail(300).copy()
     
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)"))
     
-    # Nến Blueprint: Trắng cho tăng, Đỏ cho giảm
     fig.add_trace(go.Candlestick(
         x=chart_df["Time"], open=chart_df["Open"], high=chart_df["High"], low=chart_df["Low"], close=chart_df["Close"], name="PRICE", 
         increasing_line_color="#FFFFFF", decreasing_line_color="#FF3333",
@@ -494,7 +549,6 @@ if menu_selection == "📐 BIỂU ĐỒ KỸ THUẬT":
     
     fig.add_trace(go.Bar(x=chart_df["Time"], y=chart_df["MACD_hist"], name="MACD_HIST", marker_color=["#FFFFFF" if v >= 0 else "#FF3333" for v in chart_df["MACD_hist"]]), row=3, col=1)
     
-    # Chart Theme (Blueprint)
     fig.update_layout(
         template="plotly_dark", 
         height=750, 
@@ -505,19 +559,14 @@ if menu_selection == "📐 BIỂU ĐỒ KỸ THUẬT":
         margin=dict(l=10, r=50, t=30, b=10), 
         dragmode="pan",
         font=dict(family="Roboto Mono, monospace", color="#FFFFFF", size=11),
-        uirevision='constant' # Giữ trạng thái zoom
+        uirevision='constant'
     )
     
-    # Lưới kẻ ô (Grid) mờ
     fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.1)", rangeslider_visible=False, gridwidth=1)
-    
-    # Bật lại thanh trượt (Range Slider) cho hàng cuối cùng để dễ zoom trên mobile
     fig.update_xaxes(
         rangeslider=dict(visible=True, bgcolor="#002244", bordercolor="rgba(255,255,255,0.3)", borderwidth=1), 
         row=3, col=1
     )
-    
-    # Nút zoom nhanh
     fig.update_xaxes(
         rangeselector=dict(
             buttons=list([
@@ -538,7 +587,7 @@ if menu_selection == "📐 BIỂU ĐỒ KỸ THUẬT":
 # KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & BOT
 # ------------------------------------------------------------
 elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
-    st.markdown("<span class='drafting-label'>PHẦN 1: KẾ HOẠCH GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label reveal'>PHẦN 1: KẾ HOẠCH GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
     
     col_slider, _ = st.columns([1, 2])
     with col_slider: rr_ratio = st.slider("Tỷ lệ R:R (Lợi nhuận : Rủi ro)", 1.0, 4.0, 2.0, 0.5)
@@ -547,7 +596,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
     if trade_plan:
         direction_color = "#00FFFF" if trade_plan['direction'] == "LONG" else "#FF3333"
         direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
-        st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;'>TÍN HIỆU ĐỀ XUẤT: {direction_vn}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;' class='reveal'>TÍN HIỆU ĐỀ XUẤT: {direction_vn}</h3>", unsafe_allow_html=True)
         
         col_entry, col_sl, col_tp = st.columns(3)
         with col_entry: blueprint_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None)
@@ -555,7 +604,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
         with col_tp: blueprint_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
 
     st.markdown("<hr style='border-color: rgba(255,255,255,0.2); margin: 30px 0;'>", unsafe_allow_html=True)
-    st.markdown("<span class='drafting-label'>PHẦN 2: NHẬT KÝ BOT TỰ ĐỘNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label reveal'>PHẦN 2: NHẬT KÝ BOT TỰ ĐỘNG</span>", unsafe_allow_html=True)
     
     col_bot_btn, _ = st.columns([1, 3])
     with col_bot_btn:
@@ -570,7 +619,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
     if active_bot is not None:
         dir_vn = "MUA" if active_bot['direction'] == "LONG" else "BÁN"
         st.markdown(f"""
-            <div style='border: 1px dashed #00FFFF; padding: 15px; margin-bottom: 20px; background: rgba(0,255,255,0.05);'>
+            <div class='reveal' style='border: 1px dashed #00FFFF; padding: 15px; margin-bottom: 20px; background: rgba(0,255,255,0.05);'>
                 <div style='color: #00FFFF; font-weight: bold; margin-bottom: 5px;'>[!] BOT ĐANG GIỮ LỆNH: {dir_vn}</div>
                 <div style='color: #FFFFFF; font-size: 13px;'>Vào lệnh: {format_vn_price(active_bot['entry_price'])} | 
                 SL: <span style='color:#FF3333'>{format_vn_price(active_bot['sl'])}</span> | 
@@ -615,7 +664,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
 # KHU VỰC 3: PHÂN TÍCH SMC
 # ------------------------------------------------------------
 elif menu_selection == "🧠 PHÂN TÍCH SMC":
-    st.markdown("<span class='drafting-label'>PHẦN 3: PHÂN TÍCH CẤU TRÚC THỊ TRƯỜNG (SMC)</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label reveal'>PHẦN 3: PHÂN TÍCH CẤU TRÚC THỊ TRƯỜNG (SMC)</span>", unsafe_allow_html=True)
     
     if not HAS_SMC:
         st.warning("Thư viện `pyvsmc` chưa được cài đặt. Vui lòng kiểm tra lại requirements.txt.")
@@ -647,7 +696,7 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
                 
                 with col_fvg:
                     st.markdown(f"""
-                        <div class='smc-card'>
+                        <div class='smc-card reveal'>
                             <div class='smc-title'>Fair Value Gaps (FVG)</div>
                             <div class='smc-row'><span>FVG Tăng:</span> <span class='smc-val val-green'>{len(fvg.bullish)}</span></div>
                             <div class='smc-row'><span>FVG Giảm:</span> <span class='smc-val val-red'>{len(fvg.bearish)}</span></div>
@@ -657,7 +706,7 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
                     
                 with col_obs:
                     st.markdown(f"""
-                        <div class='smc-card'>
+                        <div class='smc-card reveal'>
                             <div class='smc-title'>Order Blocks (OB)</div>
                             <div class='smc-row'><span>OB Cầu (Demand):</span> <span class='smc-val val-green'>{len(obs.bullish_ob)}</span></div>
                             <div class='smc-row'><span>OB Cung (Supply):</span> <span class='smc-val val-red'>{len(obs.bearish_ob)}</span></div>
@@ -667,7 +716,7 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
                     
                 with col_struct:
                     st.markdown(f"""
-                        <div class='smc-card'>
+                        <div class='smc-card reveal'>
                             <div class='smc-title'>Cấu Trúc Giá</div>
                             <div class='smc-row'><span>Xu hướng:</span> <span class='smc-val {trend_color}'>{trend_text}</span></div>
                             <div class='smc-row'><span>BOS Tăng:</span> <span class='smc-val val-green'>{'CÓ' if bos_bull else 'KHÔNG'}</span></div>
@@ -683,11 +732,11 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
 # KHU VỰC 4: TIN TỨC
 # ------------------------------------------------------------
 elif menu_selection == "📰 TIN TỨC":
-    st.markdown("<span class='drafting-label'>PHẦN 4: BẢNG TIN THỊ TRƯỜNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label reveal'>PHẦN 4: BẢNG TIN THỊ TRƯỜNG</span>", unsafe_allow_html=True)
     news = fetch_news(ticker)
     for item in news:
         st.markdown(f"""
-            <div style='border-left: 3px solid #00FFFF; padding-left: 15px; margin-bottom: 20px;'>
+            <div class='reveal' style='border-left: 3px solid #00FFFF; padding-left: 15px; margin-bottom: 20px;'>
                 <div style='margin-bottom: 5px;'>
                     <a href='{item['link']}' target='_blank' style='color: #E2E8F0; text-decoration: underline; font-weight: bold;'>[XEM THÊM]</a>
                     <span style='color: #E2E8F0;'>{item['title']}</span>
@@ -700,11 +749,11 @@ elif menu_selection == "📰 TIN TỨC":
 # KHU VỰC 5: NHẬT KÝ GIAO DỊCH
 # ------------------------------------------------------------
 elif menu_selection == "📓 NHẬT KÝ GIAO DỊCH":
-    st.markdown("<span class='drafting-label'>PHẦN 5: NHẬT KÝ GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label reveal'>PHẦN 5: NHẬT KÝ GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
     col_form, col_history = st.columns([1, 2], gap="large")
     
     with col_form:
-        st.markdown("<div style='border: 1px solid rgba(255,255,255,0.4); padding: 20px; background: rgba(0,51,102,0.5);'>", unsafe_allow_html=True)
+        st.markdown("<div class='reveal' style='border: 1px solid rgba(255,255,255,0.4); padding: 20px; background: rgba(0,51,102,0.5);'>", unsafe_allow_html=True)
         with st.form("journal_form", clear_on_submit=True):
             st.markdown("<p style='color: #00FFFF; font-weight: bold; margin-bottom: 15px;'>+--- GHI NHẬN LỆNH MỚI ---+</p>", unsafe_allow_html=True)
             trade_date = st.date_input("NGÀY")
