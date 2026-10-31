@@ -22,11 +22,11 @@ except ImportError:
     HAS_SMC = False
 
 # ============================================================
-# 1. CẤU HÌNH GIAO DIỆN & CSS (NEXT-GEN TERMINAL UI)
+# 1. CẤU HÌNH GIAO DIỆN & CSS (INSTITUTIONAL DARK UI)
 # ============================================================
 st.set_page_config(
-    page_title="TradeDesk EvB",
-    page_icon="🦦",
+    page_title="TradeDesk Pro | Terminal",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -34,25 +34,25 @@ st.set_page_config(
 # CSS Nâng cấp toàn diện
 st.markdown("""
     <style>
-    /* Import Font chữ hiện đại */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+    /* Import Font chữ */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
     
-    /* Nền tảng chính (Deep Space Dark) */
+    /* Nền tảng chính (Deep Slate) */
     .stApp { 
-        background: radial-gradient(circle at 50% -20%, #1A2233, #0B0E14);
-        color: #E6EDF3 !important;
+        background-color: #0F111A;
+        background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,0.1) 0, transparent 50%);
+        color: #E2E8F0 !important;
         font-family: 'Inter', sans-serif;
     }
     
-    /* Sidebar (Kính mờ) */
+    /* Sidebar (Tối giản, viền mỏng) */
     [data-testid="stSidebar"] { 
-        background: rgba(13, 17, 23, 0.7) !important;
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(255,255,255,0.05);
+        background-color: #151A27 !important;
+        border-right: 1px solid #1E293B;
     }
     
-    /* Làm đẹp Menu Điều Hướng (Navigation Pills) */
-    div[data-testid="stRadio"] > div[role="radiogroup"] { gap: 8px !important; }
+    /* Menu Điều Hướng (Navigation Pills) */
+    div[data-testid="stRadio"] > div[role="radiogroup"] { gap: 6px !important; }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label {
         padding: 12px 16px !important; 
         background-color: transparent !important; 
@@ -61,75 +61,77 @@ st.markdown("""
         cursor: pointer !important; 
         transition: all 0.2s ease !important;
         width: 100% !important; 
-        display: flex !important; 
-        align-items: center !important;
     }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover { 
-        background-color: rgba(255,255,255,0.05) !important; 
+        background-color: #1E293B !important; 
     }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] { 
-        background: linear-gradient(90deg, rgba(41,98,255,0.15) 0%, rgba(41,98,255,0) 100%) !important;
-        border-left: 3px solid #2962FF !important;
-        border-radius: 0 8px 8px 0 !important;
+        background-color: #1E293B !important;
+        border-left: 3px solid #3B82F6 !important;
+        border-radius: 4px 8px 8px 4px !important;
     }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child { display: none !important; }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p { 
-        font-size: 15px !important; 
-        font-weight: 600 !important; 
-        color: #8B949E !important; 
+        font-size: 14px !important; 
+        font-weight: 500 !important; 
+        color: #94A3B8 !important; 
     }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] div[data-testid="stMarkdownContainer"] p { 
-        color: #FFFFFF !important; 
+        color: #F8FAFC !important; 
+        font-weight: 600 !important;
     }
     
-    /* Input / Selectbox (Viền mỏng, nền tối) */
+    /* Input / Selectbox */
     .stSelectbox div[data-baseweb="select"] { 
-        background-color: #161B22 !important; 
-        border: 1px solid #30363D !important; 
-        border-radius: 8px !important; 
-        color: #E6EDF3 !important;
+        background-color: #0F111A !important; 
+        border: 1px solid #334155 !important; 
+        border-radius: 6px !important; 
     }
-    .stSelectbox div[data-baseweb="select"]:hover { border-color: #58A6FF !important; }
+    .stSelectbox div[data-baseweb="select"]:hover { border-color: #3B82F6 !important; }
     .stTextInput input, .stNumberInput input, .stTextArea textarea {
-        background-color: #161B22 !important;
-        color: #E6EDF3 !important;
-        border: 1px solid #30363D !important;
-        border-radius: 8px !important;
+        background-color: #0F111A !important;
+        color: #E2E8F0 !important;
+        border: 1px solid #334155 !important;
+        border-radius: 6px !important;
+    }
+    .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+        border-color: #3B82F6 !important;
+        box-shadow: 0 0 0 1px #3B82F6 !important;
     }
     
-    /* Nút bấm (Gradient hiện đại) */
+    /* Nút bấm */
     .stButton>button { 
         width: 100%; 
-        border-radius: 8px; 
-        background: linear-gradient(135deg, #2962FF, #0055FF);
+        border-radius: 6px; 
+        background: #3B82F6;
         color: white; 
         border: none; 
-        font-weight: 600; 
+        font-weight: 500; 
         padding: 10px; 
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(41, 98, 255, 0.3);
+        transition: all 0.2s ease;
     }
     .stButton>button:hover { 
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(41, 98, 255, 0.5);
+        background: #2563EB;
+        box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
     }
     
-    /* Typography cho số liệu */
+    /* Typography */
     .stMetricValue, [data-testid="stMetricValue"] { 
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 26px !important; 
-        font-weight: 700 !important; 
+        font-size: 24px !important; 
+        font-weight: 600 !important; 
     }
     
-    /* Làm đẹp bảng dữ liệu */
+    /* Bảng dữ liệu */
     [data-testid="stDataFrame"] { 
-        border-radius: 12px; 
-        border: 1px solid #30363D; 
+        border-radius: 8px; 
+        border: 1px solid #1E293B; 
         overflow: hidden;
     }
     
     /* Tiêu đề */
-    h1, h2, h3 { color: #FFFFFF !important; font-weight: 800 !important; letter-spacing: -0.5px; }
+    h1, h2, h3 { color: #F8FAFC !important; font-weight: 600 !important; letter-spacing: -0.02em; }
+    hr { border-color: #1E293B !important; }
     
     footer {visibility: hidden;}
     </style>
@@ -157,7 +159,7 @@ def get_trades():
     conn.close(); return df
 
 # ============================================================
-# 3. CÁC HÀM TIỆN ÍCH & UI COMPONENTS (GLASSMORPHISM CARDS)
+# 3. CÁC HÀM TIỆN ÍCH & UI COMPONENTS
 # ============================================================
 def format_vn_price(value) -> str:
     if pd.isna(value) or value is None: return "N/A"
@@ -165,41 +167,47 @@ def format_vn_price(value) -> str:
     except: return str(value)
 
 def premium_copyable_metric(label, value_str, delta_text=None, is_positive=None):
-    """Thẻ KPI phong cách Glassmorphism, có viền phát sáng và nút Copy."""
+    """Thẻ KPI phong cách hiện đại, viền mỏng, có nút Copy."""
     
-    # Xác định màu sắc dựa trên xu hướng
-    color = "#8B949E" # Mặc định xám
-    glow = "rgba(255,255,255,0.05)"
+    # Xác định màu sắc viền trái
+    border_color = "#334155" # Mặc định
+    text_color = "#E2E8F0"   # Mặc định
+    delta_color = "#94A3B8"
+    
     if is_positive is not None:
-        color = "#00E676" if is_positive else "#FF1744"
-        glow = "rgba(0, 230, 118, 0.15)" if is_positive else "rgba(255, 23, 68, 0.15)"
+        border_color = "#10B981" if is_positive else "#F43F5E"
+        text_color = "#10B981" if is_positive else "#F43F5E"
+        delta_color = "#10B981" if is_positive else "#F43F5E"
         
     delta_html = ""
     if delta_text:
-        delta_color = "#00E676" if (is_positive or "+" in str(delta_text) or "LONG" in str(delta_text)) else "#FF1744"
-        delta_html = f"<div style='color: {delta_color}; font-size: 13px; font-weight: 600; margin-top: 4px;'>{delta_text}</div>"
+        if is_positive is None:
+            delta_color = "#10B981" if ("+" in str(delta_text) or "LONG" in str(delta_text)) else ("#F43F5E" if ("-" in str(delta_text) or "SHORT" in str(delta_text)) else "#94A3B8")
+        delta_html = f"<div style='color: {delta_color}; font-size: 12px; font-weight: 500; margin-top: 6px; display: flex; align-items: center; gap: 4px;'>{delta_text}</div>"
         
     html_code = f"""
     <div style="
-        background: rgba(22, 27, 34, 0.6);
-        backdrop-filter: blur(10px);
-        padding: 16px;
-        border-radius: 12px;
-        border: 1px solid rgba(255,255,255,0.08);
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05);
+        background-color: #151A27;
+        padding: 16px 20px;
+        border-radius: 8px;
+        border: 1px solid #1E293B;
+        border-left: 3px solid {border_color};
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         font-family: 'Inter', sans-serif;
         position: relative;
-        overflow: hidden;
-        transition: transform 0.2s;
+        min-height: 105px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     ">
-        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 2px; background: {color}; opacity: 0.8; box-shadow: 0 0 10px {glow};"></div>
-        <div style="color: #8B949E; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">{label}</div>
-        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-            <span style="color: #FFFFFF; font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; line-height: 1;">{value_str}</span>
-            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerHTML='✅'; setTimeout(() => this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#8B949E\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\' ry=\\'2\\'></rect><path d=\\'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\\'></path></svg>', 2000);"
-                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; transition: 0.2s;" 
+        <div style="color: #94A3B8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">{label}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: {text_color if is_positive is not None else '#F8FAFC'}; font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; line-height: 1;">{value_str}</span>
+            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#10B981\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><polyline points=\\'20 6 9 17 4 12\\'></polyline></svg>'; setTimeout(() => this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#64748B\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\' ry=\\'2\\'></rect><path d=\\'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\\'></path></svg>', 2000);"
+                    style="background: transparent; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0.7;"
+                    onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'"
                     title="Copy">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B949E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
         </div>
         {delta_html}
@@ -282,39 +290,40 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
 # ============================================================
 with st.sidebar:
     st.markdown("""
-        <div style='display: flex; align-items: center; gap: 10px; margin-bottom: 20px;'>
-            <div style='background: linear-gradient(135deg, #2962FF, #00E5FF); padding: 8px; border-radius: 10px;'>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+        <div style='display: flex; align-items: center; gap: 12px; margin-bottom: 24px; margin-top: 10px;'>
+            <div style='background: #3B82F6; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;'>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
             </div>
             <div>
-                <h2 style='margin: 0; font-size: 20px; line-height: 1.2;'>TradeDesk <span style='color: #2962FF;'>Pro</span></h2>
-                <p style='margin: 0; color: #8B949E; font-size: 11px; letter-spacing: 1px;'>TERMINAL</p>
+                <h2 style='margin: 0; font-size: 18px; line-height: 1.2; color: #F8FAFC;'>TradeDesk <span style='color: #3B82F6;'>Pro</span></h2>
+                <p style='margin: 0; color: #64748B; font-size: 10px; letter-spacing: 1.5px; font-weight: 600;'>TERMINAL</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<p style='color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 5px;'>TÀI SẢN</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>TÀI SẢN</p>", unsafe_allow_html=True)
     selected_asset = st.selectbox("Asset", list(flat_assets.keys()), index=0, label_visibility="collapsed")
     ticker = flat_assets[selected_asset]
     
-    st.markdown("<p style='color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 5px; margin-top: 15px;'>KHUNG THỜI GIAN</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 15px;'>KHUNG THỜI GIAN</p>", unsafe_allow_html=True)
     timeframe = st.selectbox("TF", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
     interval_map = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}
     interval = interval_map[timeframe]
     
-    if st.button("🔄 Đồng bộ dữ liệu", use_container_width=True):
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    if st.button("Đồng bộ dữ liệu", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
         
-    st.divider()
+    st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
     
-    st.markdown("<p style='color: #8B949E; font-size: 12px; font-weight: 600; margin-bottom: 5px;'>HỆ THỐNG PHÂN TÍCH</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>HỆ THỐNG PHÂN TÍCH</p>", unsafe_allow_html=True)
     menu_selection = st.radio(
         "Menu",
         [
             "📊 Biểu Đồ Kỹ Thuật",
             "🎯 Kế Hoạch Giao Dịch",
-            "🧠 Cấu Trúc Thị Trường (SMC)",
+            "🧠 Cấu Trúc Thị Trường",
             "📰 Tin Tức & Sự Kiện",
             "📓 Nhật Ký Giao Dịch"
         ],
@@ -337,14 +346,23 @@ with st.spinner("⚙️ Đang xử lý thuật toán..."):
     change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
 # HEADER KPI
-st.markdown(f"""
-    <div style='display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;'>
-        <div>
-            <h1 style='margin: 0; font-size: 28px; color: white;'>{selected_asset.split(' - ')[1]}</h1>
-            <p style='margin: 0; color: #8B949E; font-family: "JetBrains Mono", monospace;'>{ticker} • {timeframe}</p>
+col_header, col_status = st.columns([3, 1])
+with col_header:
+    st.markdown(f"""
+        <div style='margin-bottom: 20px;'>
+            <h1 style='margin: 0; font-size: 26px; color: #F8FAFC; font-weight: 700;'>{selected_asset.split(' - ')[1]}</h1>
+            <p style='margin: 0; color: #64748B; font-family: "JetBrains Mono", monospace; font-size: 14px;'>{ticker} • {timeframe}</p>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
+with col_status:
+    st.markdown("""
+        <div style='display: flex; justify-content: flex-end; align-items: center; height: 100%;'>
+            <div style='background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;'>
+                <div style='width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; box-shadow: 0 0 8px #10B981;'></div>
+                <span style='color: #10B981; font-size: 12px; font-weight: 600;'>Live Market</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 with kpi1: premium_copyable_metric("Giá Hiện Tại", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0))
@@ -358,19 +376,25 @@ st.markdown("<br>", unsafe_allow_html=True)
 # KHU VỰC 1: BIỂU ĐỒ
 # ------------------------------------------------------------
 if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI", "MACD"))
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)"))
     
-    fig.add_trace(go.Candlestick(x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Giá", increasing_line_color="#00E676", decreasing_line_color="#FF1744"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA 20", line=dict(color="#2962FF", width=1.5)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA 50", line=dict(color="#E040FB", width=1.5)), row=1, col=1)
+    # Sử dụng màu Xanh lá mạ (Emerald) và Đỏ san hô (Rose) cho nến
+    fig.add_trace(go.Candlestick(
+        x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Giá", 
+        increasing_line_color="#10B981", decreasing_line_color="#F43F5E",
+        increasing_fillcolor="#10B981", decreasing_fillcolor="#F43F5E"
+    ), row=1, col=1)
     
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#00E5FF")), row=2, col=1)
-    fig.add_hline(y=70, line_dash="dot", line_color="#FF1744", row=2, col=1)
-    fig.add_hline(y=30, line_dash="dot", line_color="#00E676", row=2, col=1)
+    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA 20", line=dict(color="#60A5FA", width=1.5)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA 50", line=dict(color="#A78BFA", width=1.5)), row=1, col=1)
     
-    fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="Histogram", marker_color=["#00E676" if v >= 0 else "#FF1744" for v in df["MACD_hist"]]), row=3, col=1)
+    fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#38BDF8")), row=2, col=1)
+    fig.add_hline(y=70, line_dash="dot", line_color="#F43F5E", row=2, col=1)
+    fig.add_hline(y=30, line_dash="dot", line_color="#10B981", row=2, col=1)
     
-    # Làm trong suốt nền biểu đồ để hòa vào giao diện
+    fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="Histogram", marker_color=["#10B981" if v >= 0 else "#F43F5E" for v in df["MACD_hist"]]), row=3, col=1)
+    
+    # Cấu hình nền trong suốt hòa vào UI
     fig.update_layout(
         template="plotly_dark", 
         height=750, 
@@ -381,8 +405,8 @@ if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
         margin=dict(l=10, r=50, t=30, b=10), 
         dragmode="pan"
     )
-    fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.05)", rangeslider_visible=False)
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.05)", side="right")
+    fig.update_xaxes(showgrid=True, gridcolor="#1E293B", rangeslider_visible=False)
+    fig.update_yaxes(showgrid=True, gridcolor="#1E293B", side="right", tickfont=dict(family="JetBrains Mono, monospace", color="#64748B"))
     
     st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
 
@@ -390,40 +414,50 @@ if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
 # KHU VỰC 2: KẾ HOẠCH GIAO DỊCH
 # ------------------------------------------------------------
 elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
-    st.subheader("🎯 Thiết Lập Vị Thế")
-    col_slider, _ = st.columns([2, 2])
-    with col_slider: rr_ratio = st.slider("Tỷ lệ Risk:Reward", 1.0, 4.0, 2.0, 0.5)
+    st.subheader("Thiết Lập Vị Thế")
+    
+    col_slider, _ = st.columns([1, 2])
+    with col_slider: 
+        rr_ratio = st.slider("Tỷ lệ Risk:Reward", 1.0, 4.0, 2.0, 0.5)
         
     trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
     if trade_plan:
-        direction_color = "#00E676" if trade_plan['direction'] == "LONG" else "#FF1744"
-        st.markdown(f"<h3 style='color: {direction_color}; margin-top: 20px;'>Hướng: {trade_plan['direction']}</h3>", unsafe_allow_html=True)
+        direction_color = "#10B981" if trade_plan['direction'] == "LONG" else "#F43F5E"
+        direction_bg = "rgba(16, 185, 129, 0.1)" if trade_plan['direction'] == "LONG" else "rgba(244, 63, 94, 0.1)"
+        
+        st.markdown(f"""
+            <div style='background: {direction_bg}; border: 1px solid {direction_color}; padding: 15px; border-radius: 8px; margin-top: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;'>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{direction_color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                <h3 style='color: {direction_color}; margin: 0;'>Hướng Khuyến Nghị: {trade_plan['direction']}</h3>
+            </div>
+        """, unsafe_allow_html=True)
         
         col_entry, col_sl, col_tp = st.columns(3)
-        with col_entry: premium_copyable_metric("Entry", format_vn_price(trade_plan['entry']), "Vào lệnh", is_positive=None)
-        with col_sl: premium_copyable_metric("Stop-Loss", format_vn_price(trade_plan['sl']), "Cắt lỗ", is_positive=False)
-        with col_tp: premium_copyable_metric("Take-Profit", format_vn_price(trade_plan['tp']), "Chốt lời", is_positive=True)
+        with col_entry: premium_copyable_metric("Entry (Vào lệnh)", format_vn_price(trade_plan['entry']), "Giá hiện tại", is_positive=None)
+        with col_sl: premium_copyable_metric("Stop-Loss (Cắt lỗ)", format_vn_price(trade_plan['sl']), "Bảo vệ vốn", is_positive=False)
+        with col_tp: premium_copyable_metric("Take-Profit (Chốt lời)", format_vn_price(trade_plan['tp']), "Mục tiêu lợi nhuận", is_positive=True)
 
 # ------------------------------------------------------------
 # KHU VỰC 3: SMC
 # ------------------------------------------------------------
-elif menu_selection == "🧠 Cấu Trúc Thị Trường (SMC)":
-    st.subheader("🧠 Phân Tích Cấu Trúc (SMC)")
+elif menu_selection == "🧠 Cấu Trúc Thị Trường":
+    st.subheader("Phân Tích Cấu Trúc (SMC)")
     st.info("Hệ thống đang phân tích dòng tiền thông minh...")
 
 # ------------------------------------------------------------
 # KHU VỰC 4: TIN TỨC
 # ------------------------------------------------------------
 elif menu_selection == "📰 Tin Tức & Sự Kiện":
-    st.subheader(f"📰 Tin Tức: {selected_asset.split(' - ')[1]}")
+    st.subheader(f"Tin Tức: {selected_asset.split(' - ')[1]}")
     news = fetch_news(ticker)
+    
     for item in news:
         st.markdown(f"""
-            <div style='background: rgba(22, 27, 34, 0.6); backdrop-filter: blur(10px); padding: 15px; border-radius: 10px; border-left: 4px solid #2962FF; margin-bottom: 12px;'>
-                <div style='color: #FFFFFF; font-weight: 600; font-size: 16px; margin-bottom: 8px;'>
-                    <a href='{item['link']}' target='_blank' style='color: #58A6FF; text-decoration: none;'>{item['title']}</a>
+            <div style='background: #151A27; padding: 16px; border-radius: 8px; border: 1px solid #1E293B; border-left: 3px solid #3B82F6; margin-bottom: 12px; transition: transform 0.2s;'>
+                <div style='color: #F8FAFC; font-weight: 500; font-size: 15px; margin-bottom: 8px; line-height: 1.4;'>
+                    <a href='{item['link']}' target='_blank' style='color: #F8FAFC; text-decoration: none;' onmouseover="this.style.color='#60A5FA'" onmouseout="this.style.color='#F8FAFC'">{item['title']}</a>
                 </div>
-                <div style='color: #8B949E; font-size: 12px; display: flex; align-items: center; gap: 5px;'>
+                <div style='color: #64748B; font-size: 12px; display: flex; align-items: center; gap: 6px; font-family: "JetBrains Mono", monospace;'>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     {item['published']}
                 </div>
@@ -434,36 +468,37 @@ elif menu_selection == "📰 Tin Tức & Sự Kiện":
 # KHU VỰC 5: NHẬT KÝ GIAO DỊCH
 # ------------------------------------------------------------
 elif menu_selection == "📓 Nhật Ký Giao Dịch":
-    st.subheader("📓 Nhật Ký Giao Dịch")
+    st.subheader("Nhật Ký Giao Dịch")
     
-    col_form, col_history = st.columns([1, 2])
+    col_form, col_history = st.columns([1, 2], gap="large")
     
     with col_form:
-        with st.container():
-            with st.form("journal_form", clear_on_submit=True):
-                st.markdown("<p style='font-weight:600; color:#E6EDF3;'>➕ Ghi Lệnh Mới</p>", unsafe_allow_html=True)
-                trade_date = st.date_input("Ngày", datetime.today())
-                asset_name = st.text_input("Tài sản", value=selected_asset.split(' - ')[1])
-                direction = st.selectbox("Hướng", ["LONG", "SHORT"])
-                result = st.selectbox("Kết quả", ["WIN", "LOSS", "HÒA"])
-                pnl_val = st.number_input("PnL (% hoặc $)", value=0.0, step=0.1)
-                reason = st.text_area("Lý do", placeholder="Ghi chú kỷ luật...")
+        st.markdown("<div style='background: #151A27; padding: 20px; border-radius: 8px; border: 1px solid #1E293B;'>", unsafe_allow_html=True)
+        with st.form("journal_form", clear_on_submit=True):
+            st.markdown("<p style='font-weight:600; color:#F8FAFC; font-size: 16px; margin-bottom: 15px;'>➕ Ghi Lệnh Mới</p>", unsafe_allow_html=True)
+            trade_date = st.date_input("Ngày", datetime.today())
+            asset_name = st.text_input("Tài sản", value=selected_asset.split(' - ')[1])
+            direction = st.selectbox("Hướng", ["LONG", "SHORT"])
+            result = st.selectbox("Kết quả", ["WIN", "LOSS", "HÒA"])
+            pnl_val = st.number_input("PnL (% hoặc $)", value=0.0, step=0.1)
+            reason = st.text_area("Lý do", placeholder="Ghi chú kỷ luật...")
+            
+            submitted = st.form_submit_button("Lưu Lệnh")
+            if submitted:
+                add_trade(str(trade_date), asset_name.upper(), direction, result, reason, pnl_val)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
                 
-                submitted = st.form_submit_button("💾 Lưu Lệnh")
-                if submitted:
-                    add_trade(str(trade_date), asset_name.upper(), direction, result, reason, pnl_val)
-                    st.rerun()
-                    
-            # Backup tools
-            st.markdown("<hr style='border-color: rgba(255,255,255,0.05); margin: 15px 0;'>", unsafe_allow_html=True)
-            journal_df = get_trades()
-            if not journal_df.empty:
-                csv = journal_df.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Tải file Backup", data=csv, file_name="journal.csv", mime="text/csv")
+        # Backup tools
+        journal_df = get_trades()
+        if not journal_df.empty:
+            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+            csv = journal_df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Tải file Backup (CSV)", data=csv, file_name="journal.csv", mime="text/csv", use_container_width=True)
 
     with col_history:
         if journal_df.empty:
-            st.info("Chưa có dữ liệu.")
+            st.info("Chưa có dữ liệu giao dịch.")
         else:
             journal_df['date'] = pd.to_datetime(journal_df['date'], errors='coerce')
             journal_df['pnl'] = pd.to_numeric(journal_df['pnl'], errors='coerce')
@@ -491,16 +526,16 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
                 filtered_df['date'] = filtered_df['date'].dt.strftime('%d/%m/%Y')
                 
                 def color_result(val):
-                    if val == 'WIN': return 'color: #00E676; font-weight: bold;'
-                    elif val == 'LOSS': return 'color: #FF1744; font-weight: bold;'
-                    return ''
+                    if val == 'WIN': return 'color: #10B981; font-weight: 600;'
+                    elif val == 'LOSS': return 'color: #F43F5E; font-weight: 600;'
+                    return 'color: #94A3B8;'
                 def color_pnl(val):
                     try:
                         val = float(val)
-                        if val > 0: return 'color: #00E676;'
-                        elif val < 0: return 'color: #FF1744;'
+                        if val > 0: return 'color: #10B981;'
+                        elif val < 0: return 'color: #F43F5E;'
                     except: pass
-                    return ''
+                    return 'color: #94A3B8;'
 
                 styled_df = filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style \
                     .map(color_result, subset=['result']) \
