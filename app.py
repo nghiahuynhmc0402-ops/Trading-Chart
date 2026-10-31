@@ -22,10 +22,10 @@ except ImportError:
     HAS_SMC = False
 
 # ============================================================
-# 1. CẤU HÌNH GIAO DIỆN & CSS (QUANTUM GLASS TERMINAL)
+# 1. CẤU HÌNH GIAO DIỆN & CSS (QUANTUM GLASS - NGHIA_TRADING)
 # ============================================================
 st.set_page_config(
-    page_title="Quantum Terminal",
+    page_title="Nghia_Trading | Terminal",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -56,7 +56,7 @@ st.markdown("""
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
     
-    /* Menu Điều Hướng (Radio) - Pill Style */
+    /* Menu Điều Hướng (Radio) */
     div[data-testid="stRadio"] > div[role="radiogroup"] { gap: 6px !important; }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label { 
         padding: 12px 16px !important; 
@@ -106,7 +106,7 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
     }
     
-    /* Nút bấm (Premium Glow) */
+    /* Nút bấm */
     .stButton>button { 
         width: 100%; 
         border-radius: 8px !important; 
@@ -155,7 +155,7 @@ st.markdown("""
     .sidebar-subtitle { font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
     .menu-label { color: #71717a; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; margin-top: 10px; padding-left: 10px; }
     
-    /* Pro Card */
+    /* Pro Card & Footer */
     .pro-card {
         background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
         border-radius: 12px;
@@ -165,20 +165,21 @@ st.markdown("""
     }
     .pro-card h4 { margin: 0 0 5px 0; font-size: 14px; color: #fff; }
     .pro-card p { margin: 0; font-size: 12px; color: #a1a1aa; }
+    .copyright { text-align: center; color: #52525b; font-size: 11px; margin-top: 30px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.05); }
     
-    /* SMC Cards */
-    .smc-card {
+    /* SMC & MTF Cards */
+    .glass-card {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 12px;
         padding: 20px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .smc-card:hover {
+    .glass-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
     }
-    .smc-title {
+    .card-title {
         color: #ffffff;
         font-weight: 600;
         font-size: 15px;
@@ -186,34 +187,19 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding-bottom: 10px;
     }
-    .smc-row {
+    .row-item {
         display: flex;
         justify-content: space-between;
         margin-bottom: 10px;
         font-size: 13px;
         color: #a1a1aa;
     }
-    .smc-val { color: #e4e4e7; font-weight: 600; font-family: 'JetBrains Mono', monospace;}
-    .val-green { color: #10b981; }
-    .val-red { color: #f43f5e; }
-    
-    /* News Cards */
-    .news-card-item {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 15px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        transition: transform 0.2s ease;
-    }
-    .news-card-item:hover {
-        transform: translateX(5px);
-        border-color: rgba(99, 102, 241, 0.3);
-    }
+    .val-data { color: #e4e4e7; font-weight: 600; font-family: 'JetBrains Mono', monospace;}
+    .val-up { color: #10b981; }
+    .val-down { color: #f43f5e; }
     
     footer {visibility: hidden;}
     #MainMenu {visibility: hidden;}
@@ -263,7 +249,7 @@ def get_bot_history(asset):
         return pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' ORDER BY id DESC", conn)
 
 # ============================================================
-# 3. UI COMPONENTS & FORMAT
+# 3. UI COMPONENTS & LOGIC
 # ============================================================
 def format_vn_price(value) -> str:
     if pd.isna(value) or value is None: return "N/A"
@@ -271,7 +257,6 @@ def format_vn_price(value) -> str:
     except: return str(value)
 
 def quantum_metric(label, value_str, delta_text=None, is_positive=None):
-    """Thẻ KPI phong cách Quantum Glass"""
     border_color = "rgba(255,255,255,0.05)"
     text_color = "#ffffff"
     delta_color = "#a1a1aa"
@@ -290,28 +275,11 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
         delta_html = f"<div style='color: {delta_color}; font-size: 13px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 4px;'>{delta_text}</div>"
         
     html_code = f"""
-    <div style="
-        background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
-        backdrop-filter: blur(10px);
-        padding: 18px 20px;
-        border-radius: 12px;
-        border: 1px solid {border_color};
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.05);
-        font-family: 'Inter', sans-serif;
-        position: relative;
-        min-height: 105px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        transition: transform 0.2s;
-    ">
+    <div style="background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%); backdrop-filter: blur(10px); padding: 18px 20px; border-radius: 12px; border: 1px solid {border_color}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255,255,255,0.05); font-family: 'Inter', sans-serif; position: relative; min-height: 105px; display: flex; flex-direction: column; justify-content: center;">
         <div style="color: #71717a; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">{label}</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <span style="color: {text_color}; font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; line-height: 1; text-shadow: 0 0 10px {glow};">{value_str}</span>
-            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#10b981\\' stroke-width=\\'2\\'><polyline points=\\'20 6 9 17 4 12\\'></polyline></svg>'; setTimeout(() => this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#71717a\\' stroke-width=\\'2\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\' ry=\\'2\\'></rect><path d=\\'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\\'></path></svg>', 2000);"
-                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; transition: 0.2s;" 
-                    onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'"
-                    title="Copy">
+            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#10b981\\' stroke-width=\\'2\\'><polyline points=\\'20 6 9 17 4 12\\'></polyline></svg>'; setTimeout(() => this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#71717a\\' stroke-width=\\'2\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\' ry=\\'2\\'></rect><path d=\\'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\\'></path></svg>', 2000);" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; padding: 6px; display: flex; align-items: center; justify-content: center; transition: 0.2s;" title="Copy">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717a" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
         </div>
@@ -320,9 +288,6 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
     """
     components.html(html_code, height=120)
 
-# ============================================================
-# 4. LOGIC BOT & TÍNH TOÁN
-# ============================================================
 def run_bot_engine(df, ticker, timeframe):
     latest = df.iloc[-1]
     current_time = str(latest['Time'])
@@ -349,7 +314,7 @@ def run_bot_engine(df, ticker, timeframe):
     elif (latest['EMA20'] < latest['EMA50'] and 25 < latest['RSI'] < 45 and latest['MACD_hist'] < 0 and latest['ADX'] > 20):
         add_bot_trade(current_time, ticker, 'SHORT', entry, latest['High'] + atr, entry - ((latest['High'] + atr) - entry) * 2.0)
 
-@st.cache_data(ttl=300, show_spinner="⏳ ĐANG KẾT NỐI DỮ LIỆU...")
+@st.cache_data(ttl=300, show_spinner="⏳ ĐANG TẢI DỮ LIỆU CHÍNH...")
 def load_data(ticker: str, interval: str):
     period = "1mo" if interval in ["1m", "5m", "15m", "60m"] else "2y"
     try:
@@ -362,6 +327,25 @@ def load_data(ticker: str, interval: str):
         df["Time"] = pd.to_datetime(df["Time"])
         return df.dropna(subset=["Close"])
     except: return None
+
+@st.cache_data(ttl=600, show_spinner="🌐 ĐANG QUÉT ĐA KHUNG THỜI GIAN...")
+def load_mtf_data(ticker: str):
+    mtf_trends = {}
+    intervals = {"15m": "15 Phút", "60m": "1 Giờ", "1d": "1 Ngày"}
+    for interval, name in intervals.items():
+        try:
+            df = yf.download(ticker, period="1mo", interval=interval, progress=False, auto_adjust=True)
+            if not df.empty and len(df) > 50:
+                if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+                df["EMA20"] = EMAIndicator(close=df["Close"], window=20).ema_indicator()
+                df["EMA50"] = EMAIndicator(close=df["Close"], window=50).ema_indicator()
+                last = df.iloc[-1]
+                mtf_trends[name] = "TĂNG" if last["EMA20"] > last["EMA50"] else "GIẢM"
+            else:
+                mtf_trends[name] = "N/A"
+        except:
+            mtf_trends[name] = "N/A"
+    return mtf_trends
 
 @st.cache_data(ttl=600, show_spinner="📰 ĐANG TẢI TIN TỨC...")
 def fetch_news(ticker_name: str):
@@ -390,10 +374,28 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
     else:
         entry, sl, direction = last["Close"], r_high + (atr * 0.5), "SHORT"
         tp = entry - (sl - entry) * risk_reward
-    return {"direction": direction, "entry": entry, "sl": sl, "tp": tp}
+    return {"direction": direction, "entry": entry, "sl": sl, "tp": tp, "atr": atr}
+
+def calculate_fibonacci(df: pd.DataFrame) -> dict:
+    # Tìm Swing High/Low trong 100 nến gần nhất
+    if len(df) < 100: return None
+    recent_df = df.tail(100)
+    swing_high = recent_df["High"].max()
+    swing_low = recent_df["Low"].min()
+    diff = swing_high - swing_low
+    
+    return {
+        "Swing High": swing_high,
+        "Swing Low": swing_low,
+        "Fib 0.236": swing_high - (diff * 0.236),
+        "Fib 0.382": swing_high - (diff * 0.382),
+        "Fib 0.500": swing_high - (diff * 0.500),
+        "Fib 0.618": swing_high - (diff * 0.618),
+        "Fib 0.786": swing_high - (diff * 0.786)
+    }
 
 # ============================================================
-# 5. SIDEBAR
+# 4. SIDEBAR
 # ============================================================
 with st.sidebar:
     st.markdown("""
@@ -402,8 +404,8 @@ with st.sidebar:
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
             </div>
             <div>
-                <h2 class='sidebar-title'>Quantum</h2>
-                <div class='sidebar-subtitle'>Terminal</div>
+                <h2 class='sidebar-title'>Nghia_Trading</h2>
+                <div class='sidebar-subtitle'>Terminal UI</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -413,7 +415,7 @@ with st.sidebar:
     ticker = flat_assets[selected_asset]
     
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #71717a; font-size: 12px; margin-bottom: 5px; font-weight: 500;'>Khung thời gian</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #71717a; font-size: 12px; margin-bottom: 5px; font-weight: 500;'>Khung thời gian (Biểu đồ)</p>", unsafe_allow_html=True)
     timeframe = st.selectbox("TF", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
     interval = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}[timeframe]
     
@@ -423,19 +425,22 @@ with st.sidebar:
         
     st.markdown("<hr style='border-color: rgba(255,255,255,0.05); margin: 20px 0;'>", unsafe_allow_html=True)
     st.markdown("<div class='menu-label'>Menu</div>", unsafe_allow_html=True)
-    menu_selection = st.radio("Menu", ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🧠 Phân tích SMC", "📰 Tin tức", "📓 Nhật ký"], label_visibility="collapsed")
+    menu_selection = st.radio("Menu", ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"], label_visibility="collapsed")
     
     st.markdown("""
-        <div style='margin-top: 30px;'>
+        <div style='margin-top: 20px;'>
             <div class='pro-card'>
-                <h4>Quantum Pro</h4>
+                <h4>Nghia_Trading Pro</h4>
                 <p>Mở khóa tính năng Bot AI và dữ liệu Realtime.</p>
+            </div>
+            <div class='copyright'>
+                © 2024 Nghia_Trading.<br>All rights reserved.
             </div>
         </div>
     """, unsafe_allow_html=True)
 
 # ============================================================
-# 6. MAIN AREA
+# 5. MAIN AREA
 # ============================================================
 df = load_data(ticker, interval)
 
@@ -474,7 +479,7 @@ with kpi4: quantum_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "Đ�
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# KHU VỰC 1: TỔNG QUAN (BIỂU ĐỒ)
+# KHU VỰC 1: BIỂU ĐỒ
 # ------------------------------------------------------------
 if menu_selection == "📊 Biểu đồ":
     chart_df = df.tail(300).copy()
@@ -505,15 +510,11 @@ if menu_selection == "📊 Biểu đồ":
     fig.update_layout(
         template="plotly_dark", height=700, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", 
         hovermode="x", showlegend=False, margin=dict(l=10, r=50, t=30, b=10), dragmode="pan",
-        font=dict(family="Inter, sans-serif", color="#a1a1aa", size=12),
-        uirevision='constant'
+        font=dict(family="Inter, sans-serif", color="#a1a1aa", size=12), uirevision='constant'
     )
     
     fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.05)", gridwidth=1, rangeslider_visible=False)
-    fig.update_xaxes(
-        rangeslider=dict(visible=True, bgcolor="rgba(255,255,255,0.02)", bordercolor="rgba(255,255,255,0.1)", borderwidth=1), 
-        row=3, col=1
-    )
+    fig.update_xaxes(rangeslider=dict(visible=True, bgcolor="rgba(255,255,255,0.02)", bordercolor="rgba(255,255,255,0.1)", borderwidth=1), row=3, col=1)
     fig.update_xaxes(
         rangeselector=dict(
             buttons=list([
@@ -531,26 +532,53 @@ if menu_selection == "📊 Biểu đồ":
     st.caption("💡 **Mẹo di động:** Dùng 2 ngón tay để phóng to/thu nhỏ. Dùng 1 ngón tay để kéo biểu đồ. Hoặc dùng thanh trượt ở dưới cùng.")
 
 # ------------------------------------------------------------
-# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & BOT
+# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & BOT + TÍNH VỊ THẾ
 # ------------------------------------------------------------
 elif menu_selection == "🎯 Kế hoạch giao dịch":
-    st.subheader("Kế hoạch giao dịch thủ công")
+    st.subheader("Kế hoạch giao dịch & Quản lý vốn")
     
-    col_slider, _ = st.columns([1, 2])
-    with col_slider: rr_ratio = st.slider("Tỷ lệ R:R", 1.0, 4.0, 2.0, 0.5)
+    col_plan, col_risk = st.columns([2, 1])
+    
+    with col_plan:
+        rr_ratio = st.slider("Tỷ lệ R:R", 1.0, 4.0, 2.0, 0.5)
+        trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
         
-    trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
-    if trade_plan:
-        direction_color = "#10b981" if trade_plan['direction'] == "LONG" else "#f43f5e"
-        direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
-        st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;'>Tín hiệu: {direction_vn}</h3>", unsafe_allow_html=True)
+        if trade_plan:
+            direction_color = "#10b981" if trade_plan['direction'] == "LONG" else "#f43f5e"
+            direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
+            st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;'>Tín hiệu: {direction_vn}</h3>", unsafe_allow_html=True)
+            
+            col_entry, col_sl, col_tp = st.columns(3)
+            with col_entry: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None)
+            with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False)
+            with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
+            
+    with col_risk:
+        st.markdown("<div class='glass-card' style='min-height: 280px;'>", unsafe_allow_html=True)
+        st.markdown("<div class='card-title'>🧮 Máy Tính Vị Thế</div>", unsafe_allow_html=True)
         
-        col_entry, col_sl, col_tp = st.columns(3)
-        with col_entry: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None)
-        with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False)
-        with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
+        balance = st.number_input("Số dư tài khoản ($)", value=1000.0, step=100.0)
+        risk_pct = st.number_input("Rủi ro mỗi lệnh (%)", value=1.0, step=0.5)
+        
+        if trade_plan:
+            risk_amount = balance * (risk_pct / 100)
+            sl_distance = abs(trade_plan['entry'] - trade_plan['sl'])
+            
+            if sl_distance > 0:
+                position_size = risk_amount / sl_distance
+                st.markdown(f"""
+                    <div style='margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1);'>
+                        <div class='row-item'><span>Số tiền rủi ro:</span> <span class='val-data'>${risk_amount:,.2f}</span></div>
+                        <div class='row-item'><span>Khoảng cách SL:</span> <span class='val-data'>{format_vn_price(sl_distance)}</span></div>
+                        <div class='row-item' style='margin-top: 10px;'>
+                            <span style='color: #fff;'>Khối lượng (Size):</span> 
+                            <span class='val-data val-up' style='font-size: 18px;'>{position_size:,.4f}</span>
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.divider()
+    st.markdown("<hr style='border-color: rgba(255,255,255,0.05); margin: 30px 0;'>", unsafe_allow_html=True)
     st.subheader("Nhật ký Bot tự động")
     
     col_bot_btn, _ = st.columns([1, 3])
@@ -588,14 +616,11 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
         c3.metric("Lệnh cắt sớm", len(closed_trades[closed_trades['status'] == 'CUT_EARLY']))
         
         st.markdown("<br>", unsafe_allow_html=True)
-        
         display_df = bot_df.copy()
         display_df['open_time'] = pd.to_datetime(display_df['open_time']).dt.strftime('%d/%m/%Y %H:%M')
         display_df['close_time'] = pd.to_datetime(display_df['close_time']).dt.strftime('%d/%m/%Y %H:%M').fillna('-')
-        
         display_df['direction'] = display_df['direction'].replace({'LONG': 'MUA', 'SHORT': 'BÁN'})
         display_df['status'] = display_df['status'].replace({'WIN': 'THẮNG', 'LOSS': 'THUA', 'CUT_EARLY': 'CẮT SỚM', 'ACTIVE': 'ĐANG MỞ'})
-        
         for col in ['entry_price', 'exit_price', 'sl', 'tp']:
             display_df[col] = display_df[col].apply(lambda x: format_vn_price(x) if pd.notna(x) else '-')
             
@@ -634,45 +659,122 @@ elif menu_selection == "🧠 Phân tích SMC":
                 col_fvg, col_obs, col_struct = st.columns(3)
                 with col_fvg:
                     st.markdown(f"""
-                        <div class='smc-card'>
-                            <div class='smc-title'>📊 Fair Value Gaps</div>
-                            <div class='smc-row'><span>FVG Tăng:</span> <span class='smc-val val-green'>{len(fvg.bullish)}</span></div>
-                            <div class='smc-row'><span>FVG Giảm:</span> <span class='smc-val val-red'>{len(fvg.bearish)}</span></div>
-                            <div class='smc-row'><span>Đã lấp đầy:</span> <span class='smc-val'>{len(fvg.mitigated_50)}</span></div>
+                        <div class='glass-card'>
+                            <div class='card-title'>📊 Fair Value Gaps</div>
+                            <div class='row-item'><span>FVG Tăng:</span> <span class='val-data val-up'>{len(fvg.bullish)}</span></div>
+                            <div class='row-item'><span>FVG Giảm:</span> <span class='val-data val-down'>{len(fvg.bearish)}</span></div>
+                            <div class='row-item'><span>Đã lấp đầy:</span> <span class='val-data'>{len(fvg.mitigated_50)}</span></div>
                         </div>
                     """, unsafe_allow_html=True)
                 with col_obs:
                     st.markdown(f"""
-                        <div class='smc-card'>
-                            <div class='smc-title'>📦 Order Blocks</div>
-                            <div class='smc-row'><span>OB Cầu:</span> <span class='smc-val val-green'>{len(obs.bullish_ob)}</span></div>
-                            <div class='smc-row'><span>OB Cung:</span> <span class='smc-val val-red'>{len(obs.bearish_ob)}</span></div>
-                            <div class='smc-row'><span>OB Phá vỡ:</span> <span class='smc-val'>{len(obs.is_breaker)}</span></div>
+                        <div class='glass-card'>
+                            <div class='card-title'>📦 Order Blocks</div>
+                            <div class='row-item'><span>OB Cầu:</span> <span class='val-data val-up'>{len(obs.bullish_ob)}</span></div>
+                            <div class='row-item'><span>OB Cung:</span> <span class='val-data val-down'>{len(obs.bearish_ob)}</span></div>
+                            <div class='row-item'><span>OB Phá vỡ:</span> <span class='val-data'>{len(obs.is_breaker)}</span></div>
                         </div>
                     """, unsafe_allow_html=True)
                 with col_struct:
                     st.markdown(f"""
-                        <div class='smc-card'>
-                            <div class='smc-title'>📈 Cấu Trúc Giá</div>
-                            <div class='smc-row'><span>Xu hướng:</span> <span class='smc-val' style='color: {trend_color};'>{trend_text}</span></div>
-                            <div class='smc-row'><span>BOS Tăng:</span> <span class='smc-val val-green'>{'CÓ' if bos_bull else 'KHÔNG'}</span></div>
-                            <div class='smc-row'><span>BOS Giảm:</span> <span class='smc-val val-red'>{'CÓ' if bos_bear else 'KHÔNG'}</span></div>
-                            <div class='smc-row'><span>CHOCH:</span> <span class='smc-val'>{'CÓ' if choch_val != 0 else 'KHÔNG'}</span></div>
+                        <div class='glass-card'>
+                            <div class='card-title'>📈 Cấu Trúc Giá</div>
+                            <div class='row-item'><span>Xu hướng:</span> <span class='val-data' style='color: {trend_color};'>{trend_text}</span></div>
+                            <div class='row-item'><span>BOS Tăng:</span> <span class='val-data val-up'>{'CÓ' if bos_bull else 'KHÔNG'}</span></div>
+                            <div class='row-item'><span>BOS Giảm:</span> <span class='val-data val-down'>{'CÓ' if bos_bear else 'KHÔNG'}</span></div>
+                            <div class='row-item'><span>CHOCH:</span> <span class='val-data'>{'CÓ' if choch_val != 0 else 'KHÔNG'}</span></div>
                         </div>
                     """, unsafe_allow_html=True)
             except Exception as e:
                 st.error(f"Lỗi phân tích SMC: {e}")
 
 # ------------------------------------------------------------
-# KHU VỰC 4: TIN TỨC
+# KHU VỰC 4: ĐA KHUNG THỜI GIAN (MTF)
+# ------------------------------------------------------------
+elif menu_selection == "🌐 Đa Khung Thời Gian":
+    st.subheader("Phân Tích Đa Khung Thời Gian (MTF)")
+    st.markdown("<p style='color: #a1a1aa; font-size: 14px;'>Hệ thống tự động quét xu hướng dựa trên giao cắt EMA20 và EMA50 trên 3 khung thời gian. Khi cả 3 khung đồng thuận, xác suất thắng sẽ cao hơn.</p>", unsafe_allow_html=True)
+    
+    mtf_data = load_mtf_data(ticker)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    def render_mtf_card(col, tf_name, trend_val):
+        color = "#10b981" if trend_val == "TĂNG" else ("#f43f5e" if trend_val == "GIẢM" else "#a1a1aa")
+        icon = "📈" if trend_val == "TĂNG" else ("📉" if trend_val == "GIẢM" else "➖")
+        
+        with col:
+            st.markdown(f"""
+                <div class='glass-card' style='text-align: center; border-top: 3px solid {color};'>
+                    <div style='color: #71717a; font-size: 13px; font-weight: 600; letter-spacing: 1px; margin-bottom: 10px;'>{tf_name}</div>
+                    <div style='font-size: 40px; margin-bottom: 10px;'>{icon}</div>
+                    <div style='color: {color}; font-size: 20px; font-weight: 700;'>{trend_val}</div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+    render_mtf_card(col1, "KHUNG 15 PHÚT", mtf_data.get("15 Phút", "N/A"))
+    render_mtf_card(col2, "KHUNG 1 GIỜ", mtf_data.get("1 Giờ", "N/A"))
+    render_mtf_card(col3, "KHUNG 1 NGÀY", mtf_data.get("1 Ngày", "N/A"))
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Đánh giá tổng quan
+    up_count = list(mtf_data.values()).count("TĂNG")
+    down_count = list(mtf_data.values()).count("GIẢM")
+    
+    if up_count == 3:
+        st.success("🔥 **ĐỒNG QUY TĂNG MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng tăng. Ưu tiên tìm điểm MUA (LONG).")
+    elif down_count == 3:
+        st.error("🩸 **ĐỒNG QUY GIẢM MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng giảm. Ưu tiên tìm điểm BÁN (SHORT).")
+    else:
+        st.warning("⚠️ **XUNG ĐỘT XU HƯỚNG:** Các khung thời gian chưa đồng nhất. Nên đứng ngoài chờ đợi tín hiệu rõ ràng hơn.")
+
+# ------------------------------------------------------------
+# KHU VỰC 5: FIBONACCI
+# ------------------------------------------------------------
+elif menu_selection == "📏 Fibonacci":
+    st.subheader("Fibonacci Retracement (100 nến gần nhất)")
+    
+    fib_data = calculate_fibonacci(df)
+    
+    if fib_data:
+        col_info, col_levels = st.columns([1, 2])
+        
+        with col_info:
+            st.markdown(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>📍 Điểm Neo (Swing)</div>
+                    <div class='row-item'><span>Đỉnh (Swing High):</span> <span class='val-data val-down'>{format_vn_price(fib_data['Swing High'])}</span></div>
+                    <div class='row-item'><span>Đáy (Swing Low):</span> <span class='val-data val-up'>{format_vn_price(fib_data['Swing Low'])}</span></div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        with col_levels:
+            st.markdown(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>📏 Các Mức Hỗ Trợ / Kháng Cự</div>
+                    <div class='row-item'><span>Fib 0.236:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.236'])}</span></div>
+                    <div class='row-item'><span>Fib 0.382:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.382'])}</span></div>
+                    <div class='row-item'><span>Fib 0.500 (Vàng):</span> <span class='val-data' style='color: #fbbf24;'>{format_vn_price(fib_data['Fib 0.500'])}</span></div>
+                    <div class='row-item'><span>Fib 0.618 (Vàng):</span> <span class='val-data' style='color: #fbbf24;'>{format_vn_price(fib_data['Fib 0.618'])}</span></div>
+                    <div class='row-item'><span>Fib 0.786:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.786'])}</span></div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        st.info("💡 **Mẹo:** Mức 0.5 và 0.618 (Golden Ratio) là những vùng phản ứng giá rất mạnh. Nếu giá hồi về đây và có tín hiệu đảo chiều (nến Pinbar, Engulfing), đó là điểm vào lệnh tuyệt vời.")
+    else:
+        st.warning("Không đủ dữ liệu để tính Fibonacci.")
+
+# ------------------------------------------------------------
+# KHU VỰC 6: TIN TỨC
 # ------------------------------------------------------------
 elif menu_selection == "📰 Tin tức":
     st.subheader(f"Tin tức: {selected_asset.split(' - ')[1]}")
     news = fetch_news(ticker)
     for item in news:
         st.markdown(f"""
-            <div class='news-card-item'>
-                <a href='{item['link']}' target='_blank' style='color: #6366f1; text-decoration: none; font-weight: 600; font-size: 15px;' onmouseover="this.style.color='#a855f7'" onmouseout="this.style.color='#6366f1'">{item['title']}</a>
+            <div class='glass-card' style='padding: 15px; margin-bottom: 15px; cursor: pointer;' onclick="window.open('{item['link']}', '_blank')">
+                <div style='color: #6366f1; font-weight: 600; font-size: 15px; margin-bottom: 8px;'>{item['title']}</div>
                 <div style='color: #71717a; font-size: 12px; display: flex; align-items: center; gap: 5px;'>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     {item['published']}
@@ -681,14 +783,14 @@ elif menu_selection == "📰 Tin tức":
         """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# KHU VỰC 5: NHẬT KÝ GIAO DỊCH
+# KHU VỰC 7: NHẬT KÝ GIAO DỊCH
 # ------------------------------------------------------------
 elif menu_selection == "📓 Nhật ký":
     st.subheader("Nhật ký giao dịch thủ công")
     col_form, col_history = st.columns([1, 2], gap="large")
     
     with col_form:
-        st.markdown("<div style='background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px;'>", unsafe_allow_html=True)
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
         with st.form("journal_form", clear_on_submit=True):
             st.markdown("<p style='color: #ffffff; font-weight: 600; margin-bottom: 15px;'>➕ Ghi nhận lệnh mới</p>", unsafe_allow_html=True)
             trade_date = st.date_input("Ngày")
