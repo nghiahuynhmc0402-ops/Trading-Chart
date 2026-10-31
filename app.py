@@ -58,9 +58,9 @@ POPULAR_ASSETS = {
 flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
 
 # ============================================================
-# 3. HÀM XỬ LÝ DỮ LIỆU & TIN TỨC
+# 3. HÀM XỬ LÝ DỮ LIỆU & TIN TỨC (CÓ LOADING)
 # ============================================================
-@st.cache_data(ttl=300, show_spinner=False)
+@st.cache_data(ttl=300, show_spinner="⏳ Đang tải dữ liệu thị trường...")
 def load_data(ticker: str, interval: str):
     period = "1y"
     if interval in ["1m", "5m", "15m", "60m"]: period = "1mo"
@@ -78,9 +78,8 @@ def load_data(ticker: str, interval: str):
     except:
         return None
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=600, show_spinner="📰 Đang tải tin tức mới nhất...")
 def fetch_news(ticker_name: str):
-    """Lấy tin tức mới nhất từ Yahoo Finance RSS."""
     search_query = ticker_name.replace(" ", "+")
     url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={search_query}&region=US&lang=en-US"
     feed = feedparser.parse(url)
@@ -97,51 +96,44 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     close, high, low = df["Close"], df["High"], df["Low"]
     
-    # Trend
     df["EMA20"] = EMAIndicator(close=close, window=20).ema_indicator()
     df["EMA50"] = EMAIndicator(close=close, window=50).ema_indicator()
     df["SMA200"] = SMAIndicator(close=close, window=200).sma_indicator()
-    ichimoku = IchimokuIndicator(high=high, low=low, window1=9, window2=26, window3=52)
-    df["Ichimoku_A"] = ichimoku.ichimoku_a()
-    df["Ichimoku_B"] = ichimoku.ichimoku_b()
     
-    # Momentum
     df["RSI"] = RSIIndicator(close=close, window=14).rsi()
     macd = MACD(close=close)
     df["MACD"] = macd.macd()
     df["MACD_signal"] = macd.macd_signal()
     df["MACD_hist"] = macd.macd_diff()
+    
     stoch = StochasticOscillator(high=high, low=low, close=close, window=14, smooth_window=3)
     df["Stoch_K"] = stoch.stoch()
     df["Stoch_D"] = stoch.stoch_signal()
     
-    # Volatility & Strength
     bb = BollingerBands(close=close, window=20, window_dev=2)
     df["BB_upper"] = bb.bollinger_hband()
     df["BB_lower"] = bb.bollinger_lband()
     df["ATR"] = AverageTrueRange(high=high, low=low, close=close, window=14).average_true_range()
+    
     adx = ADXIndicator(high=high, low=low, close=close, window=14)
     df["ADX"] = adx.adx()
     
     return df
 
 def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
-    """Tính toán Entry, SL, TP dựa trên Swing High/Low và ATR."""
     if len(df) < 20: return None
     last = df.iloc[-1]
     atr = last["ATR"]
     
-    # Tìm Swing High/Low gần nhất trong 20 nến
     recent_df = df.tail(20)
     recent_high = recent_df["High"].max()
     recent_low = recent_df["Low"].min()
     
-    # Xác định hướng dựa trên EMA20 và EMA50
     trend_bullish = last["EMA20"] > last["EMA50"]
     
     if trend_bullish:
-        entry = last["Close"] # Entry Market
-        sl = recent_low - (atr * 0.5) # SL dưới đáy gần nhất + buffer ATR
+        entry = last["Close"]
+        sl = recent_low - (atr * 0.5)
         tp = entry + (entry - sl) * risk_reward
         direction = "LONG"
     else:
@@ -151,14 +143,8 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
         direction = "SHORT"
         
     return {
-        "direction": direction,
-        "entry": entry,
-        "sl": sl,
-        "tp": tp,
-        "risk_reward": risk_reward,
-        "atr": atr,
-        "recent_high": recent_high,
-        "recent_low": recent_low
+        "direction": direction, "entry": entry, "sl": sl, "tp": tp,
+        "risk_reward": risk_reward, "atr": atr, "recent_high": recent_high, "recent_low": recent_low
     }
 
 # ============================================================
@@ -180,6 +166,7 @@ with st.container():
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
         if st.button("🔄 Tải lại dữ liệu"):
             st.cache_data.clear()
+            st.rerun()
     with col4:
         st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
         st.info("Nguồn: Yahoo Finance")
@@ -193,10 +180,11 @@ if df is None or len(df) < 50:
     st.error(f"❌ Không lấy được dữ liệu cho **{selected_asset}**. Hãy thử khung thời gian khác hoặc mã khác.")
     st.stop()
 
-df = compute_indicators(df)
-last_close = df["Close"].iloc[-1]
-prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
-change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
+with st.spinner("⚙️ Đang tính toán các chỉ báo kỹ thuật..."):
+    df = compute_indicators(df)
+    last_close = df["Close"].iloc[-1]
+    prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
+    change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
 # ============================================================
 # 6. KPI HEADER
@@ -230,7 +218,6 @@ with tab_chart:
         subplot_titles=("", "RSI (14)", "MACD", "Stochastic (14,3)")
     )
 
-    # Hàng 1: Nến + Bollinger + EMA
     fig.add_trace(go.Candlestick(
         x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
         name="Giá", increasing_line_color="#26a69a", decreasing_line_color="#ef5350"
@@ -239,35 +226,26 @@ with tab_chart:
     fig.add_trace(go.Scatter(x=df["Time"], y=df["BB_lower"], name="BB Lower", line=dict(color="rgba(255,165,0,0.4)", width=1), fill="tonexty", fillcolor="rgba(255,165,0,0.05)"), row=1, col=1)
     fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA 20", line=dict(color="#2196f3", width=1.2)), row=1, col=1)
     fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA 50", line=dict(color="#9c27b0", width=1.2)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["SMA200"], name="SMA 200", line=dict(color="#607d8b", width=1, dash="dot")), row=1, col=1)
 
-    # Hàng 2: RSI
     fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#e91e63", width=1.5)), row=2, col=1)
     fig.add_hline(y=70, line_dash="dot", line_color="#ef5350", row=2, col=1)
     fig.add_hline(y=30, line_dash="dot", line_color="#26a69a", row=2, col=1)
 
-    # Hàng 3: MACD
     fig.add_trace(go.Scatter(x=df["Time"], y=df["MACD"], name="MACD", line=dict(color="#ff9800", width=1.5)), row=3, col=1)
     fig.add_trace(go.Scatter(x=df["Time"], y=df["MACD_signal"], name="Signal", line=dict(color="#f44336", width=1.5)), row=3, col=1)
     macd_colors = ["#26a69a" if v >= 0 else "#ef5350" for v in df["MACD_hist"]]
     fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="Histogram", marker_color=macd_colors), row=3, col=1)
 
-    # Hàng 4: Stochastic
     fig.add_trace(go.Scatter(x=df["Time"], y=df["Stoch_K"], name="%K", line=dict(color="#00bcd4", width=1.2)), row=4, col=1)
     fig.add_trace(go.Scatter(x=df["Time"], y=df["Stoch_D"], name="%D", line=dict(color="#ff5722", width=1.2)), row=4, col=1)
     fig.add_hline(y=80, line_dash="dot", line_color="#ef5350", row=4, col=1)
     fig.add_hline(y=20, line_dash="dot", line_color="#26a69a", row=4, col=1)
 
     fig.update_layout(
-        template="plotly_dark",
-        height=800,
-        paper_bgcolor="#131722",
-        plot_bgcolor="#131722",
-        hovermode="x unified",
-        showlegend=True,
+        template="plotly_dark", height=800, paper_bgcolor="#131722", plot_bgcolor="#131722",
+        hovermode="x unified", showlegend=True,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-        margin=dict(l=10, r=50, t=30, b=10),
-        dragmode="pan",
+        margin=dict(l=10, r=50, t=30, b=10), dragmode="pan",
     )
     fig.update_xaxes(showgrid=True, gridcolor="#2a2e39", rangeslider_visible=False)
     fig.update_yaxes(showgrid=True, gridcolor="#2a2e39", side="right")
@@ -301,53 +279,61 @@ with tab_trade:
                 f"- **ATR (14):** {trade_plan['atr']:,.2f}\n"
                 f"- **Khoảng cách SL:** {abs(trade_plan['entry'] - trade_plan['sl']):,.2f}\n"
                 f"- **Khoảng cách TP:** {abs(trade_plan['tp'] - trade_plan['entry']):,.2f}")
-        
-        st.warning("⚠️ **Lưu ý:** Đây là kế hoạch tham khảo dựa trên phân tích kỹ thuật. Luôn quản lý vốn và tuân thủ kỷ luật stop-loss.")
 
 # ------------------------------------------------------------
-# TAB 3: CẤU TRÚC THỊ TRƯỜNG (SMC)
+# TAB 3: CẤU TRÚC THỊ TRƯỜNG (SMC) - ĐÃ FIX LỖI
 # ------------------------------------------------------------
 with tab_smc:
     st.subheader("🧠 Phân Tích Cấu Trúc Thị Trường (Smart Money Concepts)")
     
-    try:
-        high_arr = df["High"].values
-        low_arr = df["Low"].values
-        close_arr = df["Close"].values
-        open_arr = df["Open"].values
-        
-        # 1. Phát hiện FVG (Fair Value Gaps)
-        fvg = smc.detect_fvg(high_arr, low_arr, close=close_arr, compute_mitigation=True)
-        # 2. Phát hiện Order Blocks
-        obs = smc.detect_order_blocks(open_arr, high_arr, low_arr, close_arr, lookback=5, zone_mode="body")
-        # 3. Phát hiện Cấu trúc (BOS/CHOCH)
-        structure = smc.detect_structure(high_arr, low_arr, close_arr, window_size=2, break_mode="close")
-        
-        col_fvg, col_obs, col_struct = st.columns(3)
-        
-        with col_fvg:
-            st.markdown("### Fair Value Gaps (FVG)")
-            st.write(f"- Số lượng FVG tăng: **{len(fvg.bullish)}**")
-            st.write(f"- Số lượng FVG giảm: **{len(fvg.bearish)}**")
-            st.write(f"- FVG đã được lấp đầy (Mitigated): **{len(fvg.mitigated_50)}**")
+    with st.spinner("🔎 Đang phân tích dòng tiền thông minh (SMC)..."):
+        try:
+            high_arr = df["High"].values
+            low_arr = df["Low"].values
+            close_arr = df["Close"].values
+            open_arr = df["Open"].values
             
-        with col_obs:
-            st.markdown("### Order Blocks (OB)")
-            st.write(f"- OB tăng (Demand): **{len(obs.bullish_ob)}**")
-            st.write(f"- OB giảm (Supply): **{len(obs.bearish_ob)}**")
-            st.write(f"- OB bị phá vỡ (Breaker): **{len(obs.is_breaker)}**")
+            fvg = smc.detect_fvg(high_arr, low_arr, close=close_arr, compute_mitigation=True)
+            obs = smc.detect_order_blocks(open_arr, high_arr, low_arr, close_arr, lookback=5, zone_mode="body")
+            structure = smc.detect_structure(high_arr, low_arr, close_arr, window_size=2, break_mode="close")
             
-        with col_struct:
-            st.markdown("### Cấu Trúc Thị Trường")
-            st.write(f"- Xu hướng hiện tại: **{structure.trend}**")
-            st.write(f"- BOS Tăng gần nhất: **{'Có' if structure.bos_bullish.any() else 'Không'}**")
-            st.write(f"- BOS Giảm gần nhất: **{'Có' if structure.bos_bearish.any() else 'Không'}**")
-            st.write(f"- CHOCH gần nhất: **{structure.choch}**")
+            # LẤY GIÁ TRỊ CUỐI CÙNG CỦA MẢNG ĐỂ HIỂN THỊ TEXT THAY VÌ IN CẢ MẢNG
+            trend_val = structure.trend[-1] if len(structure.trend) > 0 else 0
+            trend_text = "Tăng (Uptrend)" if trend_val == 1 else ("Giảm (Downtrend)" if trend_val == -1 else "Đi ngang (Sideway)")
+            trend_color = "#26a69a" if trend_val == 1 else ("#ef5350" if trend_val == -1 else "#787b86")
             
-        st.info("💡 **Giải thích:** SMC tập trung vào hành vi của 'dòng tiền thông minh' (Smart Money). FVG là vùng mất cân bằng giá, OB là vùng tập kết lệnh của tổ chức, BOS/CHOCH xác nhận sự thay đổi cấu trúc xu hướng.")
-        
-    except Exception as e:
-        st.warning(f"Không thể tính toán SMC cho dữ liệu này: {e}")
+            # Xử lý BOS/CHOCH (lấy phần tử cuối cùng nếu là mảng boolean)
+            bos_bull = structure.bos_bullish[-1] if isinstance(structure.bos_bullish, np.ndarray) else structure.bos_bullish
+            bos_bear = structure.bos_bearish[-1] if isinstance(structure.bos_bearish, np.ndarray) else structure.bos_bearish
+            choch_val = structure.choch[-1] if isinstance(structure.choch, np.ndarray) else structure.choch
+            
+            choch_text = "Có (Đảo chiều)" if choch_val != 0 else "Không"
+            
+            col_fvg, col_obs, col_struct = st.columns(3)
+            
+            with col_fvg:
+                st.markdown("### 🟩 Fair Value Gaps (FVG)")
+                st.write(f"- Số lượng FVG tăng: **{len(fvg.bullish)}**")
+                st.write(f"- Số lượng FVG giảm: **{len(fvg.bearish)}**")
+                st.write(f"- FVG đã lấp đầy: **{len(fvg.mitigated_50)}**")
+                
+            with col_obs:
+                st.markdown("### 🟦 Order Blocks (OB)")
+                st.write(f"- OB tăng (Demand): **{len(obs.bullish_ob)}**")
+                st.write(f"- OB giảm (Supply): **{len(obs.bearish_ob)}**")
+                st.write(f"- OB bị phá vỡ (Breaker): **{len(obs.is_breaker)}**")
+                
+            with col_struct:
+                st.markdown("### 📈 Cấu Trúc Thị Trường")
+                st.markdown(f"- Xu hướng hiện tại: <span style='color:{trend_color}; font-weight:bold;'>{trend_text}</span>", unsafe_allow_html=True)
+                st.write(f"- BOS Tăng gần nhất: **{'Có' if bos_bull else 'Không'}**")
+                st.write(f"- BOS Giảm gần nhất: **{'Có' if bos_bear else 'Không'}**")
+                st.write(f"- CHOCH gần nhất: **{choch_text}**")
+                
+            st.info("💡 **Giải thích:** SMC tập trung vào hành vi của 'dòng tiền thông minh'. FVG là vùng mất cân bằng giá, OB là vùng tập kết lệnh của tổ chức, BOS/CHOCH xác nhận sự thay đổi cấu trúc xu hướng.")
+            
+        except Exception as e:
+            st.warning(f"Không thể tính toán SMC cho dữ liệu này: {e}")
 
 # ------------------------------------------------------------
 # TAB 4: TIN TỨC
@@ -366,5 +352,3 @@ with tab_news:
                     <div class="news-meta">🕒 {item['published']}</div>
                 </div>
             """, unsafe_allow_html=True)
-    
-    st.caption("Nguồn tin: Yahoo Finance RSS.")
