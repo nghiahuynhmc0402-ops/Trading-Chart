@@ -34,14 +34,46 @@ st.markdown("""
     .stApp { background-color: #131722 !important; color: #d1d4dc !important; }
     [data-testid="stSidebar"] { background-color: #202123 !important; border-right: 1px solid #2d2d2d; }
     
-    /* Menu Radio trong Sidebar */
-    div[role="radiogroup"] > label {
-        padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-bottom: 5px; width: 100%;
+    /* CSS CHO MENU RADIO BÊN TRÁI (TO, RÕ RÀNG, CÓ KHUNG) */
+    div[data-testid="stRadio"] > div[role="radiogroup"] {
+        gap: 12px !important; /* Khoảng cách giữa các nút */
     }
-    div[role="radiogroup"] > label:hover { background-color: #2a2b32; }
-    div[role="radiogroup"] > label[data-checked="true"] { background-color: #343541 !important; border-left: 3px solid #2962ff; }
-    div[role="radiogroup"] > label > div:first-child { display: none; }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+        padding: 15px 20px !important;
+        background-color: #2a2e39 !important; /* Nền tối mặc định */
+        border: 1px solid #363a45 !important;
+        border-radius: 10px !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        margin-bottom: 0px !important;
+    }
+    /* Hiệu ứng khi di chuột (Hover) */
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover {
+        background-color: #3c404d !important;
+        border-color: #2962ff !important;
+        transform: translateY(-2px);
+    }
+    /* Trạng thái nút đang được chọn (Checked) */
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] {
+        background-color: #1e3a8a !important; /* Màu xanh đậm nổi bật */
+        border-color: #2962ff !important;
+        box-shadow: 0 4px 6px rgba(41, 98, 255, 0.2);
+    }
+    /* Ẩn hoàn toàn vòng tròn Radio mặc định */
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child {
+        display: none !important;
+    }
+    /* Chữ trong nút to và đậm hơn */
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p {
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+    }
     
+    /* Các CSS khác */
     .stSelectbox div[data-baseweb="select"] { background-color: #2a2e39; border: 1px solid #363a45; border-radius: 8px; }
     .stSelectbox div[data-baseweb="select"] * { color: #ffffff !important; }
     
@@ -59,20 +91,64 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2. HÀM ĐỊNH DẠNG GIÁ CHUẨN VIỆT NAM (DẤU CHẤM HÀNG NGHÌN)
+# 2. CÁC HÀM TIỆN ÍCH
 # ============================================================
 def format_vn_price(value) -> str:
     """Chuyển 77151.83 thành 77.151,83"""
     if pd.isna(value) or value is None:
         return "N/A"
     try:
-        # Định dạng chuẩn Mỹ trước (dấu phẩy ngăn cách nghìn, dấu chấm thập phân)
         us_format = f"{value:,.2f}"
-        # Hoán đổi dấu phẩy và dấu chấm
         vn_format = us_format.replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
         return vn_format
     except:
         return str(value)
+
+def get_trade_rationale(df, trade_plan):
+    """Phân tích các chỉ báo để đưa ra lý do vào lệnh."""
+    last = df.iloc[-1]
+    reasons = []
+    
+    # 1. Phân tích Xu hướng (EMA)
+    if trade_plan['direction'] == "LONG":
+        reasons.append("🟢 **Xu hướng tăng (Uptrend):** EMA20 cắt lên trên EMA50, cho thấy động lực tăng giá trong ngắn hạn.")
+    else:
+        reasons.append("🔴 **Xu hướng giảm (Downtrend):** EMA20 cắt xuống dưới EMA50, cho thấy áp lực bán chiếm ưu thế.")
+
+    # 2. Phân tích RSI
+    rsi_val = last['RSI']
+    if rsi_val > 70:
+        reasons.append(f"⚠️ **RSI quá mua ({rsi_val:.1f}):** Cảnh báo khả năng điều chỉnh giảm. (Cần thận trọng nếu mua đuổi).")
+    elif rsi_val < 30:
+        reasons.append(f"⚠️ **RSI quá bán ({rsi_val:.1f}):** Cảnh báo khả năng bật tăng trở lại. (Cần thận trọng nếu bán đuổi).")
+    elif 45 <= rsi_val <= 55:
+        reasons.append(f"⚪ **RSI trung tính ({rsi_val:.1f}):** Thị trường đang tích lũy, chưa có động lượng rõ ràng.")
+    elif rsi_val > 50:
+        reasons.append(f"📈 **RSI tích cực ({rsi_val:.1f}):** Động lượng mua đang chiếm ưu thế.")
+    else:
+        reasons.append(f"📉 **RSI tiêu cực ({rsi_val:.1f}):** Động lượng bán đang chiếm ưu thế.")
+
+    # 3. Phân tích MACD
+    if last['MACD_hist'] > 0 and last['MACD'] > last['MACD_signal']:
+        reasons.append("📊 **MACD (Tăng):** Histogram dương và đường MACD nằm trên đường Signal, xác nhận tín hiệu mua.")
+    elif last['MACD_hist'] < 0 and last['MACD'] < last['MACD_signal']:
+        reasons.append("📊 **MACD (Giảm):** Histogram âm và đường MACD nằm dưới đường Signal, xác nhận tín hiệu bán.")
+
+    # 4. Phân tích Bollinger Bands
+    close = last['Close']
+    if close > last['BB_upper']:
+        reasons.append("🚀 **Bứt phá Bollinger Bands:** Giá đóng cửa vượt dải trên, thể hiện sự bùng nổ biến động.")
+    elif close < last['BB_lower']:
+        reasons.append("🩸 **Phá vỡ Bollinger Bands:** Giá đóng cửa dưới dải dưới, thể hiện áp lực bán tháo mạnh.")
+        
+    # 5. Sức mạnh xu hướng ADX
+    adx_val = last['ADX']
+    if adx_val > 25:
+        reasons.append(f"💪 **ADX mạnh ({adx_val:.1f}):** Xu hướng hiện tại rất vững chắc, xác suất tiếp diễn cao.")
+    else:
+        reasons.append(f"😴 **ADX yếu ({adx_val:.1f}):** Thị trường có thể đang đi ngang (Sideway), tín hiệu dễ bị nhiễu.")
+
+    return reasons
 
 # ============================================================
 # 3. TỪ ĐIỂN TÀI SẢN
@@ -86,14 +162,13 @@ POPULAR_ASSETS = {
 flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
 
 # ============================================================
-# 4. HÀM XỬ LÝ DỮ LIỆU & TIN TỨC
+# 4. HÀM XỬ LÝ DỮ LIỆU
 # ============================================================
 @st.cache_data(ttl=300, show_spinner="⏳ Đang tải dữ liệu thị trường...")
 def load_data(ticker: str, interval: str):
     period = "1y"
     if interval in ["1m", "5m", "15m", "60m"]: period = "1mo"
     elif interval in ["1d", "1wk"]: period = "2y"
-
     try:
         df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
         if df.empty: return None
@@ -119,26 +194,21 @@ def fetch_news(ticker_name: str):
 def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     close, high, low = df["Close"], df["High"], df["Low"]
-    
     df["EMA20"] = EMAIndicator(close=close, window=20).ema_indicator()
     df["EMA50"] = EMAIndicator(close=close, window=50).ema_indicator()
     df["SMA200"] = SMAIndicator(close=close, window=200).sma_indicator()
-    
     df["RSI"] = RSIIndicator(close=close, window=14).rsi()
     macd = MACD(close=close)
     df["MACD"] = macd.macd()
     df["MACD_signal"] = macd.macd_signal()
     df["MACD_hist"] = macd.macd_diff()
-    
     stoch = StochasticOscillator(high=high, low=low, close=close, window=14, smooth_window=3)
     df["Stoch_K"] = stoch.stoch()
     df["Stoch_D"] = stoch.stoch_signal()
-    
     bb = BollingerBands(close=close, window=20, window_dev=2)
     df["BB_upper"] = bb.bollinger_hband()
     df["BB_lower"] = bb.bollinger_lband()
     df["ATR"] = AverageTrueRange(high=high, low=low, close=close, window=14).average_true_range()
-    
     adx = ADXIndicator(high=high, low=low, close=close, window=14)
     df["ADX"] = adx.adx()
     return df
@@ -150,7 +220,6 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
     recent_df = df.tail(20)
     recent_high = recent_df["High"].max()
     recent_low = recent_df["Low"].min()
-    
     trend_bullish = last["EMA20"] > last["EMA50"]
     
     if trend_bullish:
@@ -170,7 +239,7 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
     }
 
 # ============================================================
-# 5. SIDEBAR (MENU ĐIỀU HƯỚNG)
+# 5. SIDEBAR
 # ============================================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: white; margin-bottom: 0;'>TradeDesk Pro</h2>", unsafe_allow_html=True)
@@ -224,7 +293,6 @@ with st.spinner("⚙️ Đang tính toán các chỉ báo..."):
 # ============================================================
 st.markdown(f"### {selected_asset} ({timeframe})")
 
-# Đã áp dụng hàm format_vn_price cho KPI
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 kpi1.metric(label="Giá hiện tại", value=format_vn_price(last_close), delta=f"{change_pct:+.2f}%")
 kpi2.metric(label="RSI (14)", value=f"{df['RSI'].iloc[-1]:.1f}", delta="Quá mua" if df['RSI'].iloc[-1]>70 else ("Quá bán" if df['RSI'].iloc[-1]<30 else "Trung tính"), delta_color="inverse")
@@ -264,15 +332,13 @@ if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
     fig.add_hline(y=20, line_dash="dot", line_color="#26a69a", row=4, col=1)
 
     fig.update_layout(template="plotly_dark", height=750, paper_bgcolor="#131722", plot_bgcolor="#131722", hovermode="x unified", showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0), margin=dict(l=10, r=50, t=30, b=10), dragmode="pan")
-    
-    # Cập nhật định dạng trục Y của biểu đồ giá (nếu Plotly hỗ trợ locale VN, nhưng mặc định để tự động)
     fig.update_xaxes(showgrid=True, gridcolor="#2a2e39", rangeslider_visible=False)
     fig.update_yaxes(showgrid=True, gridcolor="#2a2e39", side="right")
 
     st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True, 'displaylogo': False})
 
 # ------------------------------------------------------------
-# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH
+# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH (CẬP NHẬT COPY & LÝ DO)
 # ------------------------------------------------------------
 elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
     st.subheader("🎯 Thiết Lập Lệnh (Entry - SL - TP)")
@@ -289,14 +355,27 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
         st.markdown(f"<h3>Hướng: <span style='color:{direction_color}'>{trade_plan['direction']}</span></h3>", unsafe_allow_html=True)
         
         col_entry, col_sl, col_tp = st.columns(3)
-        # Đã áp dụng hàm format_vn_price cho Entry, SL, TP
         col_entry.metric("Giá Entry (Market)", format_vn_price(trade_plan['entry']))
         col_sl.metric("Stop-Loss (SL)", format_vn_price(trade_plan['sl']))
         col_tp.metric("Take-Profit (TP)", format_vn_price(trade_plan['tp']))
         
-        # Đã áp dụng hàm format_vn_price cho phần chi tiết
+        # TÍNH NĂNG COPY NHANH (Sử dụng st.code để có nút Copy mặc định)
+        st.markdown("##### 📋 Copy nhanh thông số:")
+        copy_text = f"Entry: {format_vn_price(trade_plan['entry'])}\nSL: {format_vn_price(trade_plan['sl'])}\nTP: {format_vn_price(trade_plan['tp'])}"
+        st.code(copy_text, language="text")
+        
         st.info(f"**Chi tiết:** Swing High 20 nến: {format_vn_price(trade_plan['recent_high'])} | Swing Low 20 nến: {format_vn_price(trade_plan['recent_low'])} | ATR(14): {format_vn_price(trade_plan['atr'])}")
-        st.warning("⚠️ Kế hoạch tham khảo dựa trên phân tích kỹ thuật. Hãy quản lý vốn chặt chẽ.")
+        
+        # PHẦN LÝ DO VÀO LỆNH
+        st.divider()
+        st.markdown("### 🧐 Phân Tích Yếu Tố Vào Lệnh")
+        st.markdown("Dưới đây là các tín hiệu kỹ thuật hệ thống ghi nhận được để đưa ra quyết định này:")
+        
+        reasons = get_trade_rationale(df, trade_plan)
+        for reason in reasons:
+            st.markdown(f"- {reason}")
+            
+        st.warning("⚠️ Lưu ý: Phân tích chỉ mang tính chất tham khảo. Hãy kết hợp với phân tích đa khung thời gian (Top-down) và quản lý vốn chặt chẽ.")
 
 # ------------------------------------------------------------
 # KHU VỰC 3: SMC
