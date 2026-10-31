@@ -29,63 +29,53 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS làm giao diện giống DeepSeek
 st.markdown("""
     <style>
-    /* Nền chính */
     .stApp { background-color: #131722 !important; color: #d1d4dc !important; }
+    [data-testid="stSidebar"] { background-color: #202123 !important; border-right: 1px solid #2d2d2d; }
     
-    /* Sidebar (Menu trái) */
-    [data-testid="stSidebar"] { 
-        background-color: #202123 !important; 
-        border-right: 1px solid #2d2d2d;
-    }
-    
-    /* Làm đẹp Menu Radio trong Sidebar để giống nút bấm */
+    /* Menu Radio trong Sidebar */
     div[role="radiogroup"] > label {
-        padding: 10px 15px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.2s;
-        margin-bottom: 5px;
-        width: 100%;
+        padding: 10px 15px; border-radius: 8px; cursor: pointer; transition: background 0.2s; margin-bottom: 5px; width: 100%;
     }
-    div[role="radiogroup"] > label:hover {
-        background-color: #2a2b32;
-    }
-    div[role="radiogroup"] > label[data-checked="true"] {
-        background-color: #343541 !important;
-        border-left: 3px solid #2962ff;
-    }
-    /* Ẩn vòng tròn radio mặc định */
-    div[role="radiogroup"] > label > div:first-child {
-        display: none;
-    }
+    div[role="radiogroup"] > label:hover { background-color: #2a2b32; }
+    div[role="radiogroup"] > label[data-checked="true"] { background-color: #343541 !important; border-left: 3px solid #2962ff; }
+    div[role="radiogroup"] > label > div:first-child { display: none; }
     
-    /* Input / Selectbox */
     .stSelectbox div[data-baseweb="select"] { background-color: #2a2e39; border: 1px solid #363a45; border-radius: 8px; }
     .stSelectbox div[data-baseweb="select"] * { color: #ffffff !important; }
     
-    /* Nút bấm */
     .stButton>button { width: 100%; border-radius: 8px; background-color: #2962ff; color: white; border: none; font-weight: bold; padding: 10px; }
     .stButton>button:hover { background-color: #1e53e5; }
     
-    /* Thẻ Metric */
     div[data-testid="metric-container"] { background-color: #1e222d; padding: 15px; border-radius: 10px; border: 1px solid #2a2e39; }
     div[data-testid="stMetricValue"] { color: #ffffff; font-size: 24px; font-weight: bold; }
     
-    /* Thẻ Tin tức */
     .news-card { background-color: #1e222d; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #2962ff; }
     .news-title { color: #ffffff; font-weight: bold; font-size: 16px; }
     .news-meta { color: #787b86; font-size: 12px; }
-    
-    /* Ẩn footer */
     footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2. TỪ ĐIỂN TÀI SẢN
+# 2. HÀM ĐỊNH DẠNG GIÁ CHUẨN VIỆT NAM (DẤU CHẤM HÀNG NGHÌN)
+# ============================================================
+def format_vn_price(value) -> str:
+    """Chuyển 77151.83 thành 77.151,83"""
+    if pd.isna(value) or value is None:
+        return "N/A"
+    try:
+        # Định dạng chuẩn Mỹ trước (dấu phẩy ngăn cách nghìn, dấu chấm thập phân)
+        us_format = f"{value:,.2f}"
+        # Hoán đổi dấu phẩy và dấu chấm
+        vn_format = us_format.replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+        return vn_format
+    except:
+        return str(value)
+
+# ============================================================
+# 3. TỪ ĐIỂN TÀI SẢN
 # ============================================================
 POPULAR_ASSETS = {
     "🔥 Hàng Hóa": {"Vàng (XAUUSD)": "GC=F", "Bạc (XAGUSD)": "SI=F", "Dầu WTI": "CL=F"},
@@ -96,7 +86,7 @@ POPULAR_ASSETS = {
 flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
 
 # ============================================================
-# 3. HÀM XỬ LÝ DỮ LIỆU & TIN TỨC
+# 4. HÀM XỬ LÝ DỮ LIỆU & TIN TỨC
 # ============================================================
 @st.cache_data(ttl=300, show_spinner="⏳ Đang tải dữ liệu thị trường...")
 def load_data(ticker: str, interval: str):
@@ -180,33 +170,28 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
     }
 
 # ============================================================
-# 4. SIDEBAR (GIAO DIỆN ĐIỀU HƯỚNG CHÍNH)
+# 5. SIDEBAR (MENU ĐIỀU HƯỚNG)
 # ============================================================
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: white; margin-bottom: 0;'>TradeDesk Pro</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #787b86; font-size: 12px;'>Terminal for Professionals</p>", unsafe_allow_html=True)
-    
     st.divider()
     
-    # 1. Chọn tài sản
     st.markdown("**Tài sản giao dịch**")
     selected_asset = st.selectbox("Chọn mã:", list(flat_assets.keys()), index=0, label_visibility="collapsed")
     ticker = flat_assets[selected_asset]
     
-    # 2. Chọn khung thời gian
     st.markdown("**Khung thời gian**")
     timeframe = st.selectbox("Chọn nến:", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
     interval_map = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}
     interval = interval_map[timeframe]
     
-    # 3. Nút Reload
     if st.button("🔄 Làm mới dữ liệu", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
         
     st.divider()
     
-    # 4. MENU ĐIỀU HƯỚNG TÍNH NĂNG
     st.markdown("**Tính năng phân tích**")
     menu_selection = st.radio(
         "Menu",
@@ -220,7 +205,7 @@ with st.sidebar:
     )
 
 # ============================================================
-# 5. XỬ LÝ DỮ LIỆU CHÍNH
+# 6. XỬ LÝ DỮ LIỆU CHÍNH
 # ============================================================
 df = load_data(ticker, interval)
 
@@ -235,15 +220,16 @@ with st.spinner("⚙️ Đang tính toán các chỉ báo..."):
     change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
 # ============================================================
-# 6. MAIN AREA (KHU VỰC HIỂN THỊ CHÍNH)
+# 7. MAIN AREA
 # ============================================================
-# Header KPI (Luôn hiển thị trên cùng)
 st.markdown(f"### {selected_asset} ({timeframe})")
+
+# Đã áp dụng hàm format_vn_price cho KPI
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-kpi1.metric(label="Giá hiện tại", value=f"{last_close:,.2f}", delta=f"{change_pct:+.2f}%")
+kpi1.metric(label="Giá hiện tại", value=format_vn_price(last_close), delta=f"{change_pct:+.2f}%")
 kpi2.metric(label="RSI (14)", value=f"{df['RSI'].iloc[-1]:.1f}", delta="Quá mua" if df['RSI'].iloc[-1]>70 else ("Quá bán" if df['RSI'].iloc[-1]<30 else "Trung tính"), delta_color="inverse")
 kpi3.metric(label="ADX (14)", value=f"{df['ADX'].iloc[-1]:.1f}", delta="Xu hướng mạnh" if df['ADX'].iloc[-1]>25 else "Đi ngang", delta_color="off")
-kpi4.metric(label="ATR (14)", value=f"{df['ATR'].iloc[-1]:.2f}", delta="Biến động", delta_color="off")
+kpi4.metric(label="ATR (14)", value=format_vn_price(df['ATR'].iloc[-1]), delta="Biến động", delta_color="off")
 
 st.divider()
 
@@ -278,6 +264,8 @@ if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
     fig.add_hline(y=20, line_dash="dot", line_color="#26a69a", row=4, col=1)
 
     fig.update_layout(template="plotly_dark", height=750, paper_bgcolor="#131722", plot_bgcolor="#131722", hovermode="x unified", showlegend=True, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0), margin=dict(l=10, r=50, t=30, b=10), dragmode="pan")
+    
+    # Cập nhật định dạng trục Y của biểu đồ giá (nếu Plotly hỗ trợ locale VN, nhưng mặc định để tự động)
     fig.update_xaxes(showgrid=True, gridcolor="#2a2e39", rangeslider_visible=False)
     fig.update_yaxes(showgrid=True, gridcolor="#2a2e39", side="right")
 
@@ -301,11 +289,13 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
         st.markdown(f"<h3>Hướng: <span style='color:{direction_color}'>{trade_plan['direction']}</span></h3>", unsafe_allow_html=True)
         
         col_entry, col_sl, col_tp = st.columns(3)
-        col_entry.metric("Giá Entry (Market)", f"{trade_plan['entry']:,.2f}")
-        col_sl.metric("Stop-Loss (SL)", f"{trade_plan['sl']:,.2f}")
-        col_tp.metric("Take-Profit (TP)", f"{trade_plan['tp']:,.2f}")
+        # Đã áp dụng hàm format_vn_price cho Entry, SL, TP
+        col_entry.metric("Giá Entry (Market)", format_vn_price(trade_plan['entry']))
+        col_sl.metric("Stop-Loss (SL)", format_vn_price(trade_plan['sl']))
+        col_tp.metric("Take-Profit (TP)", format_vn_price(trade_plan['tp']))
         
-        st.info(f"**Chi tiết:** Swing High 20 nến: {trade_plan['recent_high']:,.2f} | Swing Low 20 nến: {trade_plan['recent_low']:,.2f} | ATR(14): {trade_plan['atr']:,.2f}")
+        # Đã áp dụng hàm format_vn_price cho phần chi tiết
+        st.info(f"**Chi tiết:** Swing High 20 nến: {format_vn_price(trade_plan['recent_high'])} | Swing Low 20 nến: {format_vn_price(trade_plan['recent_low'])} | ATR(14): {format_vn_price(trade_plan['atr'])}")
         st.warning("⚠️ Kế hoạch tham khảo dựa trên phân tích kỹ thuật. Hãy quản lý vốn chặt chẽ.")
 
 # ------------------------------------------------------------
