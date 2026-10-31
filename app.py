@@ -33,10 +33,8 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    /* Import Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
     
-    /* Nền tảng chính (Deep Obsidian + Subtle Glow) */
     .stApp { 
         background-color: #050505;
         background-image: radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.05), transparent 25%), radial-gradient(circle at 85% 30%, rgba(16, 185, 129, 0.05), transparent 25%);
@@ -44,162 +42,74 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
-    /* Đảm bảo vùng chứa biểu đồ không chặn thao tác vuốt cảm ứng */
-    .stPlotlyChart {
-        touch-action: pan-y pinch-zoom !important;
-    }
+    .stPlotlyChart { touch-action: pan-y pinch-zoom !important; }
 
-    /* Sidebar (Glassmorphism) */
     [data-testid="stSidebar"] { 
         background: rgba(9, 9, 11, 0.6) !important; 
         backdrop-filter: blur(20px);
         border-right: 1px solid rgba(255, 255, 255, 0.05);
     }
     
-    /* Menu Điều Hướng (Radio) */
+    /* Menu */
     div[data-testid="stRadio"] > div[role="radiogroup"] { gap: 6px !important; }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label { 
-        padding: 12px 16px !important; 
-        border-radius: 10px !important; 
-        cursor: pointer !important; 
-        width: 100% !important;
-        background-color: transparent !important;
-        border: 1px solid transparent;
-        color: #71717a !important;
-        transition: all 0.2s ease;
-        margin-bottom: 2px;
+        padding: 12px 16px !important; border-radius: 10px !important; cursor: pointer !important; 
+        width: 100% !important; background-color: transparent !important; border: 1px solid transparent;
+        color: #71717a !important; transition: all 0.2s ease; margin-bottom: 2px;
     }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover { 
-        background-color: rgba(255, 255, 255, 0.03) !important;
-        color: #e4e4e7 !important;
-    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover { background-color: rgba(255, 255, 255, 0.03) !important; color: #e4e4e7 !important; }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] { 
         background: linear-gradient(90deg, rgba(99, 102, 241, 0.15) 0%, rgba(99, 102, 241, 0) 100%) !important;
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        border-left: 3px solid #6366f1 !important;
-        color: #ffffff !important;
-        font-weight: 600 !important;
+        border: 1px solid rgba(99, 102, 241, 0.2); border-left: 3px solid #6366f1 !important;
+        color: #ffffff !important; font-weight: 600 !important;
     }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child { display: none !important; }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p { 
-        font-size: 14px !important; 
-        font-weight: 500 !important; 
-    }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] div[data-testid="stMarkdownContainer"] p { 
-        color: #ffffff !important; 
-    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p { font-size: 14px !important; font-weight: 500 !important; }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] div[data-testid="stMarkdownContainer"] p { color: #ffffff !important; }
     
-    /* Inputs / Selectbox */
+    /* Inputs */
     .stSelectbox div[data-baseweb="select"], .stTextInput input, .stNumberInput input, .stTextArea textarea { 
-        background-color: rgba(255, 255, 255, 0.03) !important; 
-        border: 1px solid rgba(255, 255, 255, 0.1) !important; 
-        border-radius: 8px !important; 
-        color: #e4e4e7 !important;
-        font-family: 'Inter', sans-serif !important;
-        transition: all 0.2s ease;
+        background-color: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; 
+        border-radius: 8px !important; color: #e4e4e7 !important; font-family: 'Inter', sans-serif !important; transition: all 0.2s ease;
     }
-    .stSelectbox div[data-baseweb="select"]:hover, .stTextInput input:hover { 
-        border-color: rgba(255, 255, 255, 0.2) !important; 
-    }
+    .stSelectbox div[data-baseweb="select"]:hover, .stTextInput input:hover { border-color: rgba(255, 255, 255, 0.2) !important; }
     .stSelectbox div[data-baseweb="select"]:focus-within, .stTextInput input:focus { 
-        border-color: #6366f1 !important; 
-        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+        border-color: #6366f1 !important; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
     }
     
-    /* Nút bấm */
+    /* Buttons */
     .stButton>button { 
-        width: 100%; 
-        border-radius: 8px !important; 
-        background: #6366f1 !important;
-        color: #ffffff !important; 
-        border: none !important; 
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 600;
-        padding: 10px; 
-        transition: all 0.3s ease;
+        width: 100%; border-radius: 8px !important; background: #6366f1 !important; color: #ffffff !important; 
+        border: none !important; font-family: 'Inter', sans-serif !important; font-weight: 600; padding: 10px; transition: all 0.3s ease;
     }
-    .stButton>button:hover { 
-        background: #4f46e5 !important;
-        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        transform: translateY(-1px);
-    }
+    .stButton>button:hover { background: #4f46e5 !important; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4); transform: translateY(-1px); }
     
     /* Dataframe */
-    [data-testid="stDataFrame"] { 
-        border-radius: 12px !important; 
-        border: 1px solid rgba(255, 255, 255, 0.05) !important; 
-        background-color: rgba(255, 255, 255, 0.02) !important;
-    }
+    [data-testid="stDataFrame"] { border-radius: 12px !important; border: 1px solid rgba(255, 255, 255, 0.05) !important; background-color: rgba(255, 255, 255, 0.02) !important; }
     
-    /* Tiêu đề */
+    /* Titles & Headers */
     h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif !important; font-weight: 700 !important; letter-spacing: -0.5px; }
-    
-    /* Sidebar Header */
-    .sidebar-header {
-        padding: 10px 0 20px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-    .sidebar-logo {
-        width: 36px; height: 36px;
-        background: linear-gradient(135deg, #6366f1, #a855f7);
-        border-radius: 10px;
-        display: flex; justify-content: center; align-items: center;
-        color: #fff;
-        box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-    }
+    .sidebar-header { padding: 10px 0 20px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+    .sidebar-logo { width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #a855f7); border-radius: 10px; display: flex; justify-content: center; align-items: center; color: #fff; box-shadow: 0 0 15px rgba(99, 102, 241, 0.4); }
     .sidebar-title { font-size: 18px; font-weight: 700; color: #ffffff; margin: 0; }
     .sidebar-subtitle { font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
     .menu-label { color: #71717a; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; margin-top: 10px; padding-left: 10px; }
     
-    /* Pro Card & Footer */
-    .pro-card {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
-        border-radius: 12px;
-        padding: 15px;
-        margin-top: 20px;
-        border: 1px solid rgba(99, 102, 241, 0.2);
-    }
+    /* Cards */
+    .glass-card { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .glass-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3); }
+    .card-title { color: #ffffff; font-weight: 600; font-size: 15px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 10px; }
+    .row-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; color: #a1a1aa; }
+    .val-data { color: #e4e4e7; font-weight: 600; font-family: 'JetBrains Mono', monospace;}
+    .val-up { color: #10b981; }
+    .val-down { color: #f43f5e; }
+    .pro-card { background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1)); border-radius: 12px; padding: 15px; margin-top: 20px; border: 1px solid rgba(99, 102, 241, 0.2); }
     .pro-card h4 { margin: 0 0 5px 0; font-size: 14px; color: #fff; }
     .pro-card p { margin: 0; font-size: 12px; color: #a1a1aa; }
     .copyright { text-align: center; color: #52525b; font-size: 11px; margin-top: 30px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.05); }
     
-    /* SMC & MTF Cards */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.02);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 20px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .glass-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-    }
-    .card-title {
-        color: #ffffff;
-        font-weight: 600;
-        font-size: 15px;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-        padding-bottom: 10px;
-    }
-    .row-item {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-        font-size: 13px;
-        color: #a1a1aa;
-    }
-    .val-data { color: #e4e4e7; font-weight: 600; font-family: 'JetBrains Mono', monospace;}
-    .val-up { color: #10b981; }
-    .val-down { color: #f43f5e; }
+    /* Hide Streamlit's default empty container spacing */
+    div[data-testid="stVerticalBlock"] > div:has(> div.element-container:only-child > .stMarkdown:empty) { display: none; }
     
     footer {visibility: hidden;}
     #MainMenu {visibility: hidden;}
@@ -288,6 +198,63 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
     """
     components.html(html_code, height=120)
 
+def get_trade_diagnosis(df, trade_plan):
+    """Hàm chuẩn đoán chất lượng lệnh (Trade Quality Score) và lý do"""
+    last = df.iloc[-1]
+    score = 0
+    reasons = []
+    
+    # 1. Xu hướng (30đ)
+    if trade_plan['direction'] == "LONG":
+        if last['EMA20'] > last['EMA50']:
+            score += 30
+            reasons.append("🟢 **Xu hướng:** EMA20 > EMA50 (Uptrend).")
+        else:
+            reasons.append("🔴 **Xu hướng:** EMA20 < EMA50 (Ngược xu hướng).")
+    else:
+        if last['EMA20'] < last['EMA50']:
+            score += 30
+            reasons.append("🟢 **Xu hướng:** EMA20 < EMA50 (Downtrend).")
+        else:
+            reasons.append("🔴 **Xu hướng:** EMA20 > EMA50 (Ngược xu hướng).")
+
+    # 2. Động lượng (20đ)
+    if trade_plan['direction'] == "LONG":
+        if 40 < last['RSI'] < 70: score += 10; reasons.append("🟢 **RSI:** Nằm trong vùng an toàn (40-70).")
+        if last['MACD_hist'] > 0: score += 10; reasons.append("🟢 **MACD:** Histogram dương (Động lượng tăng).")
+    else:
+        if 30 < last['RSI'] < 60: score += 10; reasons.append("🟢 **RSI:** Nằm trong vùng an toàn (30-60).")
+        if last['MACD_hist'] < 0: score += 10; reasons.append("🟢 **MACD:** Histogram âm (Động lượng giảm).")
+
+    # 3. Sức mạnh xu hướng (20đ)
+    if last['ADX'] > 25:
+        score += 20
+        reasons.append(f"🟢 **ADX ({last['ADX']:.1f}):** Xu hướng mạnh, đáng tin cậy.")
+    elif last['ADX'] > 20:
+        score += 10
+        reasons.append(f"🟡 **ADX ({last['ADX']:.1f}):** Xu hướng hình thành.")
+    else:
+        reasons.append(f"🔴 **ADX ({last['ADX']:.1f}):** Thị trường đi ngang, dễ nhiễu.")
+
+    # 4. Vị trí so với Bollinger Bands (15đ)
+    if trade_plan['direction'] == "LONG" and last['Close'] < last['BB_lower']: 
+        score += 15; reasons.append("🟢 **Bollinger:** Giá chạm dải dưới (Quá bán).")
+    elif trade_plan['direction'] == "SHORT" and last['Close'] > last['BB_upper']: 
+        score += 15; reasons.append("🟢 **Bollinger:** Giá chạm dải trên (Quá mua).")
+    else:
+        reasons.append("⚪ **Bollinger:** Giá đang ở giữa dải (Chưa tối ưu).")
+
+    # 5. Đa khung thời gian (15đ) - Sẽ tính ở ngoài hàm này nếu cần, tạm thời để 15đ cố định nếu ADX mạnh
+    if last['ADX'] > 25: score += 15 
+    
+    # Đánh giá
+    if score >= 80: quality = "XUẤT SẮC (A+)"
+    elif score >= 60: quality = "TỐT (B)"
+    elif score >= 40: quality = "TRUNG BÌNH (C)"
+    else: quality = "RỦI RO CAO (D)"
+    
+    return score, quality, reasons
+
 def run_bot_engine(df, ticker, timeframe):
     latest = df.iloc[-1]
     current_time = str(latest['Time'])
@@ -361,6 +328,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["MACD_hist"] = macd.macd_diff()
     df["ATR"] = AverageTrueRange(high=df["High"], low=df["Low"], close=df["Close"], window=14).average_true_range()
     df["ADX"] = ADXIndicator(high=df["High"], low=df["Low"], close=df["Close"], window=14).adx()
+    bb = BollingerBands(close=df["Close"], window=20, window_dev=2)
+    df["BB_upper"] = bb.bollinger_hband()
+    df["BB_lower"] = bb.bollinger_lband()
     return df
 
 def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
@@ -377,20 +347,15 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
     return {"direction": direction, "entry": entry, "sl": sl, "tp": tp, "atr": atr}
 
 def calculate_fibonacci(df: pd.DataFrame) -> dict:
-    # Tìm Swing High/Low trong 100 nến gần nhất
     if len(df) < 100: return None
     recent_df = df.tail(100)
     swing_high = recent_df["High"].max()
     swing_low = recent_df["Low"].min()
     diff = swing_high - swing_low
-    
     return {
-        "Swing High": swing_high,
-        "Swing Low": swing_low,
-        "Fib 0.236": swing_high - (diff * 0.236),
-        "Fib 0.382": swing_high - (diff * 0.382),
-        "Fib 0.500": swing_high - (diff * 0.500),
-        "Fib 0.618": swing_high - (diff * 0.618),
+        "Swing High": swing_high, "Swing Low": swing_low,
+        "Fib 0.236": swing_high - (diff * 0.236), "Fib 0.382": swing_high - (diff * 0.382),
+        "Fib 0.500": swing_high - (diff * 0.500), "Fib 0.618": swing_high - (diff * 0.618),
         "Fib 0.786": swing_high - (diff * 0.786)
     }
 
@@ -532,29 +497,55 @@ if menu_selection == "📊 Biểu đồ":
     st.caption("💡 **Mẹo di động:** Dùng 2 ngón tay để phóng to/thu nhỏ. Dùng 1 ngón tay để kéo biểu đồ. Hoặc dùng thanh trượt ở dưới cùng.")
 
 # ------------------------------------------------------------
-# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & BOT + TÍNH VỊ THẾ
+# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & CHUẨN ĐOÁN
 # ------------------------------------------------------------
 elif menu_selection == "🎯 Kế hoạch giao dịch":
-    st.subheader("Kế hoạch giao dịch & Quản lý vốn")
+    st.subheader("Chuẩn đoán & Kế hoạch giao dịch")
     
-    col_plan, col_risk = st.columns([2, 1])
+    col_left, col_right = st.columns([1.5, 1], gap="large")
     
-    with col_plan:
+    # --- CỘT TRÁI: KẾ HOẠCH & CHUẨN ĐOÁN ---
+    with col_left:
         rr_ratio = st.slider("Tỷ lệ R:R", 1.0, 4.0, 2.0, 0.5)
         trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
         
         if trade_plan:
             direction_color = "#10b981" if trade_plan['direction'] == "LONG" else "#f43f5e"
             direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
-            st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;'>Tín hiệu: {direction_vn}</h3>", unsafe_allow_html=True)
+            
+            # Chuẩn đoán chất lượng
+            score, quality, reasons = get_trade_diagnosis(df, trade_plan)
+            
+            st.markdown(f"""
+                <div style='background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 20px;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;'>
+                        <h3 style='margin: 0; color: {direction_color};'>Tín hiệu: {direction_vn}</h3>
+                        <div style='background: rgba(99, 102, 241, 0.2); color: #a855f7; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 14px;'>
+                            Điểm chất lượng: {score}/100 ({quality})
+                        </div>
+                    </div>
+                    <div style='color: #a1a1aa; font-size: 13px; line-height: 1.6;'>
+                        {"<br>".join(reasons)}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
             
             col_entry, col_sl, col_tp = st.columns(3)
             with col_entry: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None)
             with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False)
             with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
             
-    with col_risk:
-        st.markdown("<div class='glass-card' style='min-height: 280px;'>", unsafe_allow_html=True)
+            # Kỳ vọng toán học
+            be_wr = (1 / (1 + rr_ratio)) * 100
+            st.markdown(f"""
+                <div style='background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-top: 15px; font-size: 13px; color: #a1a1aa;'>
+                    <strong>Toán học Giao dịch:</strong> Với tỷ lệ R:R = 1:{rr_ratio:.1f}, bạn cần tỷ lệ thắng (Win rate) tối thiểu là <strong>{be_wr:.1f}%</strong> để hòa vốn. Nếu lịch sử của bạn cao hơn mức này, chiến lược này có lãi.
+                </div>
+            """, unsafe_allow_html=True)
+
+    # --- CỘT PHẢI: MÁY TÍNH VỊ THẾ ---
+    with col_right:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>🧮 Máy Tính Vị Thế</div>", unsafe_allow_html=True)
         
         balance = st.number_input("Số dư tài khoản ($)", value=1000.0, step=100.0)
@@ -566,14 +557,14 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
             
             if sl_distance > 0:
                 position_size = risk_amount / sl_distance
+                leverage = (position_size * trade_plan['entry']) / balance if balance > 0 else 0
+                
                 st.markdown(f"""
                     <div style='margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1);'>
-                        <div class='row-item'><span>Số tiền rủi ro:</span> <span class='val-data'>${risk_amount:,.2f}</span></div>
+                        <div class='row-item'><span>Tiền rủi ro tối đa:</span> <span class='val-data val-down'>${risk_amount:,.2f}</span></div>
                         <div class='row-item'><span>Khoảng cách SL:</span> <span class='val-data'>{format_vn_price(sl_distance)}</span></div>
-                        <div class='row-item' style='margin-top: 10px;'>
-                            <span style='color: #fff;'>Khối lượng (Size):</span> 
-                            <span class='val-data val-up' style='font-size: 18px;'>{position_size:,.4f}</span>
-                        </div>
+                        <div class='row-item' style='margin-top: 10px;'><span style='color: #fff; font-weight: bold;'>Khối lượng (Size):</span> <span class='val-data val-up' style='font-size: 18px;'>{position_size:,.4f}</span></div>
+                        <div class='row-item'><span>Đòn bẩy (Leverage) khuyến nghị:</span> <span class='val-data' style='color: #fbbf24;'>x{leverage:.1f}</span></div>
                     </div>
                 """, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
@@ -696,13 +687,11 @@ elif menu_selection == "🌐 Đa Khung Thời Gian":
     st.markdown("<p style='color: #a1a1aa; font-size: 14px;'>Hệ thống tự động quét xu hướng dựa trên giao cắt EMA20 và EMA50 trên 3 khung thời gian. Khi cả 3 khung đồng thuận, xác suất thắng sẽ cao hơn.</p>", unsafe_allow_html=True)
     
     mtf_data = load_mtf_data(ticker)
-    
     col1, col2, col3 = st.columns(3)
     
     def render_mtf_card(col, tf_name, trend_val):
         color = "#10b981" if trend_val == "TĂNG" else ("#f43f5e" if trend_val == "GIẢM" else "#a1a1aa")
         icon = "📈" if trend_val == "TĂNG" else ("📉" if trend_val == "GIẢM" else "➖")
-        
         with col:
             st.markdown(f"""
                 <div class='glass-card' style='text-align: center; border-top: 3px solid {color};'>
@@ -717,29 +706,22 @@ elif menu_selection == "🌐 Đa Khung Thời Gian":
     render_mtf_card(col3, "KHUNG 1 NGÀY", mtf_data.get("1 Ngày", "N/A"))
     
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Đánh giá tổng quan
     up_count = list(mtf_data.values()).count("TĂNG")
     down_count = list(mtf_data.values()).count("GIẢM")
     
-    if up_count == 3:
-        st.success("🔥 **ĐỒNG QUY TĂNG MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng tăng. Ưu tiên tìm điểm MUA (LONG).")
-    elif down_count == 3:
-        st.error("🩸 **ĐỒNG QUY GIẢM MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng giảm. Ưu tiên tìm điểm BÁN (SHORT).")
-    else:
-        st.warning("⚠️ **XUNG ĐỘT XU HƯỚNG:** Các khung thời gian chưa đồng nhất. Nên đứng ngoài chờ đợi tín hiệu rõ ràng hơn.")
+    if up_count == 3: st.success("🔥 **ĐỒNG QUY TĂNG MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng tăng. Ưu tiên tìm điểm MUA (LONG).")
+    elif down_count == 3: st.error("🩸 **ĐỒNG QUY GIẢM MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng giảm. Ưu tiên tìm điểm BÁN (SHORT).")
+    else: st.warning("⚠️ **XUNG ĐỘT XU HƯỚNG:** Các khung thời gian chưa đồng nhất. Nên đứng ngoài chờ đợi tín hiệu rõ ràng hơn.")
 
 # ------------------------------------------------------------
 # KHU VỰC 5: FIBONACCI
 # ------------------------------------------------------------
 elif menu_selection == "📏 Fibonacci":
     st.subheader("Fibonacci Retracement (100 nến gần nhất)")
-    
     fib_data = calculate_fibonacci(df)
     
     if fib_data:
         col_info, col_levels = st.columns([1, 2])
-        
         with col_info:
             st.markdown(f"""
                 <div class='glass-card'>
@@ -748,7 +730,6 @@ elif menu_selection == "📏 Fibonacci":
                     <div class='row-item'><span>Đáy (Swing Low):</span> <span class='val-data val-up'>{format_vn_price(fib_data['Swing Low'])}</span></div>
                 </div>
             """, unsafe_allow_html=True)
-            
         with col_levels:
             st.markdown(f"""
                 <div class='glass-card'>
@@ -760,8 +741,7 @@ elif menu_selection == "📏 Fibonacci":
                     <div class='row-item'><span>Fib 0.786:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.786'])}</span></div>
                 </div>
             """, unsafe_allow_html=True)
-            
-        st.info("💡 **Mẹo:** Mức 0.5 và 0.618 (Golden Ratio) là những vùng phản ứng giá rất mạnh. Nếu giá hồi về đây và có tín hiệu đảo chiều (nến Pinbar, Engulfing), đó là điểm vào lệnh tuyệt vời.")
+        st.info("💡 **Mẹo:** Mức 0.5 và 0.618 (Golden Ratio) là những vùng phản ứng giá rất mạnh. Nếu giá hồi về đây và có tín hiệu đảo chiều, đó là điểm vào lệnh tuyệt vời.")
     else:
         st.warning("Không đủ dữ liệu để tính Fibonacci.")
 
