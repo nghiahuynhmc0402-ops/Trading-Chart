@@ -60,7 +60,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2. KHAI BÁO BIẾN TOÀN CỤC (FIX LỖI NAMEERROR)
+# 2. KHAI BÁO BIẾN TOÀN CỤC
 # ============================================================
 POPULAR_ASSETS = {
     "🔥 Hàng Hóa": {"Vàng (XAUUSD)": "GC=F", "Bạc (XAGUSD)": "SI=F", "Dầu WTI": "CL=F"},
@@ -71,58 +71,55 @@ POPULAR_ASSETS = {
 flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
 
 # ============================================================
-# 3. KHỞI TẠO DATABASE
+# 3. KHỞI TẠO DATABASE (BỌC `WITH` ĐỂ TRÁNH TREO/LOCK DB)
 # ============================================================
 DB_FILE = "trading_journal.db"
+
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute('''CREATE TABLE IF NOT EXISTS journal (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, asset TEXT, direction TEXT, result TEXT, reason TEXT, pnl REAL)''')
-    conn.execute('''CREATE TABLE IF NOT EXISTS bot_journal (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, 
-        open_time TEXT, close_time TEXT, asset TEXT, direction TEXT, 
-        entry_price REAL, exit_price REAL, sl REAL, tp REAL, 
-        status TEXT, reason TEXT
-    )''')
-    conn.commit(); conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS journal (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, asset TEXT, direction TEXT, result TEXT, reason TEXT, pnl REAL)''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS bot_journal (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, 
+            open_time TEXT, close_time TEXT, asset TEXT, direction TEXT, 
+            entry_price REAL, exit_price REAL, sl REAL, tp REAL, 
+            status TEXT, reason TEXT
+        )''')
 
 init_db()
 
 def add_trade(date, asset, direction, result, reason, pnl):
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO journal (date, asset, direction, result, reason, pnl) VALUES (?, ?, ?, ?, ?, ?)", (date, asset, direction, result, reason, pnl))
-    conn.commit(); conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("INSERT INTO journal (date, asset, direction, result, reason, pnl) VALUES (?, ?, ?, ?, ?, ?)", (date, asset, direction, result, reason, pnl))
 
 def get_trades():
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query("SELECT * FROM journal ORDER BY date DESC", conn)
-    conn.close(); return df
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query("SELECT * FROM journal ORDER BY date DESC", conn)
+    return df
 
 def get_active_bot_trade(asset):
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' AND status='ACTIVE' ORDER BY id DESC LIMIT 1", conn)
-    conn.close(); return df.iloc[0] if not df.empty else None
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' AND status='ACTIVE' ORDER BY id DESC LIMIT 1", conn)
+    return df.iloc[0] if not df.empty else None
 
 def get_last_closed_bot_trade(asset):
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' AND status!='ACTIVE' ORDER BY id DESC LIMIT 1", conn)
-    conn.close(); return df.iloc[0] if not df.empty else None
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' AND status!='ACTIVE' ORDER BY id DESC LIMIT 1", conn)
+    return df.iloc[0] if not df.empty else None
 
 def add_bot_trade(open_time, asset, direction, entry, sl, tp):
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("INSERT INTO bot_journal (open_time, asset, direction, entry_price, sl, tp, status) VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')", 
-                 (open_time, asset, direction, entry, sl, tp))
-    conn.commit(); conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("INSERT INTO bot_journal (open_time, asset, direction, entry_price, sl, tp, status) VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')", 
+                     (open_time, asset, direction, entry, sl, tp))
 
 def close_bot_trade(trade_id, close_time, exit_price, status, reason):
-    conn = sqlite3.connect(DB_FILE)
-    conn.execute("UPDATE bot_journal SET close_time=?, exit_price=?, status=?, reason=? WHERE id=?", 
-                 (close_time, exit_price, status, reason, trade_id))
-    conn.commit(); conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("UPDATE bot_journal SET close_time=?, exit_price=?, status=?, reason=? WHERE id=?", 
+                     (close_time, exit_price, status, reason, trade_id))
 
 def get_bot_history(asset):
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' ORDER BY id DESC", conn)
-    conn.close(); return df
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' ORDER BY id DESC", conn)
+    return df
 
 # ============================================================
 # 4. UI COMPONENTS & FORMAT
@@ -157,7 +154,6 @@ def premium_copyable_metric(label, value_str, delta_text=None, is_positive=None)
         {delta_html}
     </div>
     """
-    # Đã sửa st.components.v1.html thành components.html (không cần đổi thành st.iframe vì nó vẫn hỗ trợ, chỉ cảnh báo)
     components.html(html_code, height=115)
 
 # ============================================================
@@ -220,7 +216,6 @@ def load_data(ticker: str, interval: str):
         if df.empty: return None
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         
-        # Sửa lỗi cảnh báo Pandas inplace
         df = df.reset_index()
         time_col = "Datetime" if "Datetime" in df.columns else "Date"
         df = df.rename(columns={time_col: "Time"})
@@ -297,7 +292,6 @@ with st.sidebar:
     interval = interval_map[timeframe]
     
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    # Đã sửa lỗi use_container_width thành width='stretch'
     if st.button("Đồng bộ dữ liệu", width='stretch'):
         st.cache_data.clear()
         st.rerun()
@@ -332,7 +326,7 @@ with st.spinner("⚙️ Đang xử lý thuật toán..."):
     prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
     change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
-# CHẠY BOT ENGINE
+# CHẠY BOT ENGINE TỰ ĐỘNG KHI LOAD TRANG
 run_bot_engine(df, ticker, timeframe)
 
 # HEADER KPI
@@ -417,7 +411,16 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
 
     # --- PHẦN BOT TRADING HISTORY ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
-    st.markdown("### 🤖 Lịch Sử Giao Dịch Của Bot")
+    
+    col_bot_title, col_bot_btn = st.columns([3, 1])
+    with col_bot_title:
+        st.markdown("### 🤖 Lịch Sử Giao Dịch Của Bot")
+    with col_bot_btn:
+        # NÚT RELOAD BOT AN TOÀN
+        if st.button("🔄 Cập nhật Bot", key="reload_bot_btn"):
+            with st.spinner("⏳ Đang quét tín hiệu mới nhất..."):
+                st.cache_data.clear() # Xóa cache giá để lấy nến mới nhất
+                st.rerun()            # Load lại toàn bộ app (sẽ tự động chạy lại Bot Engine)
     
     active_bot = get_active_bot_trade(ticker)
     bot_df = get_bot_history(ticker)
