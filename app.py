@@ -22,7 +22,7 @@ except ImportError:
     HAS_SMC = False
 
 # ============================================================
-# 1. CẤU HÌNH GIAO DIỆN & CSS (INSTITUTIONAL DARK UI)
+# 1. CẤU HÌNH GIAO DIỆN & CSS
 # ============================================================
 st.set_page_config(
     page_title="TradeDesk Pro | Terminal",
@@ -60,14 +60,23 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2. KHỞI TẠO DATABASE (JOURNAL & BOT)
+# 2. KHAI BÁO BIẾN TOÀN CỤC (FIX LỖI NAMEERROR)
+# ============================================================
+POPULAR_ASSETS = {
+    "🔥 Hàng Hóa": {"Vàng (XAUUSD)": "GC=F", "Bạc (XAGUSD)": "SI=F", "Dầu WTI": "CL=F"},
+    "₿ Crypto": {"Bitcoin (BTC)": "BTC-USD", "Ethereum (ETH)": "ETH-USD", "Solana (SOL)": "SOL-USD"},
+    "💵 Forex": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X"},
+    "🏦 Chỉ Số & CK Mỹ": {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Apple (AAPL)": "AAPL", "Tesla (TSLA)": "TSLA"}
+}
+flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
+
+# ============================================================
+# 3. KHỞI TẠO DATABASE
 # ============================================================
 DB_FILE = "trading_journal.db"
 def init_db():
     conn = sqlite3.connect(DB_FILE)
-    # Bảng Nhật ký thủ công
     conn.execute('''CREATE TABLE IF NOT EXISTS journal (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, asset TEXT, direction TEXT, result TEXT, reason TEXT, pnl REAL)''')
-    # Bảng Lịch sử Bot
     conn.execute('''CREATE TABLE IF NOT EXISTS bot_journal (
         id INTEGER PRIMARY KEY AUTOINCREMENT, 
         open_time TEXT, close_time TEXT, asset TEXT, direction TEXT, 
@@ -88,7 +97,6 @@ def get_trades():
     df = pd.read_sql_query("SELECT * FROM journal ORDER BY date DESC", conn)
     conn.close(); return df
 
-# Hàm cho Bot
 def get_active_bot_trade(asset):
     conn = sqlite3.connect(DB_FILE)
     df = pd.read_sql_query(f"SELECT * FROM bot_journal WHERE asset='{asset}' AND status='ACTIVE' ORDER BY id DESC LIMIT 1", conn)
@@ -117,7 +125,7 @@ def get_bot_history(asset):
     conn.close(); return df
 
 # ============================================================
-# 3. UI COMPONENTS & FORMAT
+# 4. UI COMPONENTS & FORMAT
 # ============================================================
 def format_vn_price(value) -> str:
     if pd.isna(value) or value is None: return "N/A"
@@ -149,26 +157,24 @@ def premium_copyable_metric(label, value_str, delta_text=None, is_positive=None)
         {delta_html}
     </div>
     """
+    # Đã sửa st.components.v1.html thành components.html (không cần đổi thành st.iframe vì nó vẫn hỗ trợ, chỉ cảnh báo)
     components.html(html_code, height=115)
 
 # ============================================================
-# 4. LOGIC BOT GIAO DỊCH TỰ ĐỘNG
+# 5. LOGIC BOT GIAO DỊCH TỰ ĐỘNG
 # ============================================================
-def run_bot_engine(df, ticker):
-    """Bot tự động đọc biểu đồ và vào lệnh với điều kiện khắt khe."""
+def run_bot_engine(df, ticker, timeframe):
     latest = df.iloc[-1]
     current_time = str(latest['Time'])
     
-    # 1. Kiểm tra lệnh đang ACTIVE
     active_trade = get_active_bot_trade(ticker)
     if active_trade is not None:
-        # Kiểm tra SL/TP/Cắt sớm
         if active_trade['direction'] == 'LONG':
             if latest['Low'] <= active_trade['sl']:
                 close_bot_trade(active_trade['id'], current_time, active_trade['sl'], 'LOSS', 'Chạm Stop-Loss (SL)')
             elif latest['High'] >= active_trade['tp']:
                 close_bot_trade(active_trade['id'], current_time, active_trade['tp'], 'WIN', 'Chạm Take-Profit (TP)')
-            elif latest['EMA20'] < latest['EMA50']: # Đảo chiều
+            elif latest['EMA20'] < latest['EMA50']:
                 close_bot_trade(active_trade['id'], current_time, latest['Close'], 'CUT_EARLY', 'Cắt sớm: Tín hiệu đảo chiều (EMA)')
         elif active_trade['direction'] == 'SHORT':
             if latest['High'] >= active_trade['sl']:
@@ -177,102 +183,33 @@ def run_bot_engine(df, ticker):
                 close_bot_trade(active_trade['id'], current_time, active_trade['tp'], 'WIN', 'Chạm Take-Profit (TP)')
             elif latest['EMA20'] > latest['EMA50']:
                 close_bot_trade(active_trade['id'], current_time, latest['Close'], 'CUT_EARLY', 'Cắt sớm: Tín hiệu đảo chiều (EMA)')
-        return # Đang có lệnh thì không làm gì tiếp
+        return
 
-    # 2. Nếu không có lệnh ACTIVE, kiểm tra Cooldown (Hạn chế vào lệnh liên tục)
     last_closed = get_last_closed_bot_trade(ticker)
     if last_closed is not None:
         last_close_time = pd.to_datetime(last_closed['close_time'])
-        # Nghỉ ít nhất 3 nến trước khi vào lệnh mới
-        # Ví dụ: nến 1 ngày thì nghỉ 3 ngày
-        cooldown = timedelta(hours=4) # Mặc định 4h
+        cooldown = timedelta(hours=4)
         if "Ngày" in timeframe or "Tuần" in timeframe: cooldown = timedelta(days=3)
         elif "Giờ" in timeframe: cooldown = timedelta(hours=12)
         
         if (latest['Time'] - last_close_time) < cooldown:
-            return # Đang trong thời gian nghỉ
+            return
 
-    # 3. Tìm tín hiệu vào lệnh (Strict Confluence - Đọc biểu đồ chính xác)
-    # Điều kiện: ADX > 20 (Có xu hướng), RSI xác nhận, MACD xác nhận, EMA cắt
     entry = latest['Close']
     atr = latest['ATR']
     
-    # Tín hiệu LONG
-    if (latest['EMA20'] > latest['EMA50'] and 
-        latest['RSI'] > 55 and latest['RSI'] < 75 and # Không mua đuổi khi quá mua
-        latest['MACD_hist'] > 0 and 
-        latest['ADX'] > 20):
-        
-        sl = latest['Low'] - (atr * 1.0) # SL an toàn dưới đáy
-        tp = entry + (entry - sl) * 2.0  # R:R 1:2
+    if (latest['EMA20'] > latest['EMA50'] and latest['RSI'] > 55 and latest['RSI'] < 75 and latest['MACD_hist'] > 0 and latest['ADX'] > 20):
+        sl = latest['Low'] - (atr * 1.0)
+        tp = entry + (entry - sl) * 2.0
         add_bot_trade(current_time, ticker, 'LONG', entry, sl, tp)
-        
-    # Tín hiệu SHORT
-    elif (latest['EMA20'] < latest['EMA50'] and 
-          latest['RSI'] < 45 and latest['RSI'] > 25 and 
-          latest['MACD_hist'] < 0 and 
-          latest['ADX'] > 20):
-        
+    elif (latest['EMA20'] < latest['EMA50'] and latest['RSI'] < 45 and latest['RSI'] > 25 and latest['MACD_hist'] < 0 and latest['ADX'] > 20):
         sl = latest['High'] + (atr * 1.0)
         tp = entry - (sl - entry) * 2.0
         add_bot_trade(current_time, ticker, 'SHORT', entry, sl, tp)
 
 # ============================================================
-# 5. SIDEBAR
+# 6. HÀM LOAD DATA & TÍNH TOÁN
 # ============================================================
-with st.sidebar:
-    st.markdown("""
-        <div style='display: flex; align-items: center; gap: 12px; margin-bottom: 24px; margin-top: 10px;'>
-            <div style='background: #3B82F6; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;'>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-            </div>
-            <div>
-                <h2 style='margin: 0; font-size: 18px; line-height: 1.2; color: #F8FAFC;'>TradeDesk <span style='color: #3B82F6;'>Pro</span></h2>
-                <p style='margin: 0; color: #64748B; font-size: 10px; letter-spacing: 1.5px; font-weight: 600;'>TERMINAL</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>TÀI SẢN</p>", unsafe_allow_html=True)
-    selected_asset = st.selectbox("Asset", list(flat_assets.keys()), index=0, label_visibility="collapsed")
-    ticker = flat_assets[selected_asset]
-    
-    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 15px;'>KHUNG THỜI GIAN</p>", unsafe_allow_html=True)
-    timeframe = st.selectbox("TF", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
-    interval_map = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}
-    interval = interval_map[timeframe]
-    
-    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    if st.button("Đồng bộ dữ liệu", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
-        
-    st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-    
-    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>HỆ THỐNG PHÂN TÍCH</p>", unsafe_allow_html=True)
-    menu_selection = st.radio(
-        "Menu",
-        [
-            "📊 Biểu Đồ Kỹ Thuật",
-            "🎯 Kế Hoạch Giao Dịch",
-            "🧠 Cấu Trúc Thị Trường",
-            "📰 Tin Tức & Sự Kiện",
-            "📓 Nhật Ký Giao Dịch"
-        ],
-        label_visibility="collapsed"
-    )
-
-# ============================================================
-# 6. MAIN AREA
-# ============================================================
-POPULAR_ASSETS = {
-    "🔥 Hàng Hóa": {"Vàng (XAUUSD)": "GC=F", "Bạc (XAGUSD)": "SI=F", "Dầu WTI": "CL=F"},
-    "₿ Crypto": {"Bitcoin (BTC)": "BTC-USD", "Ethereum (ETH)": "ETH-USD", "Solana (SOL)": "SOL-USD"},
-    "💵 Forex": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X"},
-    "🏦 Chỉ Số & CK Mỹ": {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Apple (AAPL)": "AAPL", "Tesla (TSLA)": "TSLA"}
-}
-flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
-
 @st.cache_data(ttl=300, show_spinner="⏳ Đang kết nối luồng dữ liệu...")
 def load_data(ticker: str, interval: str):
     period = "1y"
@@ -282,9 +219,11 @@ def load_data(ticker: str, interval: str):
         df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
         if df.empty: return None
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        df.reset_index(inplace=True)
+        
+        # Sửa lỗi cảnh báo Pandas inplace
+        df = df.reset_index()
         time_col = "Datetime" if "Datetime" in df.columns else "Date"
-        df.rename(columns={time_col: "Time"}, inplace=True)
+        df = df.rename(columns={time_col: "Time"})
         df["Time"] = pd.to_datetime(df["Time"])
         return df.dropna(subset=["Close"])
     except: return None
@@ -332,6 +271,55 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
         
     return {"direction": direction, "entry": entry, "sl": sl, "tp": tp}
 
+# ============================================================
+# 7. SIDEBAR
+# ============================================================
+with st.sidebar:
+    st.markdown("""
+        <div style='display: flex; align-items: center; gap: 12px; margin-bottom: 24px; margin-top: 10px;'>
+            <div style='background: #3B82F6; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;'>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+            </div>
+            <div>
+                <h2 style='margin: 0; font-size: 18px; line-height: 1.2; color: #F8FAFC;'>TradeDesk <span style='color: #3B82F6;'>Pro</span></h2>
+                <p style='margin: 0; color: #64748B; font-size: 10px; letter-spacing: 1.5px; font-weight: 600;'>TERMINAL</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>TÀI SẢN</p>", unsafe_allow_html=True)
+    selected_asset = st.selectbox("Asset", list(flat_assets.keys()), index=0, label_visibility="collapsed")
+    ticker = flat_assets[selected_asset]
+    
+    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 15px;'>KHUNG THỜI GIAN</p>", unsafe_allow_html=True)
+    timeframe = st.selectbox("TF", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
+    interval_map = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}
+    interval = interval_map[timeframe]
+    
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+    # Đã sửa lỗi use_container_width thành width='stretch'
+    if st.button("Đồng bộ dữ liệu", width='stretch'):
+        st.cache_data.clear()
+        st.rerun()
+        
+    st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+    
+    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>HỆ THỐNG PHÂN TÍCH</p>", unsafe_allow_html=True)
+    menu_selection = st.radio(
+        "Menu",
+        [
+            "📊 Biểu Đồ Kỹ Thuật",
+            "🎯 Kế Hoạch Giao Dịch",
+            "🧠 Cấu Trúc Thị Trường",
+            "📰 Tin Tức & Sự Kiện",
+            "📓 Nhật Ký Giao Dịch"
+        ],
+        label_visibility="collapsed"
+    )
+
+# ============================================================
+# 8. MAIN AREA
+# ============================================================
 df = load_data(ticker, interval)
 
 if df is None or len(df) < 50:
@@ -344,8 +332,8 @@ with st.spinner("⚙️ Đang xử lý thuật toán..."):
     prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
     change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
-# CHẠY BOT ENGINE MỖI KHI LOAD DATA
-run_bot_engine(df, ticker)
+# CHẠY BOT ENGINE
+run_bot_engine(df, ticker, timeframe)
 
 # HEADER KPI
 col_header, col_status = st.columns([3, 1])
@@ -381,10 +369,8 @@ if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)"))
     fig.add_trace(go.Candlestick(x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Giá", increasing_line_color="#10B981", decreasing_line_color="#F43F5E"), row=1, col=1)
     
-    # Tự động vẽ Entry/SL/TP của Bot lên biểu đồ nếu có lệnh ACTIVE
     active_trade = get_active_bot_trade(ticker)
     if active_trade is not None:
-        color = "#10B981" if active_trade['direction'] == "LONG" else "#F43F5E"
         fig.add_hline(y=active_trade['entry_price'], line_dash="solid", line_color="#F8FAFC", line_width=1, annotation_text="Bot Entry", row=1, col=1)
         fig.add_hline(y=active_trade['sl'], line_dash="dash", line_color="#F43F5E", line_width=1, annotation_text="Bot SL", row=1, col=1)
         fig.add_hline(y=active_trade['tp'], line_dash="dash", line_color="#10B981", line_width=1, annotation_text="Bot TP", row=1, col=1)
@@ -400,10 +386,10 @@ if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
     fig.update_xaxes(showgrid=True, gridcolor="#1E293B", rangeslider_visible=False)
     fig.update_yaxes(showgrid=True, gridcolor="#1E293B", side="right", tickfont=dict(family="JetBrains Mono, monospace", color="#64748B"))
     
-    st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
+    st.plotly_chart(fig, width='stretch', config={'scrollZoom': True, 'displayModeBar': False})
 
 # ------------------------------------------------------------
-# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH (TÍCH HỢP BOT)
+# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & LỊCH SỬ BOT
 # ------------------------------------------------------------
 elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
     st.subheader("Thiết Lập Vị Thế")
@@ -431,14 +417,11 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
 
     # --- PHẦN BOT TRADING HISTORY ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
-    
     st.markdown("### 🤖 Lịch Sử Giao Dịch Của Bot")
     
-    # Kiểm tra trạng thái hiện tại của Bot
     active_bot = get_active_bot_trade(ticker)
     bot_df = get_bot_history(ticker)
     
-    # Thống kê Bot
     if not bot_df.empty:
         closed_trades = bot_df[bot_df['status'] != 'ACTIVE']
         total_closed = len(closed_trades)
@@ -469,30 +452,26 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
     else:
         st.info("🤖 Bot đang đứng ngoài chờ tín hiệu (Strict Confluence & Cooldown).")
 
-    # Bảng lịch sử Bot
     if not bot_df.empty:
         display_df = bot_df.copy()
         display_df['open_time'] = pd.to_datetime(display_df['open_time']).dt.strftime('%d/%m/%Y %H:%M')
         display_df['close_time'] = pd.to_datetime(display_df['close_time']).dt.strftime('%d/%m/%Y %H:%M').fillna('-')
         
-        # Format giá
         for col in ['entry_price', 'exit_price', 'sl', 'tp']:
             display_df[col] = display_df[col].apply(lambda x: format_vn_price(x) if pd.notna(x) else '-')
             
-        # Màu sắc
         def color_bot_status(val):
             if val == 'WIN': return 'color: #10B981; font-weight: 600;'
             if val == 'LOSS': return 'color: #F43F5E; font-weight: 600;'
-            if val == 'CUT_EARLY': return 'color: #F59E0B; font-weight: 600;' # Màu vàng cam
+            if val == 'CUT_EARLY': return 'color: #F59E0B; font-weight: 600;' 
             if val == 'ACTIVE': return 'color: #3B82F6; font-weight: 600;'
             return ''
 
         styled_bot_df = display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style \
             .map(color_bot_status, subset=['status'])
             
-        st.dataframe(styled_bot_df, hide_index=True, use_container_width=True)
+        st.dataframe(styled_bot_df, hide_index=True, width='stretch')
         
-        # Giải thích logic Bot
         st.markdown("""
         <div style='font-size: 12px; color: #64748B; margin-top: 10px;'>
             <strong>Logic Bot:</strong> Vào lệnh khi EMA, RSI, MACD đồng thuận và ADX > 20. Tự động cắt lỗ (SL), chốt lời (TP), hoặc Cắt sớm nếu tín hiệu đảo chiều. Có thời gian Cooldown (nghỉ 3 nến) sau mỗi lệnh để tránh vào lệnh liên tục.
@@ -555,7 +534,7 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
         if not journal_df.empty:
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
             csv = journal_df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Tải file Backup (CSV)", data=csv, file_name="journal.csv", mime="text/csv", use_container_width=True)
+            st.download_button("📥 Tải file Backup (CSV)", data=csv, file_name="journal.csv", mime="text/csv", width='stretch')
 
     with col_history:
         if journal_df.empty:
@@ -602,4 +581,4 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
                     .map(color_result, subset=['result']) \
                     .map(color_pnl, subset=['pnl'])
                 
-                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+                st.dataframe(styled_df, hide_index=True, width='stretch')
