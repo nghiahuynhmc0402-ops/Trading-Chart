@@ -521,6 +521,48 @@ div[data-testid="stRadio"] label:has(input:checked) {
 
 a.news-card { display: block; text-decoration: none; color: inherit; }
 
+/* ===================== V4: WARP / LẬT / XOAY ===================== */
+@keyframes warpIn { from { opacity: 0; transform: perspective(1200px) translateZ(-280px) rotateX(16deg) scale(.93); filter: blur(10px) brightness(1.8); } }
+@keyframes coin { to { transform: rotateY(360deg); } }
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="element-container"] { animation: warpIn .85s var(--ease) both; }
+[data-testid="stHorizontalBlock"] > div { animation: warpIn .8s var(--ease) both; }
+html.nt-warping .block-container { animation: none; }
+
+/* Hero: kéo / chạm để xoay, nảy lò xo khi thả */
+.hero {
+    transform: perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+    transition: transform .65s cubic-bezier(.2,1.5,.4,1), box-shadow .4s;
+    cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; will-change: transform;
+    animation: spin 7s linear infinite, warpIn .9s var(--ease) both;
+}
+.hero.drag { transition: transform .08s linear; cursor: grabbing; box-shadow: 0 40px 90px -30px var(--c), 0 0 0 1px rgba(255,255,255,.12); }
+.orbit { transition: transform .9s var(--ease); }
+.hero.drag .orbit { transform: scale(1.18) rotate(40deg); }
+.hint { color: var(--dim); font-size: 11px; margin-left: 8px; }
+
+/* Thẻ lật 3D */
+.flip { position: relative; perspective: 1100px; cursor: pointer; margin-bottom: 14px; transition: transform .35s var(--ease); }
+.flip:hover { transform: translateY(-4px); }
+.flip-in { position: relative; transform-style: preserve-3d; transition: transform .95s cubic-bezier(.34,1.45,.5,1); }
+.flip.flipped .flip-in { transform: rotateY(180deg); }
+.ff, .fb { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.ff { position: relative; }
+.ff::after { content: "⟳"; position: absolute; right: 11px; bottom: 6px; font-size: 13px; color: var(--dim); pointer-events: none; }
+.flip .glass-card, .flip .qm { margin-bottom: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.flip .qm:hover { transform: none; }
+.fb {
+    position: absolute; inset: 0; transform: rotateY(180deg); border-radius: 17px; padding: 14px 18px; box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: center; gap: 6px; overflow: hidden;
+    background: radial-gradient(120% 120% at 20% 0%, rgba(139,123,255,.38), rgba(10,8,30,.97) 62%), #0a0820;
+    border: 1px solid rgba(160,140,255,.5); box-shadow: 0 0 30px -6px rgba(139,123,255,.65), inset 0 0 34px rgba(56,225,255,.09);
+}
+.fb::before { content: ""; position: absolute; inset: -60%; background: conic-gradient(from 0deg, transparent 0 70%, rgba(56,225,255,.22), transparent); animation: spin2 5s linear infinite; pointer-events: none; }
+.fb b, .fb span { position: relative; }
+.fb b { color: #fff; font-size: 12px; letter-spacing: .8px; }
+.fb span { color: #cfd1e6; font-size: 12.5px; line-height: 1.5; }
+.mtf-icon { animation: coin 5s cubic-bezier(.6,0,.4,1) infinite; }
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -692,11 +734,112 @@ FX_JS = r"""
 """
 
 
+FX_JS2 = r"""
+(function(){
+  if (window.__ntFx4) return; window.__ntFx4 = true;
+  var D = document, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var q = function(e, s){ return e.target.closest && e.target.closest(s); };
+
+  /* ---- Lật thẻ khi chạm ---- */
+  D.addEventListener('click', function(e){
+    var f = q(e, '.flip'); if (!f || q(e, '.nt-copy') || q(e, 'a')) return;
+    f.classList.toggle('flipped');
+    if (!reduce) ring(e.clientX, e.clientY);
+  });
+  if (reduce) return;
+
+  /* ---- Canvas warp (chuyển cảnh) + sóng chạm ---- */
+  var cv = D.createElement('canvas');
+  cv.id = 'nt-warp'; cv.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:99998;pointer-events:none';
+  D.body.appendChild(cv);
+  var c = cv.getContext('2d'), w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function size(){ w = window.innerWidth; h = window.innerHeight; cv.width = w * dpr; cv.height = h * dpr; c.setTransform(dpr,0,0,dpr,0,0); }
+  size(); window.addEventListener('resize', size);
+  var pal = ['139,123,255', '56,225,255', '255,94,203', '255,255,255'];
+  var st = [], rings = [], t0 = 0, on = false, running = false, last = 0, DUR = 1000;
+
+  function go(){ if (!running) { running = true; last = performance.now(); requestAnimationFrame(tick); } }
+  function warp(){
+    t0 = performance.now(); on = true; st = [];
+    for (var i = 0, n = w < 700 ? 110 : 230; i < n; i++) st.push({a: Math.random() * 6.283, r: Math.random() * .12, v: .5 + Math.random(), c: pal[i % 4]});
+    D.documentElement.classList.add('nt-warping'); go();
+  }
+  function ring(x, y){ rings.push({x: x, y: y, r: 4, l: 1}, {x: x, y: y, r: -10, l: .7}); go(); }
+  function roll(){
+    var el = D.querySelector('.hero'); if (!el || !el.animate) return;
+    el.animate([{transform: 'perspective(1100px) rotateY(0deg)'}, {transform: 'perspective(1100px) rotateY(360deg) scale(1.03)'}, {transform: 'perspective(1100px) rotateY(360deg)'}], {duration: 1100, easing: 'cubic-bezier(.3,.9,.3,1)'});
+  }
+
+  function tick(t){
+    var dt = Math.min((t - last) / 16.7, 3); last = t;
+    c.clearRect(0, 0, w, h);
+    var cx = w / 2, cy = h * .42, dg = Math.hypot(w, h) / 2;
+    if (on) {
+      var p = (t - t0) / DUR;
+      if (p >= 1) { on = false; D.documentElement.classList.remove('nt-warping'); }
+      else {
+        var k = Math.sin(p * Math.PI), g = c.createRadialGradient(cx, cy, 0, cx, cy, dg * .9);
+        g.addColorStop(0, 'rgba(190,170,255,' + (.3 * k * k).toFixed(3) + ')');
+        g.addColorStop(.5, 'rgba(90,60,220,' + (.1 * k).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g; c.fillRect(0, 0, w, h); c.lineCap = 'round';
+        for (var i = 0; i < st.length; i++) {
+          var s = st[i]; s.r += s.v * (.003 + .045 * k * k) * dt; if (s.r > 1.05) s.r = Math.random() * .06;
+          var r1 = s.r * dg * 1.1, r0 = Math.max(r1 - (6 + 240 * k * k) * s.v, 0), co = Math.cos(s.a), si = Math.sin(s.a);
+          c.strokeStyle = 'rgba(' + s.c + ',' + Math.min(1, .15 + k * 1.1).toFixed(3) + ')'; c.lineWidth = .6 + s.r * 1.8;
+          c.beginPath(); c.moveTo(cx + co * r0, cy + si * r0); c.lineTo(cx + co * r1, cy + si * r1); c.stroke();
+        }
+      }
+    }
+    for (var j = rings.length - 1; j >= 0; j--) {
+      var o = rings[j]; o.r += (7 + o.r * .06) * dt; o.l -= .025 * dt;
+      if (o.l <= 0) { rings.splice(j, 1); continue; }
+      if (o.r <= 0) continue;
+      c.strokeStyle = 'rgba(' + (j % 2 ? '56,225,255' : '139,123,255') + ',' + o.l.toFixed(3) + ')'; c.lineWidth = 2.2 * o.l + .4;
+      c.beginPath(); c.arc(o.x, o.y, o.r, 0, 6.283); c.stroke();
+    }
+    if (on || rings.length) requestAnimationFrame(tick); else { running = false; c.clearRect(0, 0, w, h); }
+  }
+
+  /* Chạm: sóng xung kích; đổi tab / tài sản / làm mới: warp + hero xoay 360° */
+  D.addEventListener('pointerdown', function(e){
+    ring(e.clientX, e.clientY);
+    if (q(e, 'div[data-testid="stRadio"] label')) { warp(); roll(); }
+    else if (q(e, 'li[role="option"]') || q(e, '.stButton>button')) warp();
+  }, {passive: true});
+
+  /* ---- Hero: kéo để xoay (chuột + cảm ứng), rê chuột nghiêng nhẹ, con quay hồi chuyển ---- */
+  var drag = null;
+  function tilt(el, e, amp){
+    var r = el.getBoundingClientRect();
+    el.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * amp).toFixed(1) + 'deg');
+    el.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * amp).toFixed(1) + 'deg');
+  }
+  function reset(el){ el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg'); }
+  D.addEventListener('pointerdown', function(e){ var el = q(e, '.hero'); if (!el) return; drag = el; el.classList.add('drag'); tilt(el, e, 30); }, {passive: true});
+  D.addEventListener('pointermove', function(e){
+    if (drag) return tilt(drag, e, 30);
+    var el = e.pointerType === 'mouse' && q(e, '.hero'); if (el) tilt(el, e, 10);
+  }, {passive: true});
+  D.addEventListener('pointerout', function(e){
+    var el = q(e, '.hero'); if (el && !drag && !(e.relatedTarget && el.contains(e.relatedTarget))) reset(el);
+  }, {passive: true});
+  function end(){ if (!drag) return; drag.classList.remove('drag'); reset(drag); drag = null; }
+  D.addEventListener('pointerup', end); D.addEventListener('pointercancel', end);
+  window.addEventListener('deviceorientation', function(e){
+    var el = D.querySelector('.hero'); if (!el || drag || e.gamma == null) return;
+    el.style.setProperty('--ry', Math.max(-12, Math.min(12, e.gamma / 3)).toFixed(1) + 'deg');
+    el.style.setProperty('--rx', Math.max(-12, Math.min(12, ((e.beta || 45) - 45) / 4)).toFixed(1) + 'deg');
+  }, {passive: true});
+})();
+"""
+
+
 def inject_js(code: str):
     """Chèn script vào trang cha 1 lần (chạy bền vững, không phụ thuộc vòng đời iframe)."""
     loader = ("<script>(function(){try{var P=window.parent,D=P.document;"
-              "if(D.getElementById('nt-fx-v3'))return;"
-              "var s=D.createElement('script');s.id='nt-fx-v3';s.textContent=" + json.dumps(code) + ";"
+              "if(D.getElementById('nt-fx-v4'))return;"
+              "var s=D.createElement('script');s.id='nt-fx-v4';s.textContent=" + json.dumps(code) + ";"
               "D.head.appendChild(s);}catch(e){}})();</" + "script>")
     try:
         components.html(loader, height=0)
@@ -826,8 +969,18 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None, raw=None
         pass
 
     safe_val = str(value_str).replace("'", "").replace('"', "")
+    _hints = {
+        "GIÁ HIỆN TẠI": "Giá đóng cửa của nến mới nhất. Xanh là tăng so với nến trước, đỏ là giảm.",
+        "RSI (14)": "Trên 70: quá mua, dễ điều chỉnh. Dưới 30: quá bán, dễ hồi. Quanh 50: trung tính.",
+        "ADX (14)": "Đo sức mạnh xu hướng, không đo hướng. Trên 25 là xu hướng mạnh, dưới 20 là đi ngang.",
+        "ATR (14)": "Biên độ dao động trung bình 14 nến. Dùng để đặt SL/TP theo độ biến động.",
+        "GIÁ VÀO LỆNH": "Giá đóng cửa nến mới nhất, dùng làm điểm vào tham chiếu.",
+        "CẮT LỖ (SL)": "Vùng thoát lệnh khi thị trường đi sai: ngoài đỉnh/đáy 20 nến, cộng thêm 0,5 ATR.",
+        "CHỐT LỜI (TP)": "Mục tiêu lợi nhuận theo tỷ lệ R:R bạn chọn ở thanh trượt.",
+    }
+    _hint = _hints.get(label, "Chạm lần nữa để lật lại.")
     html(f"""
-        <div class='qm' style='--bc:{border_color}; --tc:{text_color}; --gl:{glow}; --bar:{bar};'>
+        <div class='flip'><div class='flip-in'><div class='ff'><div class='qm' style='--bc:{border_color}; --tc:{text_color}; --gl:{glow}; --bar:{bar};'>
             <div class='qm-lbl'>{label}</div>
             <div class='qm-row'>
                 <span class='{val_cls}'{val_attr}>{value_str}</span>
@@ -837,7 +990,7 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None, raw=None
                 </span>
             </div>
             {delta_html}
-        </div>
+        </div></div><div class='fb'><b>{label}</b><span>{_hint}</span></div></div></div>
     """)
 
 
@@ -1046,7 +1199,7 @@ with st.sidebar:
 
     if not st.session_state.get("_fx_loaded"):
         st.session_state["_fx_loaded"] = True
-        inject_js(FX_JS)
+        inject_js(FX_JS + "\n" + FX_JS2)
 
 # ============================================================
 # 5. MAIN AREA
@@ -1087,7 +1240,7 @@ html(f"""
             <div class='hero-top'>
                 <div>
                     <div class='hero-name'>{selected_asset.split(' - ')[1]}</div>
-                    <div class='hero-sub'>{ticker} • {timeframe}</div>
+                    <div class='hero-sub'>{ticker} • {timeframe}<span class='hint'>✦ kéo để xoay</span></div>
                 </div>
                 <div class='live-pill'><i></i><span>LIVE</span></div>
             </div>
@@ -1383,13 +1536,15 @@ elif menu_selection == "🌐 Đa Khung Thời Gian":
     def render_mtf_card(col, tf_name, trend_val):
         color = "#22d3a0" if trend_val == "TĂNG" else ("#ff5470" if trend_val == "GIẢM" else "#8b90a0")
         icon = "📈" if trend_val == "TĂNG" else ("📉" if trend_val == "GIẢM" else "➖")
+        _back = {"TĂNG": "EMA20 nằm trên EMA50, xu hướng tăng. Ưu tiên tìm điểm MUA khi các khung cùng đồng thuận.",
+                 "GIẢM": "EMA20 nằm dưới EMA50, xu hướng giảm. Ưu tiên tìm điểm BÁN khi các khung cùng đồng thuận."}.get(trend_val, "Chưa đủ dữ liệu (cần hơn 50 nến) để xác định xu hướng.")
         with col:
             html(f"""
-                <div class='glass-card mtf-card' style='border-top: 3px solid {color};'>
+                <div class='flip'><div class='flip-in'><div class='ff'><div class='glass-card mtf-card' style='border-top: 3px solid {color};'>
                     <div style='color: #8b90a0; font-size: 12px; font-weight: 700; letter-spacing: 1.2px;'>{tf_name}</div>
                     <div class='mtf-icon'>{icon}</div>
                     <div style='color: {color}; font-size: 21px; font-weight: 800;'>{trend_val}</div>
-                </div>
+                </div></div><div class='fb'><b>{tf_name}</b><span>{_back}</span></div></div></div>
             """)
 
     render_mtf_card(col1, "KHUNG 15 PHÚT", mtf_data.get("15 Phút", "N/A"))
