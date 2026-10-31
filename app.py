@@ -586,18 +586,6 @@ FX_JS = r"""
   var D = document;
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* ---- Ripple khi bấm ---- */
-  D.addEventListener('pointerdown', function(e){
-    var t = e.target.closest && e.target.closest('.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button, div[data-testid="stRadio"] label');
-    if (!t) return;
-    var r = t.getBoundingClientRect(), s = Math.max(r.width, r.height);
-    var d = D.createElement('span'); d.className = 'ripple-dot';
-    d.style.width = d.style.height = s + 'px';
-    d.style.left = (e.clientX - r.left - s/2) + 'px';
-    d.style.top = (e.clientY - r.top - s/2) + 'px';
-    t.appendChild(d); setTimeout(function(){ d.remove(); }, 700);
-  }, {passive:true});
-
   /* ---- Đèn rọi + nghiêng 3D ---- */
   D.addEventListener('pointermove', function(e){
     var c = e.target.closest && e.target.closest('.glass-card'); if (!c) return;
@@ -650,21 +638,20 @@ FX_JS = r"""
   if (reduce) return;
 
   /* ---- Vũ trụ: sao lấp lánh, thị sai, sao băng, bụi sao khi chạm ---- */
-  var cv = D.createElement('canvas'), fx = D.createElement('canvas');
+  var cv = D.createElement('canvas');
   cv.id = 'nt-cosmos'; cv.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none';
-  fx.id = 'nt-spark'; fx.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:99999;pointer-events:none';
-  D.body.appendChild(cv); D.body.appendChild(fx);
+  D.body.appendChild(cv);
   D.documentElement.classList.add('nt-canvas');
   var dpr = Math.min(window.devicePixelRatio || 1, 2), w = 0, h = 0;
-  var a = cv.getContext('2d'), b = fx.getContext('2d');
+  var a = cv.getContext('2d');
   function size(){
     w = window.innerWidth; h = window.innerHeight;
-    cv.width = fx.width = Math.round(w * dpr); cv.height = fx.height = Math.round(h * dpr);
-    a.setTransform(dpr,0,0,dpr,0,0); b.setTransform(dpr,0,0,dpr,0,0);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    a.setTransform(dpr,0,0,dpr,0,0);
   }
   size(); window.addEventListener('resize', size);
 
-  var N = window.innerWidth < 700 ? 80 : 160, stars = [], shoot = [], parts = [];
+  var N = window.innerWidth < 700 ? 80 : 160, stars = [], shoot = [];
   var cols = ['255,255,255', '190,215,255', '255,205,235', '170,255,240'];
   for (var i = 0; i < N; i++) {
     var z = Math.random() * .9 + .1;
@@ -673,17 +660,8 @@ FX_JS = r"""
   var tx = 0, ty = 0, px = 0, py = 0, sy = 0, lastTrail = 0;
   var pal = ['139,123,255', '56,225,255', '255,94,203', '255,255,255', '45,226,166'];
 
-  function burst(x, y, n){
-    for (var i = 0; i < n; i++) {
-      var ang = Math.random() * 6.283, sp = 1.2 + Math.random() * 3.6;
-      parts.push({x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, l: 1, r: 1.2 + Math.random() * 2.2, c: pal[Math.floor(Math.random() * pal.length)]});
-    }
-  }
-  D.addEventListener('pointerdown', function(e){ burst(e.clientX, e.clientY, 18); }, {passive:true});
   D.addEventListener('pointermove', function(e){
     tx = e.clientX / w - .5; ty = e.clientY / h - .5;
-    var now = performance.now();
-    if ((e.pointerType === 'mouse' || e.pressure > 0) && now - lastTrail > 45) { lastTrail = now; burst(e.clientX, e.clientY, 1); }
   }, {passive:true});
   D.addEventListener('scroll', function(e){ var t = e.target; if (t && typeof t.scrollTop === 'number') sy = t.scrollTop; }, true);
 
@@ -714,20 +692,6 @@ FX_JS = r"""
       a.strokeStyle = g; a.lineWidth = 1.6; a.beginPath(); a.moveTo(m.x, m.y); a.lineTo(m.x - m.vx * 10, m.y - m.vy * 10); a.stroke();
       if (m.l <= 0 || m.x > w + 50 || m.y > h + 50) shoot.splice(k, 1);
     }
-    b.clearRect(0, 0, w, h);
-    if (parts.length) {
-      b.globalCompositeOperation = 'lighter';
-      for (var j = parts.length - 1; j >= 0; j--) {
-        var q = parts[j];
-        q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .96; q.vy = q.vy * .96 + .03; q.l -= .026 * dt;
-        if (q.l <= 0) { parts.splice(j, 1); continue; }
-        b.fillStyle = 'rgba(' + q.c + ',' + q.l.toFixed(3) + ')';
-        b.beginPath(); b.arc(q.x, q.y, q.r * q.l + .6, 0, 6.283); b.fill();
-        b.fillStyle = 'rgba(' + q.c + ',' + (q.l * .18).toFixed(3) + ')';
-        b.beginPath(); b.arc(q.x, q.y, q.r * 4 * q.l + 1, 0, 6.283); b.fill();
-      }
-      b.globalCompositeOperation = 'source-over';
-    }
   }
   requestAnimationFrame(frame);
 })();
@@ -744,7 +708,6 @@ FX_JS2 = r"""
   D.addEventListener('click', function(e){
     var f = q(e, '.flip'); if (!f || q(e, '.nt-copy') || q(e, 'a')) return;
     f.classList.toggle('flipped');
-    if (!reduce) ring(e.clientX, e.clientY);
   });
   if (reduce) return;
 
@@ -803,7 +766,6 @@ FX_JS2 = r"""
 
   /* Chạm: sóng xung kích; đổi tab / tài sản / làm mới: warp + hero xoay 360° */
   D.addEventListener('pointerdown', function(e){
-    ring(e.clientX, e.clientY);
     if (q(e, 'div[data-testid="stRadio"] label')) { warp(); roll(); }
     else if (q(e, 'li[role="option"]') || q(e, '.stButton>button')) warp();
   }, {passive: true});
