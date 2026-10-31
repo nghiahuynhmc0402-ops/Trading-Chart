@@ -4,127 +4,122 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
 from ta.trend import EMAIndicator, SMAIndicator, MACD, ADXIndicator
 from ta.momentum import RSIIndicator, StochasticOscillator
 from ta.volatility import BollingerBands, AverageTrueRange
 
 # ============================================================
-# CẤU HÌNH GIAO DIỆN TRADINGVIEW (DARK THEME)
+# 1. CẤU HÌNH GIAO DIỆN & CSS (TRADINGVIEW STYLE)
 # ============================================================
 st.set_page_config(
-    page_title="TradeDesk Pro | TradingView Clone",
+    page_title="TradeDesk Pro",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed" # Ẩn sidebar để màn hình rộng hơn cho biểu đồ
 )
 
-# CSS tùy chỉnh để giống nền tảng trading chuyên nghiệp
+# CSS can thiệp sâu để làm đẹp giao diện Streamlit
 st.markdown("""
     <style>
-    .stApp { background-color: #131722; color: #d1d4dc; }
-    .css-1d391kg { background-color: #1e222d; }
-    .stTextInput>div>div>input { color: #d1d4dc; background-color: #2a2e39; }
-    .stSelectbox>div>div>div { color: #d1d4dc; background-color: #2a2e39; }
-    h1, h2, h3 { color: #ffffff !important; }
+    /* Nền tối toàn trang */
+    .stApp { background-color: #131722 !important; color: #d1d4dc !important; }
+    [data-testid="stSidebar"] { background-color: #1e222d !important; border-right: 1px solid #2a2e39; }
+    
+    /* Làm đẹp Tabs */
+    .stTabs [data-baseweb="tab-list"] { gap: 24px; background-color: #1e222d; padding: 10px 20px; border-radius: 10px; }
+    .stTabs [data-baseweb="tab"] { height: 40px; white-space: pre-wrap; background-color: transparent; border-radius: 4px; color: #787b86; font-weight: bold; }
+    .stTabs [aria-selected="true"] { color: #ffffff !important; background-color: #2a2e39 !important; }
+    
+    /* Nút bấm và Selectbox */
+    .stSelectbox div[data-baseweb="select"] { background-color: #2a2e39; border: 1px solid #363a45; border-radius: 8px; }
+    .stSelectbox div[data-baseweb="select"] * { color: #ffffff !important; }
+    .stButton>button { width: 100%; border-radius: 8px; background-color: #2962ff; color: white; border: none; font-weight: bold; }
+    .stButton>button:hover { background-color: #1e53e5; }
+    
+    /* Thẻ Metric */
+    div[data-testid="stMetricValue"] { color: #ffffff; font-size: 24px; font-weight: bold; }
+    div[data-testid="stMetricDelta"] { font-size: 16px; }
+    div[data-testid="metric-container"] { background-color: #1e222d; padding: 15px; border-radius: 10px; border: 1px solid #2a2e39; }
+    
+    /* Ẩn footer mặc định */
+    footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# TỪ ĐIỂN ÁNH XẠ TÀI SẢN (ASSET MAPPING)
+# 2. TỪ ĐIỂN TÀI SẢN (CÓ GỢI Ý)
 # ============================================================
-ASSET_MAP = {
-    # Hàng hóa (Commodities)
-    "XAUUSD": "GC=F", "VÀNG": "GC=F", "GOLD": "GC=F",
-    "XAGUSD": "SI=F", "BẠC": "SI=F", "SILVER": "SI=F",
-    "WTI": "CL=F", "DẦU": "CL=F", "OIL": "CL=F",
-    # Crypto
-    "BTCUSD": "BTC-USD", "BTC": "BTC-USD",
-    "ETHUSD": "ETH-USD", "ETH": "ETH-USD",
-    "SOLUSD": "SOL-USD", "SOL": "SOL-USD",
-    # Forex
-    "EURUSD": "EURUSD=X", "GBPUSD": "GBPUSD=X", "USDJPY": "JPY=X",
-    # Chỉ số
-    "SPX": "^GSPC", "US30": "^DJI", "NAS100": "^IXIC",
+POPULAR_ASSETS = {
+    "🔥 Hàng Hóa (Commodities)": {
+        "Vàng (XAUUSD)": "GC=F",
+        "Bạc (XAGUSD)": "SI=F",
+        "Dầu Thô WTI (USOIL)": "CL=F",
+        "Khí Tự Nhiên": "NG=F",
+    },
+    "₿ Tiền Điện Tử (Crypto)": {
+        "Bitcoin (BTC)": "BTC-USD",
+        "Ethereum (ETH)": "ETH-USD",
+        "Solana (SOL)": "SOL-USD",
+        "Binance Coin (BNB)": "BNB-USD",
+        "Ripple (XRP)": "XRP-USD",
+    },
+    "💵 Ngoại Hối (Forex)": {
+        "EUR/USD": "EURUSD=X",
+        "GBP/USD": "GBPUSD=X",
+        "USD/JPY": "JPY=X",
+        "AUD/USD": "AUDUSD=X",
+    },
+    "🏦 Chỉ Số & Chứng Khoán Mỹ": {
+        "S&P 500 (SPX)": "^GSPC",
+        "Nasdaq 100": "^IXIC",
+        "Dow Jones (DJI)": "^DJI",
+        "Apple (AAPL)": "AAPL",
+        "Tesla (TSLA)": "TSLA",
+        "Nvidia (NVDA)": "NVDA",
+    }
 }
 
-def get_yf_ticker(user_input: str) -> tuple:
-    """Chuyển đổi mã người dùng nhập sang mã Yahoo Finance và nhận diện loại tài sản."""
-    ticker = user_input.upper().strip()
-    
-    # 1. Kiểm tra trong từ điển ánh xạ trước
-    if ticker in ASSET_MAP:
-        return ASSET_MAP[ticker], "Hàng hóa/Forex/Crypto"
-    
-    # 2. Tự động nhận diện nếu người dùng nhập mã chưa có trong từ điển
-    if ticker.endswith("=F"): return ticker, "Hàng hóa"
-    if ticker.endswith("-USD"): return ticker, "Crypto"
-    if ticker.endswith("=X"): return ticker, "Forex"
-    if ticker.startswith("^"): return ticker, "Chỉ số"
-    
-    return ticker, "Cổ phiếu / Khác"
+# Làm phẳng danh sách để đưa vào Selectbox
+flat_assets = {}
+for category, assets in POPULAR_ASSETS.items():
+    for name, ticker in assets.items():
+        flat_assets[f"{category} - {name}"] = ticker
 
 # ============================================================
-# HÀM TẢI DỮ LIỆU ĐA KHUNG THỜI GIAN
+# 3. HÀM XỬ LÝ DỮ LIỆU
 # ============================================================
-@st.cache_data(ttl=60, show_spinner="Đang tải dữ liệu từ thị trường...")
+@st.cache_data(ttl=60, show_spinner=False)
 def load_data(ticker: str, interval: str):
-    """Tự động tính toán khoảng thời gian (period) phù hợp với khung (interval)."""
-    # Yahoo Finance giới hạn dữ liệu intraday (1m, 5m, 15m, 1h)
-    period = "1y" 
-    if interval in ["1m", "2m", "5m", "15m", "30m", "60m", "90m"]:
-        period = "5d" if interval == "1m" else "1mo"
-    elif interval in ["1d", "5d"]:
-        period = "2y"
-    elif interval in ["1wk", "1mo"]:
-        period = "5y"
+    period = "1y"
+    if interval in ["1m", "5m", "15m", "60m"]: period = "1mo"
+    elif interval in ["1d", "1wk"]: period = "2y"
 
     try:
         df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
-        if df.empty:
-            return None
+        if df.empty: return None
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         
-        # Làm phẳng MultiIndex nếu có
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-            
         df.reset_index(inplace=True)
-        
-        # Chuẩn hóa cột thời gian
         time_col = "Datetime" if "Datetime" in df.columns else "Date"
         df.rename(columns={time_col: "Time"}, inplace=True)
         df["Time"] = pd.to_datetime(df["Time"])
-        
-        # Loại bỏ các dòng NaN ở giá đóng cửa
-        df = df.dropna(subset=["Close"])
-        return df
-    except Exception as e:
+        return df.dropna(subset=["Close"])
+    except:
         return None
 
-# ============================================================
-# HÀM TÍNH TOÁN CHỈ BÁO
-# ============================================================
 def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     close, high, low = df["Close"], df["High"], df["Low"]
-
-    # Xu hướng
+    
     df["EMA20"] = EMAIndicator(close=close, window=20).ema_indicator()
     df["EMA50"] = EMAIndicator(close=close, window=50).ema_indicator()
-    df["SMA200"] = SMAIndicator(close=close, window=200).sma_indicator()
-
-    # Động lượng
     df["RSI"] = RSIIndicator(close=close, window=14).rsi()
+    
     macd = MACD(close=close)
     df["MACD"] = macd.macd()
     df["MACD_signal"] = macd.macd_signal()
     df["MACD_hist"] = macd.macd_diff()
     
-    stoch = StochasticOscillator(high=high, low=low, close=close, window=14, smooth_window=3)
-    df["Stoch_K"] = stoch.stoch()
-    df["Stoch_D"] = stoch.stoch_signal()
-
-    # Biến động & Sức mạnh
     bb = BollingerBands(close=close, window=20, window_dev=2)
     df["BB_upper"] = bb.bollinger_hband()
     df["BB_lower"] = bb.bollinger_lband()
@@ -133,249 +128,141 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     
     adx = ADXIndicator(high=high, low=low, close=close, window=14)
     df["ADX"] = adx.adx()
-    df["DI_plus"] = adx.adx_pos()
-    df["DI_minus"] = adx.adx_neg()
-
+    
     return df
 
-# ============================================================
-# HÀM ĐIỂM ĐỒNG QUY (CONFLUENCE ENGINE)
-# ============================================================
-def get_confluence_score(df: pd.DataFrame) -> dict:
+def get_confluence(df):
     last = df.iloc[-1]
-    scores = {}
-
-    # 1. Xu hướng (-2 đến +2)
-    trend = 0
-    if not pd.isna(last["EMA20"]) and not pd.isna(last["EMA50"]):
-        trend += 1 if last["EMA20"] > last["EMA50"] else -1
-    if not pd.isna(last["SMA200"]):
-        trend += 1 if last["Close"] > last["SMA200"] else -1
-    scores["Xu hướng"] = trend
-
-    # 2. Động lượng (-3 đến +3)
-    momentum = 0
-    if last["RSI"] > 55: momentum += 1
-    elif last["RSI"] < 45: momentum -= 1
-
-    if last["MACD_hist"] > 0 and last["MACD"] > last["MACD_signal"]: momentum += 1
-    elif last["MACD_hist"] < 0 and last["MACD"] < last["MACD_signal"]: momentum -= 1
-
-    if last["Stoch_K"] > 50 and last["Stoch_K"] > last["Stoch_D"]: momentum += 1
-    elif last["Stoch_K"] < 50 and last["Stoch_K"] < last["Stoch_D"]: momentum -= 1
-    scores["Động lượng"] = momentum
-
-    # 3. Biến động (-1 đến +1)
-    volatility = 0
-    if last["Close"] > last["BB_upper"]: volatility = 1
-    elif last["Close"] < last["BB_lower"]: volatility = -1
-    scores["Biến động"] = volatility
-
-    # 4. Sức mạnh (-1 đến +1)
-    strength = 0
-    if last["DI_plus"] > last["DI_minus"]: strength = 1
-    elif last["DI_minus"] > last["DI_plus"]: strength = -1
-    scores["Sức mạnh"] = strength
-
-    total = sum(scores.values())
-
-    if total >= 4: label, color = "MUA MẠNH", "green"
-    elif total >= 2: label, color = "NGHIÊNG MUA", "lightgreen"
-    elif total <= -4: label, color = "BÁN MẠNH", "red"
-    elif total <= -2: label, color = "NGHIÊNG BÁN", "lightcoral"
-    else: label, color = "TRUNG LẬP", "gray"
-
-    return {"scores": scores, "total": total, "label": label, "color": color}
-
-# ============================================================
-# SIDEBAR
-# ============================================================
-with st.sidebar:
-    st.markdown("<h2 style='text-align: center;'>📈 TradeDesk Pro</h2>", unsafe_allow_html=True)
-    st.caption("TradingView Clone & Multi-Timeframe Analysis")
-    st.divider()
-
-    raw_ticker = st.text_input("Mã tài sản (VD: XAUUSD, BTCUSD, AAPL)", value="XAUUSD").upper().strip()
-    ticker, asset_type = get_yf_ticker(raw_ticker)
-    st.info(f"Đang phân tích: **{ticker}** ({asset_type})")
-
-    # Đa khung thời gian
-    timeframes = {
-        "1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", 
-        "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"
-    }
-    selected_tf_name = st.selectbox("Khung thời gian", list(timeframes.keys()), index=4)
-    interval = timeframes[selected_tf_name]
-
-    st.divider()
-    st.subheader("Cài đặt Quản lý Rủi ro")
-    risk_mult = st.slider("Hệ số ATR (Stop-loss)", 0.5, 3.0, 1.5, 0.1)
+    trend = (1 if last["EMA20"] > last["EMA50"] else -1) + (1 if last["Close"] > last["SMA200"] else -1) if "SMA200" in df else 0
+    momentum = (1 if last["RSI"] > 55 else -1 if last["RSI"] < 45 else 0) + (1 if last["MACD_hist"] > 0 else -1)
+    total = trend + momentum
     
-    st.divider()
-    st.caption("Dữ liệu từ Yahoo Finance. Không phải lời khuyên đầu tư.")
+    if total >= 3: return "MUA MẠNH", "#26a69a"
+    if total > 0: return "MUA", "#81c784"
+    if total <= -3: return "BÁN MẠNH", "#ef5350"
+    if total < 0: return "BÁN", "#e57373"
+    return "TRUNG LẬP", "#787b86"
 
 # ============================================================
-# XỬ LÝ DỮ LIỆU CHÍNH
+# 4. HEADER & TÙY CHỌN (ĐƯA RA NGOÀI MÀN HÌNH CHÍNH)
+# ============================================================
+st.markdown("<h1 style='text-align: center; color: #ffffff; margin-bottom: 0;'>TradeDesk Pro</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #787b86;'>Hệ thống phân tích đa khung thời gian & Điểm đồng quy</p>", unsafe_allow_html=True)
+
+# Thanh công cụ phía trên (Thay thế Sidebar)
+with st.container():
+    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+    with col1:
+        selected_asset = st.selectbox("🔍 Tìm kiếm & Chọn tài sản:", list(flat_assets.keys()), index=0)
+        ticker = flat_assets[selected_asset]
+    with col2:
+        timeframe = st.selectbox("⏱️ Khung thời gian:", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4)
+        interval_map = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}
+        interval = interval_map[timeframe]
+    with col3:
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("🔄 Tải lại dữ liệu"):
+            st.cache_data.clear()
+    with col4:
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
+        st.info("Dữ liệu: YF")
+
+# ============================================================
+# 5. XỬ LÝ & HIỂN THỊ
 # ============================================================
 df = load_data(ticker, interval)
 
 if df is None or len(df) < 20:
-    st.error(f"❌ Không lấy được dữ liệu cho **{raw_ticker}** (Mã YF: {ticker}). Hãy thử mã khác hoặc khung thời gian dài hơn.")
+    st.error(f"❌ Không lấy được dữ liệu cho **{selected_asset}**. Hãy thử khung thời gian khác hoặc mã khác.")
     st.stop()
 
 df = compute_indicators(df)
-signal = get_confluence_score(df)
+signal_text, signal_color = get_confluence(df)
 last_close = df["Close"].iloc[-1]
 prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
 change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
-# ============================================================
-# KHU VỰC HEADER (KPI)
-# ============================================================
-st.markdown(f"### {raw_ticker} ({ticker}) - {selected_tf_name}")
-kpi_cols = st.columns(5)
-kpi_cols[0].metric("Giá hiện tại", f"{last_close:,.2f}", f"{change_pct:+.2f}%")
-kpi_cols[1].metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}")
-kpi_cols[2].metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}")
-kpi_cols[3].metric("ATR (14)", f"{df['ATR'].iloc[-1]:,.2f}")
-kpi_cols[4].metric("Điểm đồng quy", f"{signal['total']:+d}", signal['label'])
+# Hiển thị KPI
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+kpi1.metric(label=f"Giá {selected_asset.split(' - ')[1]}", value=f"{last_close:,.2f}", delta=f"{change_pct:+.2f}%")
+kpi2.metric(label="RSI (14)", value=f"{df['RSI'].iloc[-1]:.1f}", delta="Quá mua" if df['RSI'].iloc[-1]>70 else ("Quá bán" if df['RSI'].iloc[-1]<30 else "Trung tính"), delta_color="inverse")
+kpi3.metric(label="ADX (14)", value=f"{df['ADX'].iloc[-1]:.1f}", delta="Xu hướng mạnh" if df['ADX'].iloc[-1]>25 else "Đi ngang", delta_color="off")
+kpi4.metric(label="Tín hiệu tổng hợp", value=signal_text, delta="Điểm: " + str(sum([1 if df['EMA20'].iloc[-1]>df['EMA50'].iloc[-1] else -1])), delta_color="normal")
+
+st.markdown("<br>", unsafe_allow_html=True)
 
 # ============================================================
-# TABS
+# 6. BIỂU ĐỒ (FIX LỖI ZOOM & KHOẢNG TRẮNG)
 # ============================================================
-tab_chart, tab_signal, tab_risk = st.tabs(["📊 Biểu đồ (TradingView Style)", "🎯 Tín hiệu & Đồng quy", "🛡️ Quản lý rủi ro"])
+# Tạo 3 hàng, thu hẹp khoảng trắng (vertical_spacing = 0.02)
+fig = make_subplots(
+    rows=3, cols=1, shared_xaxes=True,
+    vertical_spacing=0.03, 
+    row_heights=[0.65, 0.15, 0.20], # Giá chiếm 65%, RSI 15%, MACD 20%
+)
 
-# ------------------------------------------------------------
-# TAB 1: BIỂU ĐỒ (GIAO DIỆN TRADINGVIEW)
-# ------------------------------------------------------------
-with tab_chart:
-    # Tạo 3 hàng: Giá, RSI, MACD (giống layout TradingView)
-    fig = make_subplots(
-        rows=3, cols=1, shared_xaxes=True,
-        vertical_spacing=0.03,
-        row_heights=[0.6, 0.2, 0.2],
-        subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)")
-    )
+# --- HÀNG 1: GIÁ (NẾN) ---
+fig.add_trace(go.Candlestick(
+    x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
+    name="Giá", increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
+    increasing_fillcolor="#26a69a", decreasing_fillcolor="#ef5350"
+), row=1, col=1)
 
-    # Hàng 1: Nến + EMA + Bollinger Bands
-    fig.add_trace(go.Candlestick(
-        x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"],
-        name="Giá", increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
-        increasing_fillcolor="#26a69a", decreasing_fillcolor="#ef5350"
-    ), row=1, col=1)
-    
-    # Dải Bollinger (làm mờ)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["BB_upper"], name="BB Upper", line=dict(color="rgba(255,165,0,0.4)", width=1)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["BB_lower"], name="BB Lower", line=dict(color="rgba(255,165,0,0.4)", width=1), fill="tonexty", fillcolor="rgba(255,165,0,0.05)"), row=1, col=1)
-    
-    # EMA
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA 20", line=dict(color="#2196f3", width=1.5)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA 50", line=dict(color="#9c27b0", width=1.5)), row=1, col=1)
+fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA 20", line=dict(color="#2196f3", width=1)), row=1, col=1)
+fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA 50", line=dict(color="#9c27b0", width=1)), row=1, col=1)
+fig.add_trace(go.Scatter(x=df["Time"], y=df["BB_upper"], name="BB Upper", line=dict(color="rgba(255,165,0,0.3)", width=1)), row=1, col=1)
+fig.add_trace(go.Scatter(x=df["Time"], y=df["BB_lower"], name="BB Lower", line=dict(color="rgba(255,165,0,0.3)", width=1), fill="tonexty", fillcolor="rgba(255,165,0,0.05)"), row=1, col=1)
 
-    # Hàng 2: RSI
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#e91e63", width=1.5)), row=2, col=1)
-    fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
-    fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+# --- HÀNG 2: RSI ---
+fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#e91e63", width=1.5)), row=2, col=1)
+fig.add_hline(y=70, line_dash="dot", line_color="#ef5350", row=2, col=1)
+fig.add_hline(y=30, line_dash="dot", line_color="#26a69a", row=2, col=1)
 
-    # Hàng 3: MACD
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["MACD"], name="MACD", line=dict(color="#ff9800", width=1.5)), row=3, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["MACD_signal"], name="Signal", line=dict(color="#f44336", width=1.5)), row=3, col=1)
-    macd_colors = ["#26a69a" if v >= 0 else "#ef5350" for v in df["MACD_hist"]]
-    fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="Histogram", marker_color=macd_colors, opacity=0.6), row=3, col=1)
+# --- HÀNG 3: MACD ---
+fig.add_trace(go.Scatter(x=df["Time"], y=df["MACD"], name="MACD", line=dict(color="#ff9800", width=1.5)), row=3, col=1)
+fig.add_trace(go.Scatter(x=df["Time"], y=df["MACD_signal"], name="Signal", line=dict(color="#f44336", width=1.5)), row=3, col=1)
+macd_colors = ["#26a69a" if v >= 0 else "#ef5350" for v in df["MACD_hist"]]
+fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="Histogram", marker_color=macd_colors), row=3, col=1)
 
-    # Cấu hình layout Dark Theme chuẩn TradingView
-    fig.update_layout(
-        template="plotly_dark",
-        height=800,
-        paper_bgcolor="#131722",
-        plot_bgcolor="#131722",
-        hovermode="x unified",
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=10, r=10, t=30, b=10),
-        xaxis_rangeslider_visible=False, # Tắt slider mặc định của hàng 1
-    )
-    
-    # Thêm thanh trượt (Range Slider) ở dưới cùng giống TradingView
-    fig.update_xaxes(
-        showgrid=True, gridcolor="rgba(128,128,128,0.1)",
-        rangeslider=dict(visible=False), # Tắt ở tất cả các hàng
-        rangeselector=dict(
-            buttons=list([
-                dict(count=1, label="1D", step="day", stepmode="backward"),
-                dict(count=7, label="1W", step="day", stepmode="backward"),
-                dict(count=1, label="1M", step="month", stepmode="backward"),
-                dict(step="all", label="ALL")
-            ]),
-            bgcolor="#2a2e39", activecolor="#2962ff", font=dict(color="#d1d4dc")
-        ),
-        row=1, col=1
-    )
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(128,128,128,0.1)")
+# --- TÙY CHỈNH LAYOUT CHO ĐẸP VÀ DỄ ZOOM ---
+fig.update_layout(
+    template="plotly_dark",
+    height=700,
+    paper_bgcolor="#131722",
+    plot_bgcolor="#131722",
+    hovermode="x unified",
+    showlegend=True,
+    legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
+    margin=dict(l=10, r=50, t=30, b=10), # Thu hẹp lề
+    dragmode="pan", # Mặc định là kéo thả (Pan) thay vì zoom khung
+)
 
-    # Hiển thị biểu đồ (cho phép người dùng kéo thả, zoom)
-    st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': False})
+# Tắt thanh trượt (Range Slider) ở hàng 1 và 2, chỉ giữ ở hàng 3 (hoặc tắt hết để dùng thanh công cụ)
+fig.update_xaxes(showgrid=True, gridcolor="#2a2e39", rangeslider_visible=False)
+fig.update_yaxes(showgrid=True, gridcolor="#2a2e39", side="right") # Đưa trục Y sang phải giống TradingView
 
-# ------------------------------------------------------------
-# TAB 2: TÍN HIỆU
-# ------------------------------------------------------------
-with tab_signal:
-    st.subheader("Phân tích Điểm đồng quy (Confluence)")
-    st.caption("Điểm tổng hợp từ 4 lớp tín hiệu. Điểm càng cao càng Bullish, càng thấp càng Bearish.")
-    
-    score_cols = st.columns(4)
-    for i, (layer, sc) in enumerate(signal["scores"].items()):
-        color = "normal" if sc == 0 else ("inverse" if sc < 0 else "off")
-        score_cols[i].metric(layer, f"{sc:+d}")
-        
-    st.divider()
-    st.markdown(f"### Trạng thái: :{signal['color']}[{signal['label']}] (Tổng: {signal['total']:+d})")
+# Nút chọn nhanh thời gian (1D, 1W, 1M) ở góc trên
+fig.update_xaxes(
+    rangeselector=dict(
+        buttons=list([
+            dict(count=1, label="1D", step="day", stepmode="backward"),
+            dict(count=7, label="1W", step="day", stepmode="backward"),
+            dict(count=1, label="1M", step="month", stepmode="backward"),
+            dict(step="all", label="TẤT CẢ")
+        ]),
+        bgcolor="#1e222d", activecolor="#2962ff", font=dict(color="#d1d4dc")
+    ),
+    row=1, col=1
+)
 
-    with st.expander("🔍 Xem chi tiết cách tính điểm"):
-        detail_df = pd.DataFrame({
-            "Lớp tín hiệu": list(signal["scores"].keys()),
-            "Điểm": [f"{v:+d}" for v in signal["scores"].values()],
-            "Logic": [
-                "EMA20 vs EMA50 và Vị trí giá so với SMA200",
-                "RSI, MACD Histogram, Stochastic %K vs %D",
-                "Vị trí giá so với dải Bollinger Bands",
-                "Sức mạnh xu hướng (DI+ vs DI-)"
-            ]
-        })
-        st.dataframe(detail_df, hide_index=True, use_container_width=True)
+# Render biểu đồ (Bật scrollZoom để lăn chuột là zoom, bật thanh công cụ)
+chart_config = {
+    'scrollZoom': True, # Lăn chuột để zoom
+    'displayModeBar': True, # Hiển thị thanh công cụ (Zoom box, Pan, Reset)
+    'displaylogo': False,
+    'modeBarButtonsToRemove': ['lasso2d', 'select2d', 'autoScale2d'] # Ẩn các nút thừa
+}
+st.plotly_chart(fig, use_container_width=True, config=chart_config)
 
-# ------------------------------------------------------------
-# TAB 3: QUẢN LÝ RỦI RO
-# ------------------------------------------------------------
-with tab_risk:
-    st.subheader("Tính toán Stop-Loss & Take-Profit (Dựa trên ATR)")
-    
-    atr = df["ATR"].iloc[-1]
-    score = signal["total"]
-    
-    if score > 0:
-        direction, color = "LONG (MUA)", "green"
-        sl, tp = last_close - (risk_mult * atr), last_close + (2 * risk_mult * atr)
-    elif score < 0:
-        direction, color = "SHORT (BÁN)", "red"
-        sl, tp = last_close + (risk_mult * atr), last_close - (2 * risk_mult * atr)
-    else:
-        direction, color = "NEUTRAL (ĐỨNG NGOÀI)", "gray"
-        sl, tp = None, None
-
-    st.markdown(f"### Khuyến nghị: :{color}[{direction}]")
-    
-    if sl and tp:
-        risk = abs(last_close - sl)
-        reward = abs(tp - last_close)
-        rr_ratio = reward / risk if risk > 0 else 0
-        
-        cols = st.columns(4)
-        cols[0].metric("Giá vào lệnh", f"{last_close:,.2f}")
-        cols[1].metric("Stop-Loss", f"{sl:,.2f}", f"{sl - last_close:+.2f}", delta_color="inverse")
-        cols[2].metric("Take-Profit", f"{tp:,.2f}", f"{tp - last_close:+.2f}", delta_color="normal")
-        cols[3].metric("Tỷ lệ R:R", f"1 : {rr_ratio:.2f}")
-        
-        st.info(f"**Công thức:**  \n- Stop-Loss = Giá ± {risk_mult} × ATR  \n- Take-Profit = Giá ± 2 × {risk_mult} × ATR")
-    else:
-        st.info("Hệ thống đang ở trạng thái trung lập, chưa có tín hiệu vào lệnh an toàn. Hãy kiên nhẫn chờ đợi.")
+# Hướng dẫn sử dụng
+st.caption("💡 **Mẹo:** Lăn chuột để Zoom In/Out. Giữ chuột trái để kéo biểu đồ. Sử dụng thanh công cụ góc phải trên cùng biểu đồ để chọn chế độ.")
