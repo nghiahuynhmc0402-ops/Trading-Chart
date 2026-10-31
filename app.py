@@ -108,9 +108,6 @@ st.markdown("""
     .pro-card p { margin: 0; font-size: 12px; color: #a1a1aa; }
     .copyright { text-align: center; color: #52525b; font-size: 11px; margin-top: 30px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.05); }
     
-    /* Hide Streamlit's default empty container spacing */
-    div[data-testid="stVerticalBlock"] > div:has(> div.element-container:only-child > .stMarkdown:empty) { display: none; }
-    
     footer {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     </style>
@@ -199,55 +196,50 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
     components.html(html_code, height=120)
 
 def get_trade_diagnosis(df, trade_plan):
-    """Hàm chuẩn đoán chất lượng lệnh (Trade Quality Score) và lý do"""
+    """Chuẩn đoán chất lượng lệnh và trả về HTML in đậm chuẩn"""
     last = df.iloc[-1]
     score = 0
     reasons = []
     
-    # 1. Xu hướng (30đ)
+    # Sử dụng thẻ <b> thay vì Markdown ** để không bị lỗi font chữ
     if trade_plan['direction'] == "LONG":
         if last['EMA20'] > last['EMA50']:
             score += 30
-            reasons.append("🟢 **Xu hướng:** EMA20 > EMA50 (Uptrend).")
+            reasons.append("🟢 <b>Xu hướng:</b> EMA20 > EMA50 (Uptrend).")
         else:
-            reasons.append("🔴 **Xu hướng:** EMA20 < EMA50 (Ngược xu hướng).")
+            reasons.append("🔴 <b>Xu hướng:</b> EMA20 < EMA50 (Ngược xu hướng).")
     else:
         if last['EMA20'] < last['EMA50']:
             score += 30
-            reasons.append("🟢 **Xu hướng:** EMA20 < EMA50 (Downtrend).")
+            reasons.append("🟢 <b>Xu hướng:</b> EMA20 < EMA50 (Downtrend).")
         else:
-            reasons.append("🔴 **Xu hướng:** EMA20 > EMA50 (Ngược xu hướng).")
+            reasons.append("🔴 <b>Xu hướng:</b> EMA20 > EMA50 (Ngược xu hướng).")
 
-    # 2. Động lượng (20đ)
     if trade_plan['direction'] == "LONG":
-        if 40 < last['RSI'] < 70: score += 10; reasons.append("🟢 **RSI:** Nằm trong vùng an toàn (40-70).")
-        if last['MACD_hist'] > 0: score += 10; reasons.append("🟢 **MACD:** Histogram dương (Động lượng tăng).")
+        if 40 < last['RSI'] < 70: score += 10; reasons.append("🟢 <b>RSI:</b> Nằm trong vùng an toàn (40-70).")
+        if last['MACD_hist'] > 0: score += 10; reasons.append("🟢 <b>MACD:</b> Histogram dương (Động lượng tăng).")
     else:
-        if 30 < last['RSI'] < 60: score += 10; reasons.append("🟢 **RSI:** Nằm trong vùng an toàn (30-60).")
-        if last['MACD_hist'] < 0: score += 10; reasons.append("🟢 **MACD:** Histogram âm (Động lượng giảm).")
+        if 30 < last['RSI'] < 60: score += 10; reasons.append("🟢 <b>RSI:</b> Nằm trong vùng an toàn (30-60).")
+        if last['MACD_hist'] < 0: score += 10; reasons.append("🟢 <b>MACD:</b> Histogram âm (Động lượng giảm).")
 
-    # 3. Sức mạnh xu hướng (20đ)
     if last['ADX'] > 25:
         score += 20
-        reasons.append(f"🟢 **ADX ({last['ADX']:.1f}):** Xu hướng mạnh, đáng tin cậy.")
+        reasons.append(f"🟢 <b>ADX ({last['ADX']:.1f}):</b> Xu hướng mạnh, đáng tin cậy.")
     elif last['ADX'] > 20:
         score += 10
-        reasons.append(f"🟡 **ADX ({last['ADX']:.1f}):** Xu hướng hình thành.")
+        reasons.append(f"🟡 <b>ADX ({last['ADX']:.1f}):</b> Xu hướng hình thành.")
     else:
-        reasons.append(f"🔴 **ADX ({last['ADX']:.1f}):** Thị trường đi ngang, dễ nhiễu.")
+        reasons.append(f"🔴 <b>ADX ({last['ADX']:.1f}):</b> Thị trường đi ngang, dễ nhiễu.")
 
-    # 4. Vị trí so với Bollinger Bands (15đ)
     if trade_plan['direction'] == "LONG" and last['Close'] < last['BB_lower']: 
-        score += 15; reasons.append("🟢 **Bollinger:** Giá chạm dải dưới (Quá bán).")
+        score += 15; reasons.append("🟢 <b>Bollinger:</b> Giá chạm dải dưới (Quá bán).")
     elif trade_plan['direction'] == "SHORT" and last['Close'] > last['BB_upper']: 
-        score += 15; reasons.append("🟢 **Bollinger:** Giá chạm dải trên (Quá mua).")
+        score += 15; reasons.append("🟢 <b>Bollinger:</b> Giá chạm dải trên (Quá mua).")
     else:
-        reasons.append("⚪ **Bollinger:** Giá đang ở giữa dải (Chưa tối ưu).")
+        reasons.append("⚪ <b>Bollinger:</b> Giá đang ở giữa dải (Chưa tối ưu).")
 
-    # 5. Đa khung thời gian (15đ) - Sẽ tính ở ngoài hàm này nếu cần, tạm thời để 15đ cố định nếu ADX mạnh
     if last['ADX'] > 25: score += 15 
     
-    # Đánh giá
     if score >= 80: quality = "XUẤT SẮC (A+)"
     elif score >= 60: quality = "TỐT (B)"
     elif score >= 40: quality = "TRUNG BÌNH (C)"
@@ -421,32 +413,33 @@ with st.spinner("⚙️ Đang tính toán..."):
 
 run_bot_engine(df, ticker, timeframe)
 
-# HEADER
+# HEADER (Luôn hiển thị trên cùng)
 st.markdown(f"""
-    <div style='display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px;'>
+    <div style='display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;'>
         <div>
-            <h1 style='margin: 0; font-size: 28px; color: #ffffff;'>{selected_asset.split(' - ')[1]}</h1>
-            <p style='margin: 0; color: #71717a; font-size: 14px; font-weight: 500;'>{ticker} • {timeframe}</p>
+            <h1 style='margin: 0; font-size: 26px; color: #ffffff;'>{selected_asset.split(' - ')[1]}</h1>
+            <p style='margin: 0; color: #71717a; font-size: 13px; font-weight: 500;'>{ticker} • {timeframe}</p>
         </div>
-        <div style='background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;'>
-            <div style='width: 8px; height: 8px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;'></div>
-            <span style='color: #10b981; font-size: 13px; font-weight: 600;'>Thị trường mở</span>
+        <div style='background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px;'>
+            <div style='width: 6px; height: 6px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981;'></div>
+            <span style='color: #10b981; font-size: 12px; font-weight: 600;'>Live</span>
         </div>
     </div>
 """, unsafe_allow_html=True)
 
-kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-with kpi1: quantum_metric("GIÁ HIỆN TẠI", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0))
-with kpi2: quantum_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "QUÁ MUA" if df['RSI'].iloc[-1]>70 else ("QUÁ BÁN" if df['RSI'].iloc[-1]<30 else "TRUNG TÍNH"), is_positive=(df['RSI'].iloc[-1]<70))
-with kpi3: quantum_metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}", "XU HƯỚNG MẠNH" if df['ADX'].iloc[-1]>25 else "ĐI NGANG", is_positive=None)
-with kpi4: quantum_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "ĐỘ BIẾN ĐỘNG", is_positive=None)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
 # ------------------------------------------------------------
-# KHU VỰC 1: BIỂU ĐỒ
+# KHU VỰC 1: BIỂU ĐỒ (Bao gồm KPI)
 # ------------------------------------------------------------
 if menu_selection == "📊 Biểu đồ":
+    # KPI chỉ hiển thị ở tab Biểu đồ
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    with kpi1: quantum_metric("GIÁ HIỆN TẠI", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0))
+    with kpi2: quantum_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "QUÁ MUA" if df['RSI'].iloc[-1]>70 else ("QUÁ BÁN" if df['RSI'].iloc[-1]<30 else "TRUNG TÍNH"), is_positive=(df['RSI'].iloc[-1]<70))
+    with kpi3: quantum_metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}", "XU HƯỚNG MẠNH" if df['ADX'].iloc[-1]>25 else "ĐI NGANG", is_positive=None)
+    with kpi4: quantum_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "ĐỘ BIẾN ĐỘNG", is_positive=None)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    
     chart_df = df.tail(300).copy()
     
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)"))
@@ -504,7 +497,6 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
     
     col_left, col_right = st.columns([1.5, 1], gap="large")
     
-    # --- CỘT TRÁI: KẾ HOẠCH & CHUẨN ĐOÁN ---
     with col_left:
         rr_ratio = st.slider("Tỷ lệ R:R", 1.0, 4.0, 2.0, 0.5)
         trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
@@ -513,7 +505,6 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
             direction_color = "#10b981" if trade_plan['direction'] == "LONG" else "#f43f5e"
             direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
             
-            # Chuẩn đoán chất lượng
             score, quality, reasons = get_trade_diagnosis(df, trade_plan)
             
             st.markdown(f"""
@@ -535,15 +526,13 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
             with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False)
             with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
             
-            # Kỳ vọng toán học
             be_wr = (1 / (1 + rr_ratio)) * 100
             st.markdown(f"""
                 <div style='background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-top: 15px; font-size: 13px; color: #a1a1aa;'>
-                    <strong>Toán học Giao dịch:</strong> Với tỷ lệ R:R = 1:{rr_ratio:.1f}, bạn cần tỷ lệ thắng (Win rate) tối thiểu là <strong>{be_wr:.1f}%</strong> để hòa vốn. Nếu lịch sử của bạn cao hơn mức này, chiến lược này có lãi.
+                    <b>Toán học Giao dịch:</b> Với tỷ lệ R:R = 1:{rr_ratio:.1f}, bạn cần tỷ lệ thắng (Win rate) tối thiểu là <b>{be_wr:.1f}%</b> để hòa vốn. Nếu lịch sử của bạn cao hơn mức này, chiến lược này có lãi.
                 </div>
             """, unsafe_allow_html=True)
 
-    # --- CỘT PHẢI: MÁY TÍNH VỊ THẾ ---
     with col_right:
         st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
         st.markdown("<div class='card-title'>🧮 Máy Tính Vị Thế</div>", unsafe_allow_html=True)
