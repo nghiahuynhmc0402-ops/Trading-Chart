@@ -1,3 +1,7 @@
+import json
+import random as _random
+import warnings
+warnings.filterwarnings("ignore", module="yfinance")
 import streamlit as st
 import streamlit.components.v1 as components
 import yfinance as yf
@@ -388,64 +392,320 @@ div[data-testid="stRadio"] label p {
 .sig-kicker { font-size: 11px; letter-spacing: 1.6px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
 .sig-info h3 { margin: 0 0 8px 0 !important; padding: 0 !important; font-size: 22px !important; }
 
+/* ===================== V3: VŨ TRỤ ===================== */
+:root {
+    --bg: #02030a; --brand: #8b7bff; --brand2: #ff5ecb; --cyan: #38e1ff;
+    --up: #2de2a6; --down: #ff4d7d;
+    --line: rgba(180,170,255,.11); --line-hi: rgba(180,170,255,.30);
+}
+@keyframes twinkle { 0% { opacity: .35; } 50% { opacity: 1; } 100% { opacity: .55; } }
+@keyframes spin2 { to { transform: rotate(360deg); } }
+@keyframes floatPlanet { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-16px) rotate(4deg); } }
+@keyframes ringPulse { 0%,100% { opacity: .55; transform: scale(1); } 50% { opacity: .95; transform: scale(1.035); } }
+@keyframes shimmerText { to { background-position: 200% center; } }
+
+html, body { background: #02030a !important; }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stHeader"], [data-testid="stBottom"] { background: transparent !important; }
+
+/* Tinh vân */
+.stApp::before {
+    top: -20vh; left: -20vw; width: 140vw; height: 140vh; border-radius: 0; filter: blur(60px); opacity: .95;
+    background:
+        radial-gradient(40% 35% at 20% 25%, rgba(120,90,255,.30), transparent 70%),
+        radial-gradient(35% 30% at 80% 18%, rgba(56,225,255,.17), transparent 70%),
+        radial-gradient(45% 40% at 72% 85%, rgba(255,94,203,.17), transparent 70%),
+        radial-gradient(30% 30% at 10% 90%, rgba(45,226,166,.10), transparent 70%);
+    animation: drift1 34s ease-in-out infinite alternate;
+}
+/* Sao CSS (dự phòng, ẩn khi canvas chạy) */
+.stApp::after {
+    top: 0; left: 0; bottom: auto; right: auto; width: 1px; height: 1px; border-radius: 0; filter: none; opacity: 1; background: transparent;
+    box-shadow: __STARS__;
+    animation: twinkle 5s ease-in-out infinite alternate;
+}
+html.nt-canvas .stApp::after { display: none; }
+
+/* Quỹ đạo khổng lồ + hành tinh */
+[data-testid="stAppViewContainer"]::before {
+    inset: auto; right: -34vmax; top: -34vmax; width: 86vmax; height: 86vmax; border-radius: 50%;
+    background-image: repeating-radial-gradient(circle at center, transparent 0 7vmax, rgba(150,140,255,.08) calc(7vmax + 1px) calc(7vmax + 2px)) !important;
+    background-size: auto !important;
+    -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 68%); mask-image: radial-gradient(circle, #000 0%, transparent 68%);
+    animation: ringPulse 10s ease-in-out infinite;
+}
+[data-testid="stAppViewContainer"]::after {
+    content: ""; position: fixed; left: -9vmax; bottom: 5vh; width: 22vmax; height: 22vmax; border-radius: 50%;
+    z-index: 0; pointer-events: none; opacity: .5;
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.28), rgba(139,123,255,.55) 18%, rgba(60,40,150,.85) 45%, rgba(8,6,30,.96) 72%);
+    box-shadow: inset -2vmax -2vmax 4vmax rgba(0,0,0,.65), 0 0 6vmax rgba(139,123,255,.28);
+    animation: floatPlanet 14s ease-in-out infinite;
+}
+@media (max-width: 768px) {
+    [data-testid="stAppViewContainer"]::after { width: 34vmax; height: 34vmax; left: -16vmax; bottom: 2vh; opacity: .4; }
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, rgba(12,9,32,.80), rgba(3,4,14,.90)) !important;
+    border-right: 1px solid var(--line-hi); position: relative; z-index: 2;
+}
+.sidebar-logo {
+    position: relative; border-radius: 50% !important;
+    background: radial-gradient(circle at 30% 30%, #fff 0, #c3b6ff 12%, #6a4cff 45%, #1b1250 100%) !important;
+    animation: floaty 4s ease-in-out infinite !important;
+    box-shadow: 0 0 24px rgba(139,123,255,.75), inset -6px -6px 12px rgba(0,0,0,.5) !important;
+}
+.sidebar-logo svg { position: relative; z-index: 1; }
+.sidebar-logo::after {
+    content: ""; position: absolute; left: -11px; right: -11px; top: 50%; height: 15px; margin-top: -7px;
+    border: 1.5px solid rgba(56,225,255,.75); border-radius: 50%; transform: rotate(-24deg); box-shadow: 0 0 9px rgba(56,225,255,.5);
+}
+.sidebar-title { background: linear-gradient(90deg, #fff, #b9a8ff, #38e1ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* Nút bấm vũ trụ */
+.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button {
+    background: linear-gradient(120deg, #6a4cff, #b24cff, #ff5ecb, #6a4cff) !important; background-size: 250% 100% !important;
+    animation: gradShift 6s linear infinite; box-shadow: 0 8px 26px -8px rgba(178,76,255,.7);
+}
+.stButton>button:hover, .stDownloadButton>button:hover, [data-testid="stFormSubmitButton"]>button:hover { box-shadow: 0 14px 34px -8px rgba(255,94,203,.75); }
+
+/* Menu */
+div[data-testid="stRadio"] > div[role="radiogroup"] { background: rgba(10,8,30,.55); border-color: var(--line-hi); }
+div[data-testid="stRadio"] label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(139,123,255,.34), rgba(255,94,203,.22)) !important;
+    border: 1px solid rgba(160,140,255,.55) !important; box-shadow: 0 6px 22px -6px rgba(139,123,255,.7), inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+
+/* Hero vũ trụ */
+.hero { background: conic-gradient(from var(--ang), rgba(255,255,255,.07) 0%, rgba(255,255,255,.07) 48%, var(--cyan) 68%, var(--c) 80%, var(--brand2) 92%, rgba(255,255,255,.07) 100%); }
+.hero-in { background: linear-gradient(160deg, rgba(14,10,38,.94), rgba(4,5,16,.97)); }
+.hero-name { background: linear-gradient(90deg, #fff, #b9a8ff, #38e1ff, #ff5ecb, #fff); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shimmerText 7s linear infinite; }
+.hero-top, .hero-mid, .hero-stats { z-index: 1; }
+.orbit { position: absolute; right: -34px; top: -34px; width: 240px; height: 240px; pointer-events: none; opacity: .9; }
+.orbit i { position: absolute; border: 1px solid rgba(139,123,255,.30); border-radius: 50%; animation: spin2 var(--t, 18s) linear infinite; }
+.orbit i:nth-child(1) { inset: 0; --t: 24s; }
+.orbit i:nth-child(2) { inset: 30px; --t: 15s; animation-direction: reverse; }
+.orbit i:nth-child(3) { inset: 60px; --t: 9s; }
+.orbit i::after { content: ""; position: absolute; top: -4px; left: 50%; margin-left: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px 2px var(--c); }
+.orbit i:nth-child(2)::after { background: var(--cyan); box-shadow: 0 0 12px 2px var(--cyan); width: 6px; height: 6px; margin-left: -3px; top: -3px; }
+.orbit i:nth-child(3)::after { background: var(--brand2); box-shadow: 0 0 12px 2px var(--brand2); }
+
+/* Thẻ chỉ số (không còn iframe) */
+.qm {
+    position: relative; overflow: hidden; box-sizing: border-box; min-height: 112px; padding: 16px 18px; border-radius: 16px;
+    display: flex; flex-direction: column; justify-content: center; margin-bottom: 6px;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border: 1px solid var(--bc);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 26px -14px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.07);
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease);
+}
+.qm::before { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: var(--bar); }
+.qm::after { content: ""; position: absolute; top: 0; bottom: 0; width: 35%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.09), transparent); transform: translateX(-130%); pointer-events: none; }
+.qm:hover { transform: translateY(-4px); box-shadow: 0 20px 34px -16px rgba(0,0,0,.9), 0 0 0 1px rgba(139,123,255,.25); }
+.qm:hover::after { animation: sweep 1.1s ease; }
+.qm:active { transform: scale(.97); }
+.qm-lbl { color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.qm-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.qm-val { color: var(--tc); font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; line-height: 1; text-shadow: 0 0 14px var(--gl); white-space: nowrap; }
+.qm-delta { font-size: 12.5px; font-weight: 600; margin-top: 9px; letter-spacing: .2px; }
+.nt-copy {
+    position: relative; width: 32px; height: 32px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 9px; cursor: pointer; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: #8b90a0; transition: all .25s;
+}
+.nt-copy:hover { background: rgba(139,123,255,.28); border-color: rgba(139,123,255,.55); transform: scale(1.08); color: #fff; }
+.nt-copy:active { transform: scale(.88); }
+.nt-copy .i-ok { display: none; color: #2de2a6; }
+.nt-copy.ok .i-ok { display: inline; }
+.nt-copy.ok .i-copy { display: none; }
+@media (max-width: 640px) { .qm-val { font-size: 20px; } }
+
+a.news-card { display: block; text-decoration: none; color: inherit; }
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
 """
+def _stars(n, seed):
+    r = _random.Random(seed)
+    cols = ["255,255,255", "190,215,255", "255,205,235"]
+    return ",".join(
+        f"{r.randint(0, 100)}vw {r.randint(0, 100)}vh 0 {r.choice([0, 0, 0, 1])}px rgba({r.choice(cols)},{r.choice([.5, .7, .9])})"
+        for _ in range(n)
+    )
+
+
+APP_CSS = APP_CSS.replace("__STARS__", _stars(150, 7))
 st.markdown(APP_CSS, unsafe_allow_html=True)
 
-# Hiệu ứng chạm: ripple khi bấm + đèn rọi theo con trỏ/ngón tay trên card
-components.html("""
-<script>
+# ---------- Hiệu ứng vũ trụ + chạm (JS được chèn 1 lần vào trang cha) ----------
+FX_JS = r"""
 (function(){
-  try {
-    const P = window.parent, D = P.document;
-    if (P.__ntFx2) return; P.__ntFx2 = true;
-    D.addEventListener('pointerdown', function(e){
-      const t = e.target.closest('.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button, div[data-testid="stRadio"] label');
-      if (!t) return;
-      const r = t.getBoundingClientRect(), s = Math.max(r.width, r.height);
-      const d = D.createElement('span'); d.className = 'ripple-dot';
-      d.style.width = d.style.height = s + 'px';
-      d.style.left = (e.clientX - r.left - s/2) + 'px';
-      d.style.top = (e.clientY - r.top - s/2) + 'px';
-      t.appendChild(d); setTimeout(() => d.remove(), 700);
-    }, {passive:true});
-    D.addEventListener('pointermove', function(e){
-      const c = e.target.closest('.glass-card'); if (!c) return;
-      const r = c.getBoundingClientRect();
-      c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-      c.style.setProperty('--my', (e.clientY - r.top) + 'px');
-      if (e.pointerType === 'mouse') {
-        c.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * 7).toFixed(2) + 'deg');
-        c.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+  if (window.__ntFx3) return; window.__ntFx3 = true;
+  var D = document;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- Ripple khi bấm ---- */
+  D.addEventListener('pointerdown', function(e){
+    var t = e.target.closest && e.target.closest('.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button, div[data-testid="stRadio"] label');
+    if (!t) return;
+    var r = t.getBoundingClientRect(), s = Math.max(r.width, r.height);
+    var d = D.createElement('span'); d.className = 'ripple-dot';
+    d.style.width = d.style.height = s + 'px';
+    d.style.left = (e.clientX - r.left - s/2) + 'px';
+    d.style.top = (e.clientY - r.top - s/2) + 'px';
+    t.appendChild(d); setTimeout(function(){ d.remove(); }, 700);
+  }, {passive:true});
+
+  /* ---- Đèn rọi + nghiêng 3D ---- */
+  D.addEventListener('pointermove', function(e){
+    var c = e.target.closest && e.target.closest('.glass-card'); if (!c) return;
+    var r = c.getBoundingClientRect();
+    c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    if (e.pointerType === 'mouse') {
+      c.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * 7).toFixed(2) + 'deg');
+      c.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+    }
+  }, {passive:true});
+  D.addEventListener('pointerout', function(e){
+    var c = e.target.closest && e.target.closest('.glass-card');
+    if (c && !(e.relatedTarget && c.contains(e.relatedTarget))) { c.style.setProperty('--rx','0deg'); c.style.setProperty('--ry','0deg'); }
+  }, {passive:true});
+
+  /* ---- Nút copy ---- */
+  function fallbackCopy(txt){
+    var t = D.createElement('textarea'); t.value = txt; D.body.appendChild(t); t.select();
+    try { D.execCommand('copy'); } catch(err) {}
+    t.remove();
+  }
+  D.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.nt-copy'); if (!b) return;
+    var txt = b.getAttribute('data-copy') || 'x';
+    try { navigator.clipboard.writeText(txt).catch(function(){ fallbackCopy(txt); }); } catch(err) { fallbackCopy(txt); }
+    b.classList.add('ok'); setTimeout(function(){ b.classList.remove('ok'); }, 1600);
+  });
+
+  /* ---- Số chạy (count-up) ---- */
+  var fmt = function(v, d){ return v.toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d}); };
+  var run = function(){
+    D.querySelectorAll('.nt-count:not([data-done])').forEach(function(el){
+      el.setAttribute('data-done', '1');
+      var to = parseFloat(el.getAttribute('data-v')), d = parseInt(el.getAttribute('data-d') || '0', 10);
+      var plain = el.getAttribute('data-vn') === '0';
+      if (isNaN(to)) return;
+      var orig = el.textContent, t0 = performance.now(), dur = 1200;
+      var step = function(now){
+        var p = Math.min(1, (now - t0) / dur), k = 1 - Math.pow(1 - p, 4);
+        el.textContent = plain ? (to * k).toFixed(d) : fmt(to * k, d);
+        if (p < 1) requestAnimationFrame(step); else el.textContent = orig;
+      };
+      requestAnimationFrame(step);
+    });
+  };
+  run();
+  new MutationObserver(run).observe(D.body, {childList: true, subtree: true});
+
+  if (reduce) return;
+
+  /* ---- Vũ trụ: sao lấp lánh, thị sai, sao băng, bụi sao khi chạm ---- */
+  var cv = D.createElement('canvas'), fx = D.createElement('canvas');
+  cv.id = 'nt-cosmos'; cv.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none';
+  fx.id = 'nt-spark'; fx.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:99999;pointer-events:none';
+  D.body.appendChild(cv); D.body.appendChild(fx);
+  D.documentElement.classList.add('nt-canvas');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2), w = 0, h = 0;
+  var a = cv.getContext('2d'), b = fx.getContext('2d');
+  function size(){
+    w = window.innerWidth; h = window.innerHeight;
+    cv.width = fx.width = Math.round(w * dpr); cv.height = fx.height = Math.round(h * dpr);
+    a.setTransform(dpr,0,0,dpr,0,0); b.setTransform(dpr,0,0,dpr,0,0);
+  }
+  size(); window.addEventListener('resize', size);
+
+  var N = window.innerWidth < 700 ? 80 : 160, stars = [], shoot = [], parts = [];
+  var cols = ['255,255,255', '190,215,255', '255,205,235', '170,255,240'];
+  for (var i = 0; i < N; i++) {
+    var z = Math.random() * .9 + .1;
+    stars.push({x: Math.random(), y: Math.random(), z: z, r: .35 + z * 1.15, tw: Math.random() * 6.28, sp: .5 + Math.random() * 2, c: cols[Math.floor(Math.random() * cols.length)]});
+  }
+  var tx = 0, ty = 0, px = 0, py = 0, sy = 0, lastTrail = 0;
+  var pal = ['139,123,255', '56,225,255', '255,94,203', '255,255,255', '45,226,166'];
+
+  function burst(x, y, n){
+    for (var i = 0; i < n; i++) {
+      var ang = Math.random() * 6.283, sp = 1.2 + Math.random() * 3.6;
+      parts.push({x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, l: 1, r: 1.2 + Math.random() * 2.2, c: pal[Math.floor(Math.random() * pal.length)]});
+    }
+  }
+  D.addEventListener('pointerdown', function(e){ burst(e.clientX, e.clientY, 18); }, {passive:true});
+  D.addEventListener('pointermove', function(e){
+    tx = e.clientX / w - .5; ty = e.clientY / h - .5;
+    var now = performance.now();
+    if ((e.pointerType === 'mouse' || e.pressure > 0) && now - lastTrail > 45) { lastTrail = now; burst(e.clientX, e.clientY, 1); }
+  }, {passive:true});
+  D.addEventListener('scroll', function(e){ var t = e.target; if (t && typeof t.scrollTop === 'number') sy = t.scrollTop; }, true);
+
+  var last = 0;
+  function frame(t){
+    requestAnimationFrame(frame);
+    if (D.hidden || t - last < 30) return;
+    var dt = Math.min((t - last) / 16.7, 3); last = t;
+    px += (tx - px) * .04; py += (ty - py) * .04;
+    a.clearRect(0, 0, w, h);
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var x = ((s.x * w - px * 40 * s.z) % w + w) % w;
+      var y = ((s.y * h - py * 40 * s.z - sy * .04 * s.z) % h + h) % h;
+      var al = .3 + .7 * (.5 + .5 * Math.sin(t * .0012 * s.sp + s.tw));
+      a.fillStyle = 'rgba(' + s.c + ',' + al.toFixed(3) + ')';
+      a.beginPath(); a.arc(x, y, s.r, 0, 6.283); a.fill();
+      if (s.r > 1.1) { a.fillStyle = 'rgba(' + s.c + ',' + (al * .16).toFixed(3) + ')'; a.beginPath(); a.arc(x, y, s.r * 3.4, 0, 6.283); a.fill(); }
+    }
+    if (shoot.length < 2 && Math.random() < .005) {
+      shoot.push({x: Math.random() * w * .9, y: Math.random() * h * .35, vx: 7 + Math.random() * 5, vy: 3 + Math.random() * 3, l: 1});
+    }
+    for (var k = shoot.length - 1; k >= 0; k--) {
+      var m = shoot[k];
+      m.x += m.vx * dt; m.y += m.vy * dt; m.l -= .016 * dt;
+      var g = a.createLinearGradient(m.x, m.y, m.x - m.vx * 10, m.y - m.vy * 10);
+      g.addColorStop(0, 'rgba(255,255,255,' + Math.max(m.l, 0).toFixed(3) + ')'); g.addColorStop(1, 'rgba(139,123,255,0)');
+      a.strokeStyle = g; a.lineWidth = 1.6; a.beginPath(); a.moveTo(m.x, m.y); a.lineTo(m.x - m.vx * 10, m.y - m.vy * 10); a.stroke();
+      if (m.l <= 0 || m.x > w + 50 || m.y > h + 50) shoot.splice(k, 1);
+    }
+    b.clearRect(0, 0, w, h);
+    if (parts.length) {
+      b.globalCompositeOperation = 'lighter';
+      for (var j = parts.length - 1; j >= 0; j--) {
+        var q = parts[j];
+        q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= .96; q.vy = q.vy * .96 + .03; q.l -= .026 * dt;
+        if (q.l <= 0) { parts.splice(j, 1); continue; }
+        b.fillStyle = 'rgba(' + q.c + ',' + q.l.toFixed(3) + ')';
+        b.beginPath(); b.arc(q.x, q.y, q.r * q.l + .6, 0, 6.283); b.fill();
+        b.fillStyle = 'rgba(' + q.c + ',' + (q.l * .18).toFixed(3) + ')';
+        b.beginPath(); b.arc(q.x, q.y, q.r * 4 * q.l + 1, 0, 6.283); b.fill();
       }
-    }, {passive:true});
-    D.addEventListener('pointerout', function(e){
-      const c = e.target.closest && e.target.closest('.glass-card');
-      if (c && !(e.relatedTarget && c.contains(e.relatedTarget))) { c.style.setProperty('--rx','0deg'); c.style.setProperty('--ry','0deg'); }
-    }, {passive:true});
-    const fmt = (v, d) => v.toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d});
-    const run = () => {
-      D.querySelectorAll('.nt-count:not([data-done])').forEach(function(el){
-        el.setAttribute('data-done', '1');
-        const to = parseFloat(el.dataset.v), d = parseInt(el.dataset.d || '0');
-        if (isNaN(to)) return;
-        const t0 = performance.now(), dur = 1200;
-        const step = function(now){
-          const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 4);
-          el.textContent = fmt(to * e, d);
-          if (p < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-      });
-    };
-    run();
-    new MutationObserver(run).observe(D.body, {childList: true, subtree: true});
-  } catch(err) {}
+      b.globalCompositeOperation = 'source-over';
+    }
+  }
+  requestAnimationFrame(frame);
 })();
-</script>
-""", height=0)
+"""
+
+
+def inject_js(code: str):
+    """Chèn script vào trang cha 1 lần (chạy bền vững, không phụ thuộc vòng đời iframe)."""
+    loader = ("<script>(function(){try{var P=window.parent,D=P.document;"
+              "if(D.getElementById('nt-fx-v3'))return;"
+              "var s=D.createElement('script');s.id='nt-fx-v3';s.textContent=" + json.dumps(code) + ";"
+              "D.head.appendChild(s);}catch(e){}})();</" + "script>")
+    try:
+        components.html(loader, height=0)
+    except Exception:
+        try:
+            st.iframe(loader, height=1)
+        except Exception:
+            pass
+
 
 # ============================================================
 # 2. KHAI BÁO BIẾN & DATABASE
@@ -507,6 +767,21 @@ def get_bot_history(asset):
         return pd.read_sql_query("SELECT * FROM bot_journal WHERE asset=? ORDER BY id DESC", conn, params=(asset,))
 
 
+def to_vn_naive(x):
+    """Chuẩn hoá mọi mốc thời gian về giờ Việt Nam, không múi giờ (tránh lỗi tz-naive vs tz-aware)."""
+    if x is None:
+        return pd.NaT
+    try:
+        ts = pd.Timestamp(x)
+    except Exception:
+        return pd.NaT
+    if pd.isna(ts):
+        return pd.NaT
+    if ts.tzinfo is not None:
+        ts = ts.tz_convert("Asia/Ho_Chi_Minh").tz_localize(None)
+    return ts
+
+
 # ============================================================
 # 3. UI COMPONENTS & LOGIC
 # ============================================================
@@ -522,93 +797,48 @@ def format_vn_price(value) -> str:
 
 
 def quantum_metric(label, value_str, delta_text=None, is_positive=None, raw=None, dec=2, vn=True):
-    border_color = "rgba(255,255,255,0.08)"
+    border_color = "rgba(180,170,255,0.16)"
     text_color = "#ffffff"
     delta_color = "#8b90a0"
     glow = "rgba(255,255,255,0.0)"
-    bar = "linear-gradient(90deg,#7c7cff,#b06cff)"
+    bar = "linear-gradient(90deg,#8b7bff,#38e1ff,#ff5ecb)"
 
     if is_positive is not None:
         up = bool(is_positive)
-        text_color = "#22d3a0" if up else "#ff5470"
+        text_color = "#2de2a6" if up else "#ff4d7d"
         delta_color = text_color
-        border_color = "rgba(34,211,160,0.28)" if up else "rgba(255,84,112,0.28)"
-        glow = "rgba(34,211,160,0.45)" if up else "rgba(255,84,112,0.45)"
-        bar = "linear-gradient(90deg,#22d3a0,#4ee3c1)" if up else "linear-gradient(90deg,#ff5470,#ff8a5c)"
+        border_color = "rgba(45,226,166,0.32)" if up else "rgba(255,77,125,0.32)"
+        glow = "rgba(45,226,166,0.5)" if up else "rgba(255,77,125,0.5)"
+        bar = "linear-gradient(90deg,#2de2a6,#38e1ff)" if up else "linear-gradient(90deg,#ff4d7d,#ff9a5c)"
 
     delta_html = ""
     if delta_text:
         if is_positive is None:
-            delta_color = "#22d3a0" if ("+" in str(delta_text) or "MUA" in str(delta_text)) else ("#ff5470" if ("-" in str(delta_text) or "BÁN" in str(delta_text)) else "#8b90a0")
-        delta_html = f"<div class='delta' style='color:{delta_color}'>{delta_text}</div>"
+            delta_color = "#2de2a6" if ("+" in str(delta_text) or "MUA" in str(delta_text)) else ("#ff4d7d" if ("-" in str(delta_text) or "BÁN" in str(delta_text)) else "#8b90a0")
+        delta_html = f"<div class='qm-delta' style='color:{delta_color}'>{delta_text}</div>"
 
-    safe_val = str(value_str).replace("'", "")
+    val_cls, val_attr = "qm-val", ""
     try:
-        raw_js = "null" if raw is None or pd.isna(raw) else repr(float(raw))
+        if raw is not None and not pd.isna(raw):
+            val_cls = "qm-val nt-count"
+            val_attr = f" data-v='{float(raw)}' data-d='{int(dec)}' data-vn='{1 if vn else 0}'"
     except Exception:
-        raw_js = "null"
-    vn_js = "true" if vn else "false"
-    html_code = f"""
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=JetBrains+Mono:wght@700&display=swap');
-      html,body {{ margin:0; background:transparent; font-family:'Inter',sans-serif; overflow:hidden; }}
-      @keyframes pop {{ from {{ opacity:0; transform:translateY(14px) scale(.96); }} to {{ opacity:1; transform:none; }} }}
-      @keyframes sweep {{ from {{ transform:translateX(-130%); }} to {{ transform:translateX(260%); }} }}
-      .card {{ position:relative; overflow:hidden; box-sizing:border-box; height:112px; padding:16px 18px; border-radius:16px;
-        background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02)); border:1px solid {border_color};
-        box-shadow:0 10px 26px -14px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.07);
-        display:flex; flex-direction:column; justify-content:center; animation:pop .6s cubic-bezier(.22,1,.36,1) both;
-        transition:transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s; cursor:default; }}
-      .card:hover {{ transform:translateY(-4px); box-shadow:0 20px 34px -16px rgba(0,0,0,.9), 0 0 0 1px rgba(124,124,255,.18); }}
-      .card:active {{ transform:scale(.97); }}
-      .card::before {{ content:""; position:absolute; left:0; top:0; height:3px; width:100%; background:{bar}; opacity:.9; }}
-      .card::after {{ content:""; position:absolute; top:0; bottom:0; width:35%; background:linear-gradient(100deg,transparent,rgba(255,255,255,.07),transparent); transform:translateX(-130%); }}
-      .card:hover::after {{ animation:sweep 1.1s ease; }}
-      .lbl {{ color:#8b90a0; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.8px; margin-bottom:8px; }}
-      .row {{ display:flex; justify-content:space-between; align-items:center; gap:8px; }}
-      .val {{ color:{text_color}; font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:700; line-height:1; text-shadow:0 0 14px {glow}; white-space:nowrap; }}
-      .delta {{ font-size:12.5px; font-weight:600; margin-top:9px; letter-spacing:.2px; }}
-      .copy {{ position:relative; overflow:hidden; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:9px; cursor:pointer; width:32px; height:32px;
-        display:flex; align-items:center; justify-content:center; transition:all .25s; flex:0 0 auto; }}
-      .copy:hover {{ background:rgba(124,124,255,.25); border-color:rgba(124,124,255,.5); transform:scale(1.08); }}
-      .copy:active {{ transform:scale(.88); }}
-    </style>
-    <div class="card">
-      <div class="lbl">{label}</div>
-      <div class="row">
-        <span class="val" id="vv">{value_str}</span>
-        <button class="copy" id="cp" title="Copy" aria-label="Copy">
-          <svg id="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b90a0" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-        </button>
-      </div>
-      {delta_html}
-    </div>
-    <script>
-      const cp = document.getElementById('cp'), ic = document.getElementById('ic');
-      const copyIcon = ic.innerHTML;
-      cp.addEventListener('click', () => {{
-        const txt = '{safe_val}';
-        try {{ navigator.clipboard.writeText(txt); }} catch(e) {{
-          const t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
-        }}
-        ic.setAttribute('stroke', '#22d3a0'); ic.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
-        setTimeout(() => {{ ic.setAttribute('stroke', '#8b90a0'); ic.innerHTML = copyIcon; }}, 1600);
-      }});
-      const RAW = {raw_js}, DEC = {dec}, VN = {vn_js};
-      if (RAW !== null) {{
-        const vv = document.getElementById('vv');
-        const f = v => VN ? v.toLocaleString('de-DE', {{minimumFractionDigits: DEC, maximumFractionDigits: DEC}}) : v.toFixed(DEC);
-        const t0 = performance.now();
-        const step = now => {{
-          const p = Math.min(1, (now - t0) / 1000), e = 1 - Math.pow(1 - p, 4);
-          vv.textContent = f(RAW * e);
-          if (p < 1) requestAnimationFrame(step); else vv.textContent = '{safe_val}';
-        }};
-        requestAnimationFrame(step);
-      }}
-    </script>
-    """
-    components.html(html_code, height=124)
+        pass
+
+    safe_val = str(value_str).replace("'", "").replace('"', "")
+    html(f"""
+        <div class='qm' style='--bc:{border_color}; --tc:{text_color}; --gl:{glow}; --bar:{bar};'>
+            <div class='qm-lbl'>{label}</div>
+            <div class='qm-row'>
+                <span class='{val_cls}'{val_attr}>{value_str}</span>
+                <span class='nt-copy' role='button' tabindex='0' title='Copy' data-copy='{safe_val}'>
+                    <svg class='i-copy' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'></rect><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'></path></svg>
+                    <svg class='i-ok' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4'><polyline points='20 6 9 17 4 12'></polyline></svg>
+                </span>
+            </div>
+            {delta_html}
+        </div>
+    """)
 
 
 def get_trade_diagnosis(df, trade_plan):
@@ -679,10 +909,10 @@ def run_bot_engine(df, ticker, timeframe):
         return
     last_closed = get_last_closed_bot_trade(ticker)
     if last_closed is not None:
-        last_close_time = pd.to_datetime(last_closed['close_time'])
+        last_close_time = to_vn_naive(last_closed['close_time'])
         cooldown = timedelta(hours=4) if "Giờ" not in timeframe else timedelta(hours=12)
         if "Ngày" in timeframe or "Tuần" in timeframe: cooldown = timedelta(days=3)
-        if (latest['Time'] - last_close_time) < cooldown: return
+        if pd.notna(last_close_time) and (to_vn_naive(latest['Time']) - last_close_time) < cooldown: return
     entry, atr = latest['Close'], latest['ATR']
     if (latest['EMA20'] > latest['EMA50'] and 55 < latest['RSI'] < 75 and latest['MACD_hist'] > 0 and latest['ADX'] > 20):
         add_bot_trade(current_time, ticker, 'LONG', entry, latest['Low'] - atr, entry + (entry - (latest['Low'] - atr)) * 2.0)
@@ -701,6 +931,8 @@ def load_data(ticker: str, interval: str):
         time_col = "Datetime" if "Datetime" in df.columns else "Date"
         df = df.rename(columns={time_col: "Time"})
         df["Time"] = pd.to_datetime(df["Time"])
+        if getattr(df["Time"].dt, "tz", None) is not None:
+            df["Time"] = df["Time"].dt.tz_convert("Asia/Ho_Chi_Minh").dt.tz_localize(None)
         return df.dropna(subset=["Close"])
     except Exception:
         return None
@@ -800,7 +1032,7 @@ with st.sidebar:
     interval = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}[timeframe]
 
     html("<div style='height:10px'></div>")
-    if st.button("🔄 Cập nhật dữ liệu", use_container_width=True):
+    if st.button("🔄 Cập nhật dữ liệu", width="stretch"):
         st.cache_data.clear()
         st.rerun()
 
@@ -811,6 +1043,10 @@ with st.sidebar:
         </div>
         <div class='copyright'>© {datetime.now().year} Nghia_Trading.<br>All rights reserved.</div>
     """)
+
+    if not st.session_state.get("_fx_loaded"):
+        st.session_state["_fx_loaded"] = True
+        inject_js(FX_JS)
 
 # ============================================================
 # 5. MAIN AREA
@@ -847,6 +1083,7 @@ _hi100, _lo100 = df["High"].tail(100).max(), df["Low"].tail(100).min()
 html(f"""
     <div class='hero' style='--c:{_c}; --cbg:{_cbg}; --cbd:{_cbd};'>
         <div class='hero-in'>
+            <div class='orbit'><i></i><i></i><i></i></div>
             <div class='hero-top'>
                 <div>
                     <div class='hero-name'>{selected_asset.split(' - ')[1]}</div>
@@ -910,8 +1147,8 @@ if menu_selection == "📊 Biểu đồ":
         fig.add_hline(y=active_trade['sl'], line_dash="dash", line_color="#ff5470", line_width=1, annotation_text="SL", row=1, col=1)
         fig.add_hline(y=active_trade['tp'], line_dash="dash", line_color="#22d3a0", line_width=1, annotation_text="TP", row=1, col=1)
 
-    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA20"], name="EMA 20", line=dict(color="#7c7cff", width=2, shape="spline", smoothing=0.6)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA50"], name="EMA 50", line=dict(color="#b06cff", width=1.5, dash='dot', shape="spline", smoothing=0.6)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA20"], name="EMA 20", line=dict(color="#38e1ff", width=2, shape="spline", smoothing=0.6)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA50"], name="EMA 50", line=dict(color="#ff5ecb", width=1.5, dash='dot', shape="spline", smoothing=0.6)), row=1, col=1)
 
     fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["RSI"], name="RSI", line=dict(color="#fbbf24", width=1.6), fill="tozeroy", fillcolor="rgba(251,191,36,0.05)"), row=2, col=1)
     fig.add_hline(y=70, line_dash="dash", line_color="#ff5470", line_width=1, row=2, col=1)
@@ -943,7 +1180,7 @@ if menu_selection == "📊 Biểu đồ":
     )
     fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", side="right", gridwidth=1)
 
-    st.plotly_chart(fig, use_container_width=True, config={'scrollZoom': True, 'displayModeBar': True, 'displaylogo': False})
+    st.plotly_chart(fig, width="stretch", config={'scrollZoom': True, 'displayModeBar': True, 'displaylogo': False})
     st.caption("💡 **Mẹo di động:** Dùng 2 ngón tay để phóng to/thu nhỏ. Dùng 1 ngón tay để kéo biểu đồ. Hoặc dùng thanh trượt ở dưới cùng.")
 
 # ------------------------------------------------------------
@@ -1062,8 +1299,8 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
 
         html("<div style='height:14px'></div>")
         display_df = bot_df.copy()
-        display_df['open_time'] = pd.to_datetime(display_df['open_time']).dt.strftime('%d/%m/%Y %H:%M')
-        display_df['close_time'] = pd.to_datetime(display_df['close_time']).dt.strftime('%d/%m/%Y %H:%M').fillna('-')
+        display_df['open_time'] = pd.to_datetime(display_df['open_time'].apply(to_vn_naive)).dt.strftime('%d/%m/%Y %H:%M')
+        display_df['close_time'] = pd.to_datetime(display_df['close_time'].apply(to_vn_naive)).dt.strftime('%d/%m/%Y %H:%M').fillna('-')
         display_df['direction'] = display_df['direction'].replace({'LONG': 'MUA', 'SHORT': 'BÁN'})
         display_df['status'] = display_df['status'].replace({'WIN': 'THẮNG', 'LOSS': 'THUA', 'CUT_EARLY': 'CẮT SỚM', 'ACTIVE': 'ĐANG MỞ'})
         for col in ['entry_price', 'exit_price', 'sl', 'tp']:
@@ -1075,7 +1312,7 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
             if val == 'CẮT SỚM': return 'color: #8b90a0; font-weight: bold;'
             return ''
 
-        st.dataframe(display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style.map(color_bot_status, subset=['status']), hide_index=True, use_container_width=True)
+        st.dataframe(display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style.map(color_bot_status, subset=['status']), hide_index=True, width="stretch")
 
 # ------------------------------------------------------------
 # KHU VỰC 3: PHÂN TÍCH SMC
@@ -1209,13 +1446,13 @@ elif menu_selection == "📰 Tin tức":
     for item in news:
         safe_link = str(item['link']).replace("'", "%27")
         html(f"""
-            <div class='glass-card news-card' onclick="window.open('{safe_link}', '_blank')">
+            <a class='glass-card news-card' href='{safe_link}' target='_blank' rel='noopener noreferrer'>
                 <div class='news-title'>{item['title']}</div>
                 <div style='color: #8b90a0; font-size: 12px; display: flex; align-items: center; gap: 6px;'>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     {item['published']}
                 </div>
-            </div>
+            </a>
         """)
 
 # ------------------------------------------------------------
@@ -1234,14 +1471,14 @@ elif menu_selection == "📓 Nhật ký":
             result = st.selectbox("Kết quả", ["THẮNG", "THUA", "HÒA"])
             pnl_val = st.number_input("PnL", value=0.0, step=0.1)
             reason = st.text_area("Lý do", placeholder="Nhập ghi chú...")
-            if st.form_submit_button("Lưu dữ liệu", use_container_width=True):
+            if st.form_submit_button("Lưu dữ liệu", width="stretch"):
                 add_trade(str(trade_date), asset_name.upper(), direction, result, reason, pnl_val)
                 st.rerun()
 
         journal_df = get_trades()
         if not journal_df.empty:
             csv = journal_df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Xuất file CSV", data=csv, file_name="nhat_ky.csv", mime="text/csv", use_container_width=True)
+            st.download_button("📥 Xuất file CSV", data=csv, file_name="nhat_ky.csv", mime="text/csv", width="stretch")
 
     with col_history:
         if journal_df.empty:
@@ -1283,4 +1520,4 @@ elif menu_selection == "📓 Nhật ký":
                     except Exception: pass
                     return 'color: #8b90a0;'
 
-                st.dataframe(filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style.map(color_result, subset=['result']).map(color_pnl, subset=['pnl']), hide_index=True, use_container_width=True)
+                st.dataframe(filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style.map(color_result, subset=['result']).map(color_pnl, subset=['pnl']), hide_index=True, width="stretch")
