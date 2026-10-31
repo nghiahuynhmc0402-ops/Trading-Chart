@@ -22,7 +22,7 @@ except ImportError:
     HAS_SMC = False
 
 # ============================================================
-# 1. CẤU HÌNH GIAO DIỆN & CSS (ARCHITECTURAL BLUEPRINT + XIMITECH EFFECTS)
+# 1. CẤU HÌNH GIAO DIỆN & CSS (ARCHITECTURAL BLUEPRINT)
 # ============================================================
 st.set_page_config(
     page_title="TradeDesk Pro | Bản Vẽ Kỹ Thuật",
@@ -47,34 +47,21 @@ st.markdown("""
         font-family: 'Roboto Mono', monospace;
     }
     
-    /* Hiệu ứng Loading toàn trang (XimiTech style) */
-    .stApp::before {
-        content: "ĐANG KẾT NỐI DỮ LIỆU...";
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: #003366;
-        color: #00FFFF;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-family: 'Roboto Mono', monospace;
-        font-size: 20px;
-        z-index: 9999;
-        opacity: 1;
-        transition: opacity 0.5s ease-out;
-        pointer-events: none;
+    /* Hiệu ứng Fade In Up (Pure CSS thay cho JS) */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(15px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    .stApp.loaded::before { opacity: 0; }
     
-    /* Scroll Reveal Effect (Hiệu ứng cuộn) */
-    .reveal {
-        opacity: 0;
-        transform: translateY(20px);
-        transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-    }
-    .reveal.active {
-        opacity: 1;
-        transform: translateY(0);
+    /* Tự động áp dụng hiệu ứng cho các khối */
+    .title-block, div[data-testid="column"], .smc-card, .news-card-item {
+        animation: fadeInUp 0.6s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
     }
 
     /* Đảm bảo vùng biểu đồ không chặn thao tác vuốt cảm ứng */
@@ -127,7 +114,7 @@ st.markdown("""
         box-shadow: 0 0 5px rgba(0, 255, 255, 0.3) !important;
     }
     
-    /* Nút bấm (Technical Stamp + XimiTech Hover) */
+    /* Nút bấm (Technical Stamp + Hover) */
     .stButton>button { 
         width: 100%; 
         border-radius: 0px !important; 
@@ -212,35 +199,18 @@ st.markdown("""
     .val-green { color: #00FFFF; }
     .val-red { color: #FF3333; }
     
+    .news-card-item {
+        border-left: 3px solid #00FFFF;
+        padding-left: 15px;
+        margin-bottom: 20px;
+    }
+    
     footer {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     </style>
-    
-    <script>
-    // Script để kích hoạt hiệu ứng scroll reveal và loading
-    document.addEventListener('DOMContentLoaded', function() {
-        // Hiệu ứng loading toàn trang
-        setTimeout(function() {
-            document.querySelector('.stApp').classList.add('loaded');
-        }, 500);
-        
-        // Hiệu ứng scroll reveal
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
-                }
-            });
-        }, { threshold: 0.1 });
-        
-        document.querySelectorAll('.reveal').forEach((el) => {
-            observer.observe(el);
-        });
-    });
-    </script>
 """, unsafe_allow_html=True)
 
-# Cursor Crosshair (Tọa độ X/Y)
+# Cursor Crosshair (Tọa độ X/Y) - Giữ lại hiệu ứng này
 components.html("""
     <script>
     const crosshair = document.createElement('div');
@@ -321,7 +291,6 @@ def format_vn_price(value) -> str:
     except: return str(value)
 
 def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
-    """Thẻ KPI phong cách Bản vẽ kỹ thuật (Drafting Card) + hiệu ứng hover"""
     border_color = "rgba(255,255,255,0.8)"
     text_color = "#00FFFF"
     delta_color = "rgba(255,255,255,0.7)"
@@ -337,7 +306,7 @@ def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
         delta_html = f"<div style='color: {delta_color}; font-size: 12px; font-weight: bold; margin-top: 5px; border-top: 1px dashed rgba(255,255,255,0.3); padding-top: 5px;'>[{delta_text}]</div>"
         
     html_code = f"""
-    <div class="reveal" style="
+    <div style="
         background-color: transparent;
         padding: 15px;
         border: 1px solid {border_color};
@@ -462,7 +431,7 @@ with st.sidebar:
     interval = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}[timeframe]
     
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    if st.button("CẬP NHẬT DỮ LIỆU", width='stretch'):
+    if st.button("CẬP NHẬT DỮ LIỆU", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
         
@@ -500,7 +469,7 @@ run_bot_engine(df, ticker, timeframe)
 
 # TITLE BLOCK
 st.markdown(f"""
-    <div class='title-block reveal'>
+    <div class='title-block'>
         <div>
             <p style='color: #00FFFF; font-weight: bold; letter-spacing: 2px;'>DỰ ÁN:</p>
             <h1>{selected_asset.split(' - ')[1]}</h1>
@@ -587,7 +556,7 @@ if menu_selection == "📐 BIỂU ĐỒ KỸ THUẬT":
 # KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & BOT
 # ------------------------------------------------------------
 elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
-    st.markdown("<span class='drafting-label reveal'>PHẦN 1: KẾ HOẠCH GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label'>PHẦN 1: KẾ HOẠCH GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
     
     col_slider, _ = st.columns([1, 2])
     with col_slider: rr_ratio = st.slider("Tỷ lệ R:R (Lợi nhuận : Rủi ro)", 1.0, 4.0, 2.0, 0.5)
@@ -596,7 +565,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
     if trade_plan:
         direction_color = "#00FFFF" if trade_plan['direction'] == "LONG" else "#FF3333"
         direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
-        st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;' class='reveal'>TÍN HIỆU ĐỀ XUẤT: {direction_vn}</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color: {direction_color}; margin-top: 10px;'>TÍN HIỆU ĐỀ XUẤT: {direction_vn}</h3>", unsafe_allow_html=True)
         
         col_entry, col_sl, col_tp = st.columns(3)
         with col_entry: blueprint_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None)
@@ -604,7 +573,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
         with col_tp: blueprint_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
 
     st.markdown("<hr style='border-color: rgba(255,255,255,0.2); margin: 30px 0;'>", unsafe_allow_html=True)
-    st.markdown("<span class='drafting-label reveal'>PHẦN 2: NHẬT KÝ BOT TỰ ĐỘNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label'>PHẦN 2: NHẬT KÝ BOT TỰ ĐỘNG</span>", unsafe_allow_html=True)
     
     col_bot_btn, _ = st.columns([1, 3])
     with col_bot_btn:
@@ -619,7 +588,7 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
     if active_bot is not None:
         dir_vn = "MUA" if active_bot['direction'] == "LONG" else "BÁN"
         st.markdown(f"""
-            <div class='reveal' style='border: 1px dashed #00FFFF; padding: 15px; margin-bottom: 20px; background: rgba(0,255,255,0.05);'>
+            <div style='border: 1px dashed #00FFFF; padding: 15px; margin-bottom: 20px; background: rgba(0,255,255,0.05);'>
                 <div style='color: #00FFFF; font-weight: bold; margin-bottom: 5px;'>[!] BOT ĐANG GIỮ LỆNH: {dir_vn}</div>
                 <div style='color: #FFFFFF; font-size: 13px;'>Vào lệnh: {format_vn_price(active_bot['entry_price'])} | 
                 SL: <span style='color:#FF3333'>{format_vn_price(active_bot['sl'])}</span> | 
@@ -658,13 +627,13 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
             if val == 'CẮT SỚM': return 'color: #FFFFFF; font-weight: bold;'
             return ''
 
-        st.dataframe(display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style.map(color_bot_status, subset=['status']), hide_index=True, width='stretch')
+        st.dataframe(display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style.map(color_bot_status, subset=['status']), hide_index=True, use_container_width=True)
 
 # ------------------------------------------------------------
 # KHU VỰC 3: PHÂN TÍCH SMC
 # ------------------------------------------------------------
 elif menu_selection == "🧠 PHÂN TÍCH SMC":
-    st.markdown("<span class='drafting-label reveal'>PHẦN 3: PHÂN TÍCH CẤU TRÚC THỊ TRƯỜNG (SMC)</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label'>PHẦN 3: PHÂN TÍCH CẤU TRÚC THỊ TRƯỜNG (SMC)</span>", unsafe_allow_html=True)
     
     if not HAS_SMC:
         st.warning("Thư viện `pyvsmc` chưa được cài đặt. Vui lòng kiểm tra lại requirements.txt.")
@@ -696,7 +665,7 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
                 
                 with col_fvg:
                     st.markdown(f"""
-                        <div class='smc-card reveal'>
+                        <div class='smc-card'>
                             <div class='smc-title'>Fair Value Gaps (FVG)</div>
                             <div class='smc-row'><span>FVG Tăng:</span> <span class='smc-val val-green'>{len(fvg.bullish)}</span></div>
                             <div class='smc-row'><span>FVG Giảm:</span> <span class='smc-val val-red'>{len(fvg.bearish)}</span></div>
@@ -706,7 +675,7 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
                     
                 with col_obs:
                     st.markdown(f"""
-                        <div class='smc-card reveal'>
+                        <div class='smc-card'>
                             <div class='smc-title'>Order Blocks (OB)</div>
                             <div class='smc-row'><span>OB Cầu (Demand):</span> <span class='smc-val val-green'>{len(obs.bullish_ob)}</span></div>
                             <div class='smc-row'><span>OB Cung (Supply):</span> <span class='smc-val val-red'>{len(obs.bearish_ob)}</span></div>
@@ -716,7 +685,7 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
                     
                 with col_struct:
                     st.markdown(f"""
-                        <div class='smc-card reveal'>
+                        <div class='smc-card'>
                             <div class='smc-title'>Cấu Trúc Giá</div>
                             <div class='smc-row'><span>Xu hướng:</span> <span class='smc-val {trend_color}'>{trend_text}</span></div>
                             <div class='smc-row'><span>BOS Tăng:</span> <span class='smc-val val-green'>{'CÓ' if bos_bull else 'KHÔNG'}</span></div>
@@ -732,11 +701,11 @@ elif menu_selection == "🧠 PHÂN TÍCH SMC":
 # KHU VỰC 4: TIN TỨC
 # ------------------------------------------------------------
 elif menu_selection == "📰 TIN TỨC":
-    st.markdown("<span class='drafting-label reveal'>PHẦN 4: BẢNG TIN THỊ TRƯỜNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label'>PHẦN 4: BẢNG TIN THỊ TRƯỜNG</span>", unsafe_allow_html=True)
     news = fetch_news(ticker)
     for item in news:
         st.markdown(f"""
-            <div class='reveal' style='border-left: 3px solid #00FFFF; padding-left: 15px; margin-bottom: 20px;'>
+            <div class='news-card-item'>
                 <div style='margin-bottom: 5px;'>
                     <a href='{item['link']}' target='_blank' style='color: #E2E8F0; text-decoration: underline; font-weight: bold;'>[XEM THÊM]</a>
                     <span style='color: #E2E8F0;'>{item['title']}</span>
@@ -749,11 +718,11 @@ elif menu_selection == "📰 TIN TỨC":
 # KHU VỰC 5: NHẬT KÝ GIAO DỊCH
 # ------------------------------------------------------------
 elif menu_selection == "📓 NHẬT KÝ GIAO DỊCH":
-    st.markdown("<span class='drafting-label reveal'>PHẦN 5: NHẬT KÝ GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
+    st.markdown("<span class='drafting-label'>PHẦN 5: NHẬT KÝ GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
     col_form, col_history = st.columns([1, 2], gap="large")
     
     with col_form:
-        st.markdown("<div class='reveal' style='border: 1px solid rgba(255,255,255,0.4); padding: 20px; background: rgba(0,51,102,0.5);'>", unsafe_allow_html=True)
+        st.markdown("<div style='border: 1px solid rgba(255,255,255,0.4); padding: 20px; background: rgba(0,51,102,0.5);'>", unsafe_allow_html=True)
         with st.form("journal_form", clear_on_submit=True):
             st.markdown("<p style='color: #00FFFF; font-weight: bold; margin-bottom: 15px;'>+--- GHI NHẬN LỆNH MỚI ---+</p>", unsafe_allow_html=True)
             trade_date = st.date_input("NGÀY")
@@ -763,7 +732,7 @@ elif menu_selection == "📓 NHẬT KÝ GIAO DỊCH":
             pnl_val = st.number_input("LỢI NHUẬN / LỖ", value=0.0, step=0.1)
             reason = st.text_area("LÝ DO", placeholder="Nhập ghi chú...")
             
-            if st.form_submit_button("LƯU DỮ LIỆU"):
+            if st.form_submit_button("LƯU DỮ LIỆU", use_container_width=True):
                 add_trade(str(trade_date), asset_name.upper(), direction, result, reason, pnl_val)
                 st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
@@ -771,7 +740,7 @@ elif menu_selection == "📓 NHẬT KÝ GIAO DỊCH":
         journal_df = get_trades()
         if not journal_df.empty:
             csv = journal_df.to_csv(index=False).encode('utf-8')
-            st.download_button("XUẤT FILE CSV", data=csv, file_name="nhat_ky_giao_dich.csv", mime="text/csv", width='stretch')
+            st.download_button("XUẤT FILE CSV", data=csv, file_name="nhat_ky_giao_dich.csv", mime="text/csv", use_container_width=True)
 
     with col_history:
         if journal_df.empty:
@@ -813,4 +782,4 @@ elif menu_selection == "📓 NHẬT KÝ GIAO DỊCH":
                     except: pass
                     return 'color: rgba(255,255,255,0.6);'
 
-                st.dataframe(filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style.map(color_result, subset=['result']).map(color_pnl, subset=['pnl']), hide_index=True, width='stretch')
+                st.dataframe(filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style.map(color_result, subset=['result']).map(color_pnl, subset=['pnl']), hide_index=True, use_container_width=True)
