@@ -65,7 +65,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ============================================================
-# 2. KHỞI TẠO DATABASE SQLITE CHO NHẬT KÝ
+# 2. KHỞI TẠO DATABASE SQLITE
 # ============================================================
 DB_FILE = "trading_journal.db"
 
@@ -135,7 +135,7 @@ def copyable_metric(label, value_str, delta_text=None):
     components.html(html_code, height=110)
 
 # ============================================================
-# 4. TỪ ĐIỂN & DỮ LIỆU (Giữ nguyên)
+# 4. TỪ ĐIỂN & DỮ LIỆU
 # ============================================================
 POPULAR_ASSETS = {
     "🔥 Hàng Hóa": {"Vàng (XAUUSD)": "GC=F", "Bạc (XAGUSD)": "SI=F", "Dầu WTI": "CL=F"},
@@ -235,7 +235,7 @@ with st.sidebar:
             "🎯 Kế Hoạch Giao Dịch",
             "🧠 Cấu Trúc Thị Trường (SMC)",
             "📰 Tin Tức & Sự Kiện",
-            "📓 Nhật Ký Giao Dịch" # THÊM TÍNH NĂNG MỚI
+            "📓 Nhật Ký Giao Dịch"
         ],
         label_visibility="collapsed"
     )
@@ -304,7 +304,7 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
         with col_tp: copyable_metric("Take-Profit (TP)", format_vn_price(trade_plan['tp']))
 
 # ------------------------------------------------------------
-# KHU VỰC 3: SMC (Lược bớt để code ngắn gọn, giữ nguyên logic cũ)
+# KHU VỰC 3: SMC
 # ------------------------------------------------------------
 elif menu_selection == "🧠 Cấu Trúc Thị Trường (SMC)":
     st.subheader("🧠 Phân Tích SMC")
@@ -320,7 +320,7 @@ elif menu_selection == "📰 Tin Tức & Sự Kiện":
         st.markdown(f"<div class='news-card'><div class='news-title'><a href='{item['link']}' target='_blank' style='color: #64b5f6;'>{item['title']}</a></div><div class='news-meta'>🕒 {item['published']}</div></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
-# KHU VỰC 5: NHẬT KÝ GIAO DỊCH (TÍNH NĂNG MỚI)
+# KHU VỰC 5: NHẬT KÝ GIAO DỊCH (ĐÃ FIX LỖI PANDAS)
 # ------------------------------------------------------------
 elif menu_selection == "📓 Nhật Ký Giao Dịch":
     st.subheader("📓 Nhật Ký & Thống Kê Giao Dịch")
@@ -349,7 +349,6 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
                 st.rerun()
                 
         st.divider()
-        # XUẤT/NHẬP CSV ĐỂ LƯU TRỮ AN TOÀN
         st.markdown("### 📂 Sao Lưu Dữ Liệu")
         journal_df = get_trades()
         if not journal_df.empty:
@@ -373,7 +372,10 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
         if journal_df.empty:
             st.info("Chưa có dữ liệu giao dịch nào. Hãy thêm lệnh đầu tiên!")
         else:
-            # Thống kê tổng quan
+            # Đảm bảo cột date và pnl đúng định dạng
+            journal_df['date'] = pd.to_datetime(journal_df['date'], errors='coerce')
+            journal_df['pnl'] = pd.to_numeric(journal_df['pnl'], errors='coerce')
+            
             total_trades = len(journal_df)
             wins = len(journal_df[journal_df['result'] == 'WIN'])
             losses = len(journal_df[journal_df['result'] == 'LOSS'])
@@ -388,30 +390,43 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
             
             st.divider()
             
-            # Lọc theo tháng/năm (Giống cuốn lịch)
             col_filter1, col_filter2 = st.columns(2)
-            # Chuyển cột date sang datetime để lọc
-            journal_df['date'] = pd.to_datetime(journal_df['date'])
-            years = journal_df['date'].dt.year.unique()
-            selected_year = col_filter1.selectbox("Chọn Năm", sorted(years, reverse=True))
-            months = journal_df[journal_df['date'].dt.year == selected_year]['date'].dt.month.unique()
-            selected_month = col_filter2.selectbox("Chọn Tháng", sorted(months, reverse=True))
-            
-            filtered_df = journal_df[
-                (journal_df['date'].dt.year == selected_year) & 
-                (journal_df['date'].dt.month == selected_month)
-            ]
-            
-            st.markdown(f"#### Lịch sử Tháng {selected_month}/{selected_year}")
-            
-            # Hiển thị bảng
-            st.dataframe(
-                filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style.applymap(
-                    lambda x: 'color: #26a69a' if x == 'WIN' else ('color: #ef5350' if x == 'LOSS' else ''),
-                    subset=['result']
-                ).applymap(
-                    lambda x: 'color: #26a69a' if isinstance(x, (int, float)) and x > 0 else ('color: #ef5350' if isinstance(x, (int, float)) and x < 0 else ''),
-                    subset=['pnl']
-                ),
-                hide_index=True, use_container_width=True
-            )
+            years = journal_df['date'].dt.year.dropna().unique()
+            if len(years) > 0:
+                selected_year = col_filter1.selectbox("Chọn Năm", sorted(years, reverse=True))
+                months = journal_df[journal_df['date'].dt.year == selected_year]['date'].dt.month.dropna().unique()
+                selected_month = col_filter2.selectbox("Chọn Tháng", sorted(months, reverse=True))
+                
+                filtered_df = journal_df[
+                    (journal_df['date'].dt.year == selected_year) & 
+                    (journal_df['date'].dt.month == selected_month)
+                ].copy()
+                
+                # Format lại ngày tháng để hiển thị cho đẹp (bỏ giờ)
+                filtered_df['date'] = filtered_df['date'].dt.strftime('%d/%m/%Y')
+                
+                st.markdown(f"#### Lịch sử Tháng {selected_month}/{selected_year}")
+                
+                # ĐỊNH NGHĨA HÀM TÔ MÀU (Sửa lỗi applymap)
+                def color_result(val):
+                    if val == 'WIN': return 'color: #26a69a; font-weight: bold;'
+                    elif val == 'LOSS': return 'color: #ef5350; font-weight: bold;'
+                    return ''
+
+                def color_pnl(val):
+                    try:
+                        val = float(val)
+                        if val > 0: return 'color: #26a69a;'
+                        elif val < 0: return 'color: #ef5350;'
+                    except:
+                        pass
+                    return ''
+
+                # SỬ DỤNG HÀM .MAP() THAY VÌ .APPLYMAP() (Tương thích Pandas mới)
+                styled_df = filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style \
+                    .map(color_result, subset=['result']) \
+                    .map(color_pnl, subset=['pnl'])
+                
+                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+            else:
+                st.info("Dữ liệu ngày tháng không hợp lệ.")
