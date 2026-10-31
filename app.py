@@ -283,6 +283,111 @@ h3 { position: relative; padding-left: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 
+
+/* ===================== V2: FIX + WOW ===================== */
+@property --ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes spin { to { --ang: 360deg; } }
+@keyframes ringfill { from { stroke-dashoffset: 264; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes gridmove { to { background-position: 0 56px, 56px 0; } }
+
+/* --- Sửa menu: bỏ vòng tròn radio, không vỡ chữ --- */
+div[data-testid="stRadio"] { width: 100%; }
+div[data-testid="stRadio"] > div[role="radiogroup"] { flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important; }
+div[data-testid="stRadio"] label {
+    width: auto !important; min-width: max-content !important; flex: 0 0 auto !important;
+    display: flex !important; align-items: center !important; margin: 0 !important;
+}
+div[data-testid="stRadio"] label > input,
+div[data-testid="stRadio"] label > div:not(:has([data-testid="stMarkdownContainer"])) { display: none !important; }
+div[data-testid="stRadio"] label > div { width: auto !important; min-width: max-content !important; margin: 0 !important; }
+div[data-testid="stRadio"] label [data-testid="stMarkdownContainer"] { width: max-content !important; }
+div[data-testid="stRadio"] label p {
+    white-space: nowrap !important; word-break: keep-all !important; overflow-wrap: normal !important; margin: 0 !important;
+}
+
+/* --- Lưới nền chuyển động --- */
+[data-testid="stAppViewContainer"]::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 15%, #000 0%, transparent 72%);
+    mask-image: radial-gradient(ellipse at 50% 15%, #000 0%, transparent 72%);
+    animation: gridmove 7s linear infinite;
+}
+
+/* --- Thẻ nghiêng 3D + đèn rọi --- */
+.glass-card {
+    transform: perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(var(--ty,0px));
+    transition: transform .25s ease-out, box-shadow .4s var(--ease), border-color .3s; will-change: transform;
+}
+.glass-card:hover { --ty: -4px; transform: perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-4px); }
+.glass-card:active { transform: perspective(900px) scale(.985); }
+
+/* --- Hero giá --- */
+.hero {
+    position: relative; border-radius: 24px; padding: 1.5px; margin-bottom: 18px;
+    background: conic-gradient(from var(--ang), rgba(255,255,255,.07) 0%, rgba(255,255,255,.07) 55%, var(--c) 78%, #7c7cff 90%, rgba(255,255,255,.07) 100%);
+    animation: spin 7s linear infinite, fadeUp .7s var(--ease) both;
+    box-shadow: 0 30px 70px -34px var(--c);
+}
+.hero-in {
+    position: relative; overflow: hidden; border-radius: 23px; padding: 22px 24px;
+    background: linear-gradient(160deg, rgba(14,15,24,.97), rgba(8,9,14,.98));
+}
+.hero-in::before {
+    content: ""; position: absolute; right: -90px; top: -90px; width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, var(--c), transparent 70%); opacity: .17; filter: blur(12px);
+}
+.hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; }
+.hero-name { font-size: clamp(22px, 4.4vw, 30px); font-weight: 800; letter-spacing: -.6px; color: #fff; }
+.hero-sub { color: var(--muted); font-size: 13px; font-weight: 500; margin-top: 2px; }
+.hero-mid { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); align-items: end; gap: 18px; margin-top: 16px; position: relative; }
+.hero-price {
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: clamp(30px, 7vw, 46px);
+    line-height: 1.05; color: #fff; letter-spacing: -1px; text-shadow: 0 0 34px var(--c);
+}
+.chg {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 5px 12px; border-radius: 99px;
+    font-weight: 700; font-size: 13px; font-family: 'JetBrains Mono', monospace;
+    color: var(--c); background: var(--cbg); border: 1px solid var(--cbd);
+}
+.spark { width: 100%; height: auto; overflow: visible; }
+.spark .ln {
+    fill: none; stroke: var(--c); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.9s var(--ease) .2s forwards; filter: drop-shadow(0 0 6px var(--c));
+}
+.spark .ar { opacity: 0; animation: fadeIn 1.1s ease 1.1s forwards; }
+.hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; position: relative; }
+.hero-stats > div {
+    padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line);
+    transition: transform .3s var(--ease), border-color .3s, background .3s;
+}
+.hero-stats > div:hover { transform: translateY(-3px); border-color: var(--line-hi); background: rgba(255,255,255,.07); }
+.hero-stats > div:active { transform: scale(.96); }
+.hero-stats span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+.hero-stats b { font-family: 'JetBrains Mono', monospace; font-size: 13.5px; color: #fff; word-break: break-all; }
+@media (max-width: 640px) {
+    .hero-mid { grid-template-columns: 1fr; gap: 10px; }
+    .hero-in { padding: 18px; }
+    .hero-stats b { font-size: 12px; }
+}
+
+/* --- Vòng tròn điểm chất lượng --- */
+.sig-head { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; flex-wrap: wrap; }
+.ring { position: relative; width: 108px; height: 108px; flex: 0 0 auto; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 0 10px rgba(124,124,255,.5)); }
+.ring circle { fill: none; stroke-width: 8; }
+.ring-bg { stroke: rgba(255,255,255,.07); }
+.ring-fg { stroke-linecap: round; stroke-dasharray: 264; stroke-dashoffset: var(--off); animation: ringfill 1.6s var(--ease) .2s both; }
+.ring-num {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 28px; color: #fff; line-height: 1;
+}
+.ring-num small { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+.sig-kicker { font-size: 11px; letter-spacing: 1.6px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.sig-info h3 { margin: 0 0 8px 0 !important; padding: 0 !important; font-size: 22px !important; }
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -295,7 +400,7 @@ components.html("""
 (function(){
   try {
     const P = window.parent, D = P.document;
-    if (P.__ntFx) return; P.__ntFx = true;
+    if (P.__ntFx2) return; P.__ntFx2 = true;
     D.addEventListener('pointerdown', function(e){
       const t = e.target.closest('.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button, div[data-testid="stRadio"] label');
       if (!t) return;
@@ -311,7 +416,32 @@ components.html("""
       const r = c.getBoundingClientRect();
       c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
       c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      if (e.pointerType === 'mouse') {
+        c.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * 7).toFixed(2) + 'deg');
+        c.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+      }
     }, {passive:true});
+    D.addEventListener('pointerout', function(e){
+      const c = e.target.closest && e.target.closest('.glass-card');
+      if (c && !(e.relatedTarget && c.contains(e.relatedTarget))) { c.style.setProperty('--rx','0deg'); c.style.setProperty('--ry','0deg'); }
+    }, {passive:true});
+    const fmt = (v, d) => v.toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d});
+    const run = () => {
+      D.querySelectorAll('.nt-count:not([data-done])').forEach(function(el){
+        el.setAttribute('data-done', '1');
+        const to = parseFloat(el.dataset.v), d = parseInt(el.dataset.d || '0');
+        if (isNaN(to)) return;
+        const t0 = performance.now(), dur = 1200;
+        const step = function(now){
+          const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 4);
+          el.textContent = fmt(to * e, d);
+          if (p < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+      });
+    };
+    run();
+    new MutationObserver(run).observe(D.body, {childList: true, subtree: true});
   } catch(err) {}
 })();
 </script>
@@ -391,7 +521,7 @@ def format_vn_price(value) -> str:
     except Exception: return str(value)
 
 
-def quantum_metric(label, value_str, delta_text=None, is_positive=None):
+def quantum_metric(label, value_str, delta_text=None, is_positive=None, raw=None, dec=2, vn=True):
     border_color = "rgba(255,255,255,0.08)"
     text_color = "#ffffff"
     delta_color = "#8b90a0"
@@ -413,6 +543,11 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
         delta_html = f"<div class='delta' style='color:{delta_color}'>{delta_text}</div>"
 
     safe_val = str(value_str).replace("'", "")
+    try:
+        raw_js = "null" if raw is None or pd.isna(raw) else repr(float(raw))
+    except Exception:
+        raw_js = "null"
+    vn_js = "true" if vn else "false"
     html_code = f"""
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600&family=JetBrains+Mono:wght@700&display=swap');
@@ -441,7 +576,7 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
     <div class="card">
       <div class="lbl">{label}</div>
       <div class="row">
-        <span class="val">{value_str}</span>
+        <span class="val" id="vv">{value_str}</span>
         <button class="copy" id="cp" title="Copy" aria-label="Copy">
           <svg id="ic" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b90a0" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
         </button>
@@ -459,6 +594,18 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None):
         ic.setAttribute('stroke', '#22d3a0'); ic.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
         setTimeout(() => {{ ic.setAttribute('stroke', '#8b90a0'); ic.innerHTML = copyIcon; }}, 1600);
       }});
+      const RAW = {raw_js}, DEC = {dec}, VN = {vn_js};
+      if (RAW !== null) {{
+        const vv = document.getElementById('vv');
+        const f = v => VN ? v.toLocaleString('de-DE', {{minimumFractionDigits: DEC, maximumFractionDigits: DEC}}) : v.toFixed(DEC);
+        const t0 = performance.now();
+        const step = now => {{
+          const p = Math.min(1, (now - t0) / 1000), e = 1 - Math.pow(1 - p, 4);
+          vv.textContent = f(RAW * e);
+          if (p < 1) requestAnimationFrame(step); else vv.textContent = '{safe_val}';
+        }};
+        requestAnimationFrame(step);
+      }}
     </script>
     """
     components.html(html_code, height=124)
@@ -682,14 +829,50 @@ with st.spinner("⚙️ Đang tính toán..."):
 
 run_bot_engine(df, ticker, timeframe)
 
-# HEADER
+# HERO (khối giá + sparkline)
+_spark = df["Close"].tail(80).astype(float).values
+_n = len(_spark)
+_mn, _mx = float(np.min(_spark)), float(np.max(_spark))
+_rg = (_mx - _mn) or 1.0
+_pts = [(i / max(_n - 1, 1) * 300, 54 - (float(v) - _mn) / _rg * 48) for i, v in enumerate(_spark)]
+_line = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in _pts)
+_area = _line + " L300,60 L0,60 Z"
+_up = change_pct >= 0
+_c = "#22d3a0" if _up else "#ff5470"
+_cbg = "rgba(34,211,160,.14)" if _up else "rgba(255,84,112,.14)"
+_cbd = "rgba(34,211,160,.35)" if _up else "rgba(255,84,112,.35)"
+_arrow = "▲" if _up else "▼"
+_hi100, _lo100 = df["High"].tail(100).max(), df["Low"].tail(100).min()
+
 html(f"""
-    <div class='page-header'>
-        <div>
-            <h1>{selected_asset.split(' - ')[1]}</h1>
-            <p>{ticker} • {timeframe}</p>
+    <div class='hero' style='--c:{_c}; --cbg:{_cbg}; --cbd:{_cbd};'>
+        <div class='hero-in'>
+            <div class='hero-top'>
+                <div>
+                    <div class='hero-name'>{selected_asset.split(' - ')[1]}</div>
+                    <div class='hero-sub'>{ticker} • {timeframe}</div>
+                </div>
+                <div class='live-pill'><i></i><span>LIVE</span></div>
+            </div>
+            <div class='hero-mid'>
+                <div>
+                    <div class='hero-price nt-count' data-v='{float(last_close)}' data-d='2'>{format_vn_price(last_close)}</div>
+                    <span class='chg'>{_arrow} {change_pct:+.2f}%</span>
+                </div>
+                <svg class='spark' viewBox='0 0 300 60'>
+                    <defs><linearGradient id='sg' x1='0' y1='0' x2='0' y2='1'>
+                        <stop offset='0%' stop-color='{_c}' stop-opacity='.35'/><stop offset='100%' stop-color='{_c}' stop-opacity='0'/>
+                    </linearGradient></defs>
+                    <path class='ar' d='{_area}' fill='url(#sg)'/>
+                    <path class='ln' d='{_line}' pathLength='1'/>
+                </svg>
+            </div>
+            <div class='hero-stats'>
+                <div><span>Cao (100 nến)</span><b>{format_vn_price(_hi100)}</b></div>
+                <div><span>Thấp (100 nến)</span><b>{format_vn_price(_lo100)}</b></div>
+                <div><span>ATR (14)</span><b>{format_vn_price(df['ATR'].iloc[-1])}</b></div>
+            </div>
         </div>
-        <div class='live-pill'><i></i><span>LIVE</span></div>
     </div>
 """)
 
@@ -706,10 +889,10 @@ html("<div style='height:14px'></div>")
 # ------------------------------------------------------------
 if menu_selection == "📊 Biểu đồ":
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    with kpi1: quantum_metric("GIÁ HIỆN TẠI", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0))
-    with kpi2: quantum_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "QUÁ MUA" if df['RSI'].iloc[-1] > 70 else ("QUÁ BÁN" if df['RSI'].iloc[-1] < 30 else "TRUNG TÍNH"), is_positive=(df['RSI'].iloc[-1] < 70))
-    with kpi3: quantum_metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}", "XU HƯỚNG MẠNH" if df['ADX'].iloc[-1] > 25 else "ĐI NGANG", is_positive=None)
-    with kpi4: quantum_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "ĐỘ BIẾN ĐỘNG", is_positive=None)
+    with kpi1: quantum_metric("GIÁ HIỆN TẠI", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0), raw=last_close)
+    with kpi2: quantum_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "QUÁ MUA" if df['RSI'].iloc[-1] > 70 else ("QUÁ BÁN" if df['RSI'].iloc[-1] < 30 else "TRUNG TÍNH"), is_positive=(df['RSI'].iloc[-1] < 70), raw=df['RSI'].iloc[-1], dec=1, vn=False)
+    with kpi3: quantum_metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}", "XU HƯỚNG MẠNH" if df['ADX'].iloc[-1] > 25 else "ĐI NGANG", is_positive=None, raw=df['ADX'].iloc[-1], dec=1, vn=False)
+    with kpi4: quantum_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "ĐỘ BIẾN ĐỘNG", is_positive=None, raw=df['ATR'].iloc[-1])
 
     chart_df = df.tail(300).copy()
 
@@ -782,21 +965,34 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
             score, quality, reasons = get_trade_diagnosis(df, trade_plan)
             reasons_html = "".join(f"<div class='reason-line' style='animation-delay:{0.1 + i * 0.07:.2f}s'>{r}</div>" for i, r in enumerate(reasons))
 
+            _off = 264 * (1 - min(score, 100) / 100)
             html(f"""
                 <div class='signal-card' style='--accent: {direction_color};'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;'>
-                        <h3 style='margin: 0; padding: 0; color: {direction_color} !important;'>Tín hiệu: {direction_vn}</h3>
-                        <div class='score-badge'>Điểm chất lượng: {score}/100 ({quality})</div>
+                    <div class='sig-head'>
+                        <div class='ring'>
+                            <svg viewBox='0 0 100 100'>
+                                <defs><linearGradient id='rg' x1='0' y1='0' x2='1' y2='1'>
+                                    <stop offset='0%' stop-color='#7c7cff'/><stop offset='100%' stop-color='#22d3a0'/>
+                                </linearGradient></defs>
+                                <circle cx='50' cy='50' r='42' class='ring-bg'/>
+                                <circle cx='50' cy='50' r='42' class='ring-fg' stroke='url(#rg)' style='--off:{_off:.1f}'/>
+                            </svg>
+                            <div class='ring-num'><span class='nt-count' data-v='{score}' data-d='0'>{score}</span><small>/100</small></div>
+                        </div>
+                        <div class='sig-info'>
+                            <div class='sig-kicker'>ĐIỂM CHẤT LƯỢNG</div>
+                            <h3 style='color: {direction_color} !important;'>Tín hiệu: {direction_vn}</h3>
+                            <div class='score-badge'>{quality}</div>
+                        </div>
                     </div>
-                    <div class='score-bar'><div style='width: {min(score, 100)}%;'></div></div>
                     {reasons_html}
                 </div>
             """)
 
             col_entry, col_sl, col_tp = st.columns(3)
-            with col_entry: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None)
-            with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False)
-            with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True)
+            with col_entry: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None, raw=trade_plan['entry'])
+            with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False, raw=trade_plan['sl'])
+            with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True, raw=trade_plan['tp'])
 
             be_wr = (1 / (1 + rr_ratio)) * 100
             html(f"""
