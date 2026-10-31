@@ -1,3 +1,19 @@
+import subprocess
+import sys
+
+
+# Hàm tự động cài đặt thư viện nếu thiếu trên Streamlit Cloud
+def install_packages():
+  packages = ["streamlit", "pandas", "yfinance", "plotly"]
+  for package in packages:
+    try:
+      __import__(package)
+    except ImportError:
+      subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+
+install_packages()
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
