@@ -1,7 +1,8 @@
 streamlit
+yfinance
 pandas
 numpy
 ta
 plotly
-streamlit-lightweight-charts-v5
-yfinance>=1.0
+pyvsmc
+feedparser
