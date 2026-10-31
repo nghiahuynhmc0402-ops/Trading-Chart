@@ -22,7 +22,7 @@ except ImportError:
     HAS_SMC = False
 
 # ============================================================
-# 1. CẤU HÌNH GIAO DIỆN & CSS
+# 1. CẤU HÌNH GIAO DIỆN & CSS (TERMINAL CLI STYLE)
 # ============================================================
 st.set_page_config(
     page_title="TradeDesk Pro | Terminal",
@@ -33,29 +33,116 @@ st.set_page_config(
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
-    .stApp { background-color: #0F111A; background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,0.1) 0, transparent 50%); color: #E2E8F0 !important; font-family: 'Inter', sans-serif; }
-    [data-testid="stSidebar"] { background-color: #151A27 !important; border-right: 1px solid #1E293B; }
+    /* Import Font chữ Monospace */
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
     
-    /* Menu */
-    div[data-testid="stRadio"] > div[role="radiogroup"] { gap: 6px !important; }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label { padding: 12px 16px !important; background-color: transparent !important; border: 1px solid transparent !important; border-radius: 8px !important; cursor: pointer !important; transition: all 0.2s ease !important; width: 100% !important; }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover { background-color: #1E293B !important; }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] { background-color: #1E293B !important; border-left: 3px solid #3B82F6 !important; border-radius: 4px 8px 8px 4px !important; }
+    /* Nền tảng chính */
+    .stApp { 
+        background-color: #0a0a0a; 
+        color: #33ff00 !important; 
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* Lớp phủ CRT Scanlines */
+    .stApp::before {
+        content: " ";
+        display: block;
+        position: absolute;
+        top: 0; left: 0; bottom: 0; right: 0;
+        background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+        z-index: 9999;
+        background-size: 100% 2px, 3px 100%;
+        pointer-events: none;
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] { 
+        background-color: #0a0a0a !important; 
+        border-right: 1px dashed #1f521f;
+    }
+    
+    /* Menu Điều Hướng (Radio) - Dạng CLI Prompt */
+    div[data-testid="stRadio"] > div[role="radiogroup"] { gap: 5px !important; }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label { 
+        padding: 8px 12px !important; 
+        border-radius: 0px !important; 
+        cursor: pointer !important; 
+        width: 100% !important;
+        color: #1f521f !important;
+        transition: all 0.1s ease;
+        background-color: transparent !important;
+        border: 1px solid transparent;
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover { 
+        color: #33ff00 !important; 
+        border: 1px dashed #1f521f;
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] { 
+        color: #33ff00 !important;
+        text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);
+    }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"]::before { 
+        content: "> "; 
+        color: #33ff00;
+    }
     div[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child { display: none !important; }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p { font-size: 14px !important; font-weight: 500 !important; color: #94A3B8 !important; }
-    div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] div[data-testid="stMarkdownContainer"] p { color: #F8FAFC !important; font-weight: 600 !important; }
+    div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p { 
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 14px !important; 
+    }
     
-    /* Inputs & Buttons */
-    .stSelectbox div[data-baseweb="select"], .stTextInput input, .stNumberInput input, .stTextArea textarea { background-color: #0F111A !important; border: 1px solid #334155 !important; border-radius: 6px !important; color: #E2E8F0 !important; }
-    .stButton>button { width: 100%; border-radius: 6px; background: #3B82F6; color: white; border: none; font-weight: 500; padding: 10px; transition: all 0.2s ease; }
-    .stButton>button:hover { background: #2563EB; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+    /* Inputs / Selectbox */
+    .stSelectbox div[data-baseweb="select"], .stTextInput input, .stNumberInput input, .stTextArea textarea { 
+        background-color: #0a0a0a !important; 
+        border: 1px solid #1f521f !important; 
+        border-radius: 0px !important; 
+        color: #33ff00 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    .stSelectbox div[data-baseweb="select"]:focus, .stTextInput input:focus { 
+        border-color: #33ff00 !important; 
+        box-shadow: none !important;
+    }
+    .stSelectbox svg { fill: #33ff00 !important; }
+    
+    /* Nút bấm (Buttons) */
+    .stButton>button { 
+        width: 100%; 
+        border-radius: 0px !important; 
+        background: transparent !important;
+        color: #33ff00 !important; 
+        border: 1px solid #1f521f !important; 
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 700;
+        padding: 8px 12px; 
+        transition: all 0.2s ease;
+    }
+    .stButton>button::before { content: "[ "; }
+    .stButton>button::after { content: " ]"; }
+    .stButton>button:hover { 
+        background: #33ff00 !important;
+        color: #0a0a0a !important;
+        box-shadow: 0 0 10px rgba(51, 255, 0, 0.5);
+    }
     
     /* Typography */
-    h1, h2, h3 { color: #F8FAFC !important; font-weight: 600 !important; letter-spacing: -0.02em; }
-    hr { border-color: #1E293B !important; }
-    [data-testid="stDataFrame"] { border-radius: 8px; border: 1px solid #1E293B; overflow: hidden; }
+    h1, h2, h3 { 
+        color: #33ff00 !important; 
+        font-family: 'JetBrains Mono', monospace !important;
+        text-transform: uppercase;
+        text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);
+    }
+    hr { border-color: #1f521f !important; border-style: dashed !important; }
+    
+    /* Table / Dataframe */
+    [data-testid="stDataFrame"] { 
+        border-radius: 0px !important; 
+        border: 1px solid #1f521f !important; 
+    }
+    
+    /* Ẩn footer và thanh công cụ */
     footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -71,7 +158,7 @@ POPULAR_ASSETS = {
 flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
 
 # ============================================================
-# 3. KHỞI TẠO DATABASE (BỌC `WITH` ĐỂ TRÁNH TREO/LOCK DB)
+# 3. KHỞI TẠO DATABASE
 # ============================================================
 DB_FILE = "trading_journal.db"
 
@@ -122,39 +209,55 @@ def get_bot_history(asset):
     return df
 
 # ============================================================
-# 4. UI COMPONENTS & FORMAT
+# 4. UI COMPONENTS & FORMAT (TERMINAL STYLE)
 # ============================================================
 def format_vn_price(value) -> str:
     if pd.isna(value) or value is None: return "N/A"
     try: return f"{value:,.2f}".replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
     except: return str(value)
 
-def premium_copyable_metric(label, value_str, delta_text=None, is_positive=None):
-    border_color = "#334155"; text_color = "#E2E8F0"; delta_color = "#94A3B8"
+def terminal_metric(label, value_str, delta_text=None, is_positive=None):
+    """Tạo thẻ hiển thị dạng cửa sổ Terminal CLI."""
+    border_color = "#1f521f"
+    text_color = "#33ff00"
+    delta_color = "#1f521f"
+    
     if is_positive is not None:
-        border_color = "#10B981" if is_positive else "#F43F5E"
-        text_color = "#10B981" if is_positive else "#F43F5E"
-        delta_color = "#10B981" if is_positive else "#F43F5E"
+        border_color = "#33ff00" if is_positive else "#ff3333"
+        text_color = "#33ff00" if is_positive else "#ff3333"
+        delta_color = "#33ff00" if is_positive else "#ff3333"
         
     delta_html = ""
     if delta_text:
         if is_positive is None:
-            delta_color = "#10B981" if ("+" in str(delta_text) or "LONG" in str(delta_text)) else ("#F43F5E" if ("-" in str(delta_text) or "SHORT" in str(delta_text)) else "#94A3B8")
-        delta_html = f"<div style='color: {delta_color}; font-size: 12px; font-weight: 500; margin-top: 6px;'>{delta_text}</div>"
+            delta_color = "#33ff00" if ("+" in str(delta_text) or "LONG" in str(delta_text)) else ("#ff3333" if ("-" in str(delta_text) or "SHORT" in str(delta_text)) else "#ffb000")
+        delta_html = f"<div style='color: {delta_color}; font-size: 12px; font-weight: bold; margin-top: 5px;'>[{delta_text}]</div>"
         
     html_code = f"""
-    <div style="background-color: #151A27; padding: 16px 20px; border-radius: 8px; border: 1px solid #1E293B; border-left: 3px solid {border_color}; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); font-family: 'Inter', sans-serif; position: relative; min-height: 105px; display: flex; flex-direction: column; justify-content: center;">
-        <div style="color: #94A3B8; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">{label}</div>
+    <div style="
+        background-color: #0a0a0a;
+        padding: 12px;
+        border: 1px dashed {border_color};
+        font-family: 'JetBrains Mono', monospace;
+        position: relative;
+        min-height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    ">
+        <div style="color: #1f521f; font-size: 11px; margin-bottom: 5px;">+--- {label} ---+</div>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: {text_color if is_positive is not None else '#F8FAFC'}; font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; line-height: 1;">{value_str}</span>
-            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#10B981\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><polyline points=\\'20 6 9 17 4 12\\'></polyline></svg>'; setTimeout(() => this.innerHTML='<svg width=\\'16\\' height=\\'16\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'#64748B\\' stroke-width=\\'2\\' stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\'><rect x=\\'9\\' y=\\'9\\' width=\\'13\\' height=\\'13\\' rx=\\'2\\' ry=\\'2\\'></rect><path d=\\'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1\\'></path></svg>', 2000);" style="background: transparent; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; opacity: 0.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="Copy">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            <span style="color: {text_color}; font-size: 20px; font-weight: bold; text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);">{value_str}</span>
+            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerText='[COPIED]'; setTimeout(() => this.innerText='[COPY]', 2000);"
+                    style="background: transparent; border: none; cursor: pointer; font-size: 11px; color: #33ff00; padding: 0; font-family: 'JetBrains Mono', monospace;" 
+                    title="Copy giá trị">
+                [COPY]
             </button>
         </div>
         {delta_html}
     </div>
     """
-    components.html(html_code, height=115)
+    components.html(html_code, height=110)
 
 # ============================================================
 # 5. LOGIC BOT GIAO DỊCH TỰ ĐỘNG
@@ -206,7 +309,7 @@ def run_bot_engine(df, ticker, timeframe):
 # ============================================================
 # 6. HÀM LOAD DATA & TÍNH TOÁN
 # ============================================================
-@st.cache_data(ttl=300, show_spinner="⏳ Đang kết nối luồng dữ liệu...")
+@st.cache_data(ttl=300, show_spinner="⏳ CONNECTING TO DATA STREAM...")
 def load_data(ticker: str, interval: str):
     period = "1y"
     if interval in ["1m", "5m", "15m", "60m"]: period = "1mo"
@@ -223,7 +326,7 @@ def load_data(ticker: str, interval: str):
         return df.dropna(subset=["Close"])
     except: return None
 
-@st.cache_data(ttl=600, show_spinner="📰 Đang trích xuất tin tức...")
+@st.cache_data(ttl=600, show_spinner="📰 FETCHING NEWS DATA...")
 def fetch_news(ticker_name: str):
     search_query = ticker_name.replace(" ", "+")
     url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={search_query}&region=US&lang=en-US"
@@ -270,43 +373,43 @@ def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
 # 7. SIDEBAR
 # ============================================================
 with st.sidebar:
+    # ASCII Art Logo
     st.markdown("""
-        <div style='display: flex; align-items: center; gap: 12px; margin-bottom: 24px; margin-top: 10px;'>
-            <div style='background: #3B82F6; padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center;'>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-            </div>
-            <div>
-                <h2 style='margin: 0; font-size: 18px; line-height: 1.2; color: #F8FAFC;'>TradeDesk <span style='color: #3B82F6;'>Pro</span></h2>
-                <p style='margin: 0; color: #64748B; font-size: 10px; letter-spacing: 1.5px; font-weight: 600;'>TERMINAL</p>
-            </div>
-        </div>
+        <pre style='color: #33ff00; font-size: 10px; line-height: 1.2; margin-bottom: 20px; text-shadow: 0 0 5px rgba(51, 255, 0, 0.5);'>
+  _______         _        _____            _    
+ |__   __|       | |      |  __ \\          | |   
+    | | _ __ __ _| |_ ___ | |  | | ___  ___| | __
+    | || '__/ _` | __/ _ \\| |  | |/ _ \\/ __| |/ /
+    | || | | (_| | ||  __/| |__| |  __/\\__ \\   < 
+    |_||_|  \\__,_|\\__\\___||_____/ \\___||___/_|\\_\\
+        </pre>
     """, unsafe_allow_html=True)
     
-    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>TÀI SẢN</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1f521f; font-size: 11px; font-family: monospace; margin-bottom: 5px;'>user@tradedesk:~$ <span style='color:#33ff00'>select_asset</span></p>", unsafe_allow_html=True)
     selected_asset = st.selectbox("Asset", list(flat_assets.keys()), index=0, label_visibility="collapsed")
     ticker = flat_assets[selected_asset]
     
-    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; margin-top: 15px;'>KHUNG THỜI GIAN</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1f521f; font-size: 11px; font-family: monospace; margin-bottom: 5px; margin-top: 15px;'>user@tradedesk:~$ <span style='color:#33ff00'>set_timeframe</span></p>", unsafe_allow_html=True)
     timeframe = st.selectbox("TF", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
     interval_map = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}
     interval = interval_map[timeframe]
     
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-    if st.button("Đồng bộ dữ liệu", width='stretch'):
+    if st.button("sync_data", width='stretch'):
         st.cache_data.clear()
         st.rerun()
         
-    st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1f521f;'>=========================================</p>", unsafe_allow_html=True)
     
-    st.markdown("<p style='color: #64748B; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px;'>HỆ THỐNG PHÂN TÍCH</p>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #1f521f; font-size: 11px; font-family: monospace; margin-bottom: 5px;'>user@tradedesk:~$ <span style='color:#33ff00'>run_module</span></p>", unsafe_allow_html=True)
     menu_selection = st.radio(
         "Menu",
         [
-            "📊 Biểu Đồ Kỹ Thuật",
-            "🎯 Kế Hoạch Giao Dịch",
-            "🧠 Cấu Trúc Thị Trường",
-            "📰 Tin Tức & Sự Kiện",
-            "📓 Nhật Ký Giao Dịch"
+            "📊 CHART_VIEW",
+            "🎯 TRADE_PLANNER",
+            "🧠 SMC_ANALYSIS",
+            "📰 NEWS_FEED",
+            "📓 TRADE_JOURNAL"
         ],
         label_visibility="collapsed"
     )
@@ -317,110 +420,116 @@ with st.sidebar:
 df = load_data(ticker, interval)
 
 if df is None or len(df) < 50:
-    st.error(f"❌ Không lấy được dữ liệu cho **{selected_asset}**.")
+    st.error(f"❌ ERR: NO DATA FOR {selected_asset}.")
     st.stop()
 
-with st.spinner("⚙️ Đang xử lý thuật toán..."):
+with st.spinner("⚙️ CALCULATING INDICATORS..."):
     df = compute_indicators(df)
     last_close = df["Close"].iloc[-1]
     prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
     change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
-# CHẠY BOT ENGINE TỰ ĐỘNG KHI LOAD TRANG
+# CHẠY BOT ENGINE TỰ ĐỘNG
 run_bot_engine(df, ticker, timeframe)
 
 # HEADER KPI
-col_header, col_status = st.columns([3, 1])
-with col_header:
-    st.markdown(f"""
-        <div style='margin-bottom: 20px;'>
-            <h1 style='margin: 0; font-size: 26px; color: #F8FAFC; font-weight: 700;'>{selected_asset.split(' - ')[1]}</h1>
-            <p style='margin: 0; color: #64748B; font-family: "JetBrains Mono", monospace; font-size: 14px;'>{ticker} • {timeframe}</p>
-        </div>
-    """, unsafe_allow_html=True)
-with col_status:
-    st.markdown("""
-        <div style='display: flex; justify-content: flex-end; align-items: center; height: 100%;'>
-            <div style='background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 8px;'>
-                <div style='width: 8px; height: 8px; background-color: #10B981; border-radius: 50%; box-shadow: 0 0 8px #10B981;'></div>
-                <span style='color: #10B981; font-size: 12px; font-weight: 600;'>Live Market</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"""
+    <div style='margin-bottom: 20px; border-bottom: 1px dashed #1f521f; padding-bottom: 10px;'>
+        <h1 style='margin: 0; font-size: 22px;'>[ SYSTEM: {selected_asset.split(' - ')[1]} ]</h1>
+        <p style='margin: 0; color: #1f521f; font-size: 13px;'>{ticker} // {timeframe} // STATUS: ONLINE</p>
+    </div>
+""", unsafe_allow_html=True)
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-with kpi1: premium_copyable_metric("Giá Hiện Tại", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0))
-with kpi2: premium_copyable_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "Quá mua" if df['RSI'].iloc[-1]>70 else ("Quá bán" if df['RSI'].iloc[-1]<30 else "Trung tính"), is_positive=(df['RSI'].iloc[-1]<70))
-with kpi3: premium_copyable_metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}", "Xu hướng mạnh" if df['ADX'].iloc[-1]>25 else "Đi ngang", is_positive=None)
-with kpi4: premium_copyable_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "Biến động", is_positive=None)
+with kpi1: terminal_metric("MARKET_PRICE", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0))
+with kpi2: terminal_metric("RSI_14", f"{df['RSI'].iloc[-1]:.1f}", "OVERBOUGHT" if df['RSI'].iloc[-1]>70 else ("OVERSOLD" if df['RSI'].iloc[-1]<30 else "NEUTRAL"), is_positive=(df['RSI'].iloc[-1]<70))
+with kpi3: terminal_metric("ADX_14", f"{df['ADX'].iloc[-1]:.1f}", "STRONG_TREND" if df['ADX'].iloc[-1]>25 else "SIDEWAYS", is_positive=None)
+with kpi4: terminal_metric("ATR_14", format_vn_price(df['ATR'].iloc[-1]), "VOLATILITY", is_positive=None)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # KHU VỰC 1: BIỂU ĐỒ
 # ------------------------------------------------------------
-if menu_selection == "📊 Biểu Đồ Kỹ Thuật":
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)"))
-    fig.add_trace(go.Candlestick(x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Giá", increasing_line_color="#10B981", decreasing_line_color="#F43F5E"), row=1, col=1)
+if menu_selection == "📊 CHART_VIEW":
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI_14", "MACD_12_26_9"))
+    
+    # Nến Terminal: Xanh Neon và Đỏ Neon
+    fig.add_trace(go.Candlestick(
+        x=df["Time"], open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="PRICE", 
+        increasing_line_color="#33ff00", decreasing_line_color="#ff3333",
+        increasing_fillcolor="#33ff00", decreasing_fillcolor="#ff3333"
+    ), row=1, col=1)
     
     active_trade = get_active_bot_trade(ticker)
     if active_trade is not None:
-        fig.add_hline(y=active_trade['entry_price'], line_dash="solid", line_color="#F8FAFC", line_width=1, annotation_text="Bot Entry", row=1, col=1)
-        fig.add_hline(y=active_trade['sl'], line_dash="dash", line_color="#F43F5E", line_width=1, annotation_text="Bot SL", row=1, col=1)
-        fig.add_hline(y=active_trade['tp'], line_dash="dash", line_color="#10B981", line_width=1, annotation_text="Bot TP", row=1, col=1)
+        fig.add_hline(y=active_trade['entry_price'], line_dash="solid", line_color="#33ff00", line_width=1, annotation_text="ENTRY", row=1, col=1)
+        fig.add_hline(y=active_trade['sl'], line_dash="dash", line_color="#ff3333", line_width=1, annotation_text="STOP_LOSS", row=1, col=1)
+        fig.add_hline(y=active_trade['tp'], line_dash="dash", line_color="#33ff00", line_width=1, annotation_text="TAKE_PROFIT", row=1, col=1)
 
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA 20", line=dict(color="#60A5FA", width=1.5)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA 50", line=dict(color="#A78BFA", width=1.5)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#38BDF8")), row=2, col=1)
-    fig.add_hline(y=70, line_dash="dot", line_color="#F43F5E", row=2, col=1)
-    fig.add_hline(y=30, line_dash="dot", line_color="#10B981", row=2, col=1)
-    fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="Histogram", marker_color=["#10B981" if v >= 0 else "#F43F5E" for v in df["MACD_hist"]]), row=3, col=1)
+    # Đường EMA dùng màu Hổ phách (Amber) và Xanh mờ để phân biệt
+    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA20"], name="EMA_20", line=dict(color="#ffb000", width=1.5)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df["Time"], y=df["EMA50"], name="EMA_50", line=dict(color="#1f521f", width=1.5)), row=1, col=1)
     
-    fig.update_layout(template="plotly_dark", height=750, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", hovermode="x unified", showlegend=False, margin=dict(l=10, r=50, t=30, b=10), dragmode="pan")
-    fig.update_xaxes(showgrid=True, gridcolor="#1E293B", rangeslider_visible=False)
-    fig.update_yaxes(showgrid=True, gridcolor="#1E293B", side="right", tickfont=dict(family="JetBrains Mono, monospace", color="#64748B"))
+    fig.add_trace(go.Scatter(x=df["Time"], y=df["RSI"], name="RSI", line=dict(color="#33ff00")), row=2, col=1)
+    fig.add_hline(y=70, line_dash="dash", line_color="#ff3333", row=2, col=1)
+    fig.add_hline(y=30, line_dash="dash", line_color="#33ff00", row=2, col=1)
+    
+    fig.add_trace(go.Bar(x=df["Time"], y=df["MACD_hist"], name="MACD_HIST", marker_color=["#33ff00" if v >= 0 else "#ff3333" for v in df["MACD_hist"]]), row=3, col=1)
+    
+    # Chart Theme
+    fig.update_layout(
+        template="plotly_dark", 
+        height=750, 
+        paper_bgcolor="rgba(0,0,0,0)", 
+        plot_bgcolor="rgba(0,0,0,0)", 
+        hovermode="x unified", 
+        showlegend=False, 
+        margin=dict(l=10, r=50, t=30, b=10), 
+        dragmode="pan",
+        font=dict(family="JetBrains Mono, monospace", color="#33ff00")
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="#1f521f", rangeslider_visible=False, gridwidth=1, griddash='dot')
+    fig.update_yaxes(showgrid=True, gridcolor="#1f521f", side="right", gridwidth=1, griddash='dot')
     
     st.plotly_chart(fig, width='stretch', config={'scrollZoom': True, 'displayModeBar': False})
 
 # ------------------------------------------------------------
 # KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & LỊCH SỬ BOT
 # ------------------------------------------------------------
-elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
-    st.subheader("Thiết Lập Vị Thế")
+elif menu_selection == "🎯 TRADE_PLANNER":
+    st.markdown("### [ MODULE: TRADE_PLANNER ]")
     
     col_slider, _ = st.columns([1, 2])
     with col_slider: 
-        rr_ratio = st.slider("Tỷ lệ Risk:Reward (Thủ công)", 1.0, 4.0, 2.0, 0.5)
+        rr_ratio = st.slider("Risk:Reward_Ratio", 1.0, 4.0, 2.0, 0.5)
         
     trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
     if trade_plan:
-        direction_color = "#10B981" if trade_plan['direction'] == "LONG" else "#F43F5E"
-        direction_bg = "rgba(16, 185, 129, 0.1)" if trade_plan['direction'] == "LONG" else "rgba(244, 63, 94, 0.1)"
+        direction_color = "#33ff00" if trade_plan['direction'] == "LONG" else "#ff3333"
         
         st.markdown(f"""
-            <div style='background: {direction_bg}; border: 1px solid {direction_color}; padding: 15px; border-radius: 8px; margin-top: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;'>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{direction_color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
-                <h3 style='color: {direction_color}; margin: 0;'>Hướng Khuyến Nghị: {trade_plan['direction']}</h3>
+            <div style='border: 1px solid {direction_color}; padding: 10px; margin-top: 10px; margin-bottom: 20px;'>
+                <h3 style='color: {direction_color}; margin: 0;'>SIGNAL: {trade_plan['direction']}</h3>
             </div>
         """, unsafe_allow_html=True)
         
         col_entry, col_sl, col_tp = st.columns(3)
-        with col_entry: premium_copyable_metric("Entry (Vào lệnh)", format_vn_price(trade_plan['entry']), "Giá hiện tại", is_positive=None)
-        with col_sl: premium_copyable_metric("Stop-Loss (Cắt lỗ)", format_vn_price(trade_plan['sl']), "Bảo vệ vốn", is_positive=False)
-        with col_tp: premium_copyable_metric("Take-Profit (Chốt lời)", format_vn_price(trade_plan['tp']), "Mục tiêu lợi nhuận", is_positive=True)
+        with col_entry: terminal_metric("ENTRY_PRICE", format_vn_price(trade_plan['entry']), "EXECUTE", is_positive=None)
+        with col_sl: terminal_metric("STOP_LOSS", format_vn_price(trade_plan['sl']), "PROTECT_CAPITAL", is_positive=False)
+        with col_tp: terminal_metric("TAKE_PROFIT", format_vn_price(trade_plan['tp']), "TARGET_PROFIT", is_positive=True)
 
     # --- PHẦN BOT TRADING HISTORY ---
     st.markdown("<br><hr>", unsafe_allow_html=True)
     
     col_bot_title, col_bot_btn = st.columns([3, 1])
     with col_bot_title:
-        st.markdown("### 🤖 Lịch Sử Giao Dịch Của Bot")
+        st.markdown("### [ BOT: TRADE_HISTORY ]")
     with col_bot_btn:
-        # NÚT RELOAD BOT AN TOÀN
-        if st.button("🔄 Cập nhật Bot", key="reload_bot_btn"):
-            with st.spinner("⏳ Đang quét tín hiệu mới nhất..."):
-                st.cache_data.clear() # Xóa cache giá để lấy nến mới nhất
-                st.rerun()            # Load lại toàn bộ app (sẽ tự động chạy lại Bot Engine)
+        if st.button("update_bot", key="reload_bot_btn"):
+            with st.spinner("⏳ SCANNING FOR NEW SIGNALS..."):
+                st.cache_data.clear() 
+                st.rerun()            
     
     active_bot = get_active_bot_trade(ticker)
     bot_df = get_bot_history(ticker)
@@ -434,26 +543,26 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
         win_rate = (wins / total_closed * 100) if total_closed > 0 else 0
         
         col_stat1, col_stat2, col_stat3, col_stat4 = st.columns(4)
-        col_stat1.metric("Tổng lệnh đã đóng", total_closed)
-        col_stat2.metric("Tỷ lệ Win", f"{win_rate:.1f}%")
-        col_stat3.metric("Thắng / Thua", f"{wins} / {losses}")
-        col_stat4.metric("Cắt sớm (Bảo toàn vốn)", cuts)
+        col_stat1.metric("TOTAL_CLOSED", total_closed)
+        col_stat2.metric("WIN_RATE", f"{win_rate:.1f}%")
+        col_stat3.metric("WIN/LOSS", f"{wins}/{losses}")
+        col_stat4.metric("EARLY_CUTS", cuts)
     else:
-        st.info("Bot chưa thực hiện lệnh nào cho tài sản này.")
+        st.info("> NO BOT TRADES FOUND IN DATABASE.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     if active_bot is not None:
         st.markdown(f"""
-            <div style='background: rgba(59, 130, 246, 0.1); border: 1px solid #3B82F6; padding: 15px; border-radius: 8px; margin-bottom: 15px;'>
-                <div style='color: #60A5FA; font-weight: 600; margin-bottom: 5px;'>🤖 BOT ĐANG GIỮ LỆNH: {active_bot['direction']}</div>
-                <div style='color: #94A3B8; font-size: 13px;'>Entry: <span style='color:white; font-family:monospace;'>{format_vn_price(active_bot['entry_price'])}</span> | 
-                SL: <span style='color:#F43F5E; font-family:monospace;'>{format_vn_price(active_bot['sl'])}</span> | 
-                TP: <span style='color:#10B981; font-family:monospace;'>{format_vn_price(active_bot['tp'])}</span></div>
+            <div style='border: 1px dashed #ffb000; padding: 10px; margin-bottom: 15px;'>
+                <div style='color: #ffb000; font-weight: bold; margin-bottom: 5px;'>[!] BOT ACTIVE: {active_bot['direction']}</div>
+                <div style='color: #33ff00; font-size: 13px;'>ENTRY: {format_vn_price(active_bot['entry_price'])} | 
+                SL: <span style='color:#ff3333'>{format_vn_price(active_bot['sl'])}</span> | 
+                TP: <span style='color:#33ff00'>{format_vn_price(active_bot['tp'])}</span></div>
             </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("🤖 Bot đang đứng ngoài chờ tín hiệu (Strict Confluence & Cooldown).")
+        st.info("> BOT IDLE: WAITING FOR STRICT CONFLUENCE & COOLDOWN.")
 
     if not bot_df.empty:
         display_df = bot_df.copy()
@@ -464,10 +573,10 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
             display_df[col] = display_df[col].apply(lambda x: format_vn_price(x) if pd.notna(x) else '-')
             
         def color_bot_status(val):
-            if val == 'WIN': return 'color: #10B981; font-weight: 600;'
-            if val == 'LOSS': return 'color: #F43F5E; font-weight: 600;'
-            if val == 'CUT_EARLY': return 'color: #F59E0B; font-weight: 600;' 
-            if val == 'ACTIVE': return 'color: #3B82F6; font-weight: 600;'
+            if val == 'WIN': return 'color: #33ff00; font-weight: bold;'
+            if val == 'LOSS': return 'color: #ff3333; font-weight: bold;'
+            if val == 'CUT_EARLY': return 'color: #ffb000; font-weight: bold;' 
+            if val == 'ACTIVE': return 'color: #33ff00; text-decoration: underline;'
             return ''
 
         styled_bot_df = display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style \
@@ -476,58 +585,56 @@ elif menu_selection == "🎯 Kế Hoạch Giao Dịch":
         st.dataframe(styled_bot_df, hide_index=True, width='stretch')
         
         st.markdown("""
-        <div style='font-size: 12px; color: #64748B; margin-top: 10px;'>
-            <strong>Logic Bot:</strong> Vào lệnh khi EMA, RSI, MACD đồng thuận và ADX > 20. Tự động cắt lỗ (SL), chốt lời (TP), hoặc Cắt sớm nếu tín hiệu đảo chiều. Có thời gian Cooldown (nghỉ 3 nến) sau mỗi lệnh để tránh vào lệnh liên tục.
+        <div style='font-size: 11px; color: #1f521f; margin-top: 10px;'>
+            <strong>LOGIC:</strong> Executes on EMA/RSI/MACD confluence + ADX > 20. Auto-manages SL, TP, and Early Cuts on EMA cross. Implements cooldown period to prevent overtrading.
         </div>
         """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # KHU VỰC 3: SMC
 # ------------------------------------------------------------
-elif menu_selection == "🧠 Cấu Trúc Thị Trường":
-    st.subheader("Phân Tích Cấu Trúc (SMC)")
-    st.info("Hệ thống đang phân tích dòng tiền thông minh...")
+elif menu_selection == "🧠 SMC_ANALYSIS":
+    st.markdown("### [ MODULE: SMC_ANALYSIS ]")
+    st.info("> ANALYZING SMART MONEY CONCEPTS... [PENDING IMPLEMENTATION]")
 
 # ------------------------------------------------------------
 # KHU VỰC 4: TIN TỨC
 # ------------------------------------------------------------
-elif menu_selection == "📰 Tin Tức & Sự Kiện":
-    st.subheader(f"Tin Tức: {selected_asset.split(' - ')[1]}")
+elif menu_selection == "📰 NEWS_FEED":
+    st.markdown(f"### [ MODULE: NEWS_FEED // {selected_asset.split(' - ')[1]} ]")
     news = fetch_news(ticker)
     
     for item in news:
         st.markdown(f"""
-            <div style='background: #151A27; padding: 16px; border-radius: 8px; border: 1px solid #1E293B; border-left: 3px solid #3B82F6; margin-bottom: 12px; transition: transform 0.2s;'>
-                <div style='color: #F8FAFC; font-weight: 500; font-size: 15px; margin-bottom: 8px; line-height: 1.4;'>
-                    <a href='{item['link']}' target='_blank' style='color: #F8FAFC; text-decoration: none;' onmouseover="this.style.color='#60A5FA'" onmouseout="this.style.color='#F8FAFC'">{item['title']}</a>
+            <div style='border-left: 3px solid #33ff00; padding-left: 15px; margin-bottom: 15px;'>
+                <div style='margin-bottom: 5px;'>
+                    <a href='{item['link']}' target='_blank' style='color: #33ff00; text-decoration: none; font-weight: bold;'>[READ_MORE]</a>
+                    <span style='color: #33ff00;'>{item['title']}</span>
                 </div>
-                <div style='color: #64748B; font-size: 12px; display: flex; align-items: center; gap: 6px; font-family: "JetBrains Mono", monospace;'>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    {item['published']}
-                </div>
+                <div style='color: #1f521f; font-size: 12px;'>TIMESTAMP: {item['published']}</div>
             </div>
         """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------
 # KHU VỰC 5: NHẬT KÝ GIAO DỊCH
 # ------------------------------------------------------------
-elif menu_selection == "📓 Nhật Ký Giao Dịch":
-    st.subheader("Nhật Ký Giao Dịch Thủ Công")
+elif menu_selection == "📓 TRADE_JOURNAL":
+    st.markdown("### [ MODULE: MANUAL_TRADE_JOURNAL ]")
     
     col_form, col_history = st.columns([1, 2], gap="large")
     
     with col_form:
-        st.markdown("<div style='background: #151A27; padding: 20px; border-radius: 8px; border: 1px solid #1E293B;'>", unsafe_allow_html=True)
+        st.markdown("<div style='border: 1px dashed #1f521f; padding: 15px;'>", unsafe_allow_html=True)
         with st.form("journal_form", clear_on_submit=True):
-            st.markdown("<p style='font-weight:600; color:#F8FAFC; font-size: 16px; margin-bottom: 15px;'>➕ Ghi Lệnh Mới</p>", unsafe_allow_html=True)
-            trade_date = st.date_input("Ngày", datetime.today())
-            asset_name = st.text_input("Tài sản", value=selected_asset.split(' - ')[1])
-            direction = st.selectbox("Hướng", ["LONG", "SHORT"])
-            result = st.selectbox("Kết quả", ["WIN", "LOSS", "HÒA"])
-            pnl_val = st.number_input("PnL (% hoặc $)", value=0.0, step=0.1)
-            reason = st.text_area("Lý do", placeholder="Ghi chú kỷ luật...")
+            st.markdown("<p style='color: #33ff00; font-weight: bold; margin-bottom: 15px;'>+--- INPUT NEW TRADE ---+</p>", unsafe_allow_html=True)
+            trade_date = st.date_input("DATE", datetime.today())
+            asset_name = st.text_input("ASSET", value=selected_asset.split(' - ')[1])
+            direction = st.selectbox("DIRECTION", ["LONG", "SHORT"])
+            result = st.selectbox("RESULT", ["WIN", "LOSS", "HÒA"])
+            pnl_val = st.number_input("PnL", value=0.0, step=0.1)
+            reason = st.text_area("REASON", placeholder="Nhập log lý do...")
             
-            submitted = st.form_submit_button("Lưu Lệnh")
+            submitted = st.form_submit_button("COMMIT_TO_DB")
             if submitted:
                 add_trade(str(trade_date), asset_name.upper(), direction, result, reason, pnl_val)
                 st.rerun()
@@ -537,11 +644,11 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
         if not journal_df.empty:
             st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
             csv = journal_df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Tải file Backup (CSV)", data=csv, file_name="journal.csv", mime="text/csv", width='stretch')
+            st.download_button("export_csv", data=csv, file_name="journal.csv", mime="text/csv", width='stretch')
 
     with col_history:
         if journal_df.empty:
-            st.info("Chưa có dữ liệu giao dịch.")
+            st.info("> DATABASE EMPTY.")
         else:
             journal_df['date'] = pd.to_datetime(journal_df['date'], errors='coerce')
             journal_df['pnl'] = pd.to_numeric(journal_df['pnl'], errors='coerce')
@@ -552,33 +659,33 @@ elif menu_selection == "📓 Nhật Ký Giao Dịch":
             total_pnl = journal_df['pnl'].sum()
             
             c1, c2, c3 = st.columns(3)
-            c1.metric("Tổng Lệnh", total_trades)
-            c2.metric("Tỷ Lệ Thắng", f"{win_rate:.1f}%")
-            c3.metric("Tổng PnL", f"{total_pnl:+.2f}", delta_color="normal" if total_pnl >=0 else "inverse")
+            c1.metric("TOTAL_TRADES", total_trades)
+            c2.metric("WIN_RATE", f"{win_rate:.1f}%")
+            c3.metric("TOTAL_PNL", f"{total_pnl:+.2f}", delta_color="normal" if total_pnl >=0 else "inverse")
             
             st.markdown("<br>", unsafe_allow_html=True)
             
             col_filter1, col_filter2 = st.columns(2)
             years = journal_df['date'].dt.year.dropna().unique()
             if len(years) > 0:
-                selected_year = col_filter1.selectbox("Năm", sorted(years, reverse=True))
+                selected_year = col_filter1.selectbox("YEAR", sorted(years, reverse=True))
                 months = journal_df[journal_df['date'].dt.year == selected_year]['date'].dt.month.dropna().unique()
-                selected_month = col_filter2.selectbox("Tháng", sorted(months, reverse=True))
+                selected_month = col_filter2.selectbox("MONTH", sorted(months, reverse=True))
                 
                 filtered_df = journal_df[(journal_df['date'].dt.year == selected_year) & (journal_df['date'].dt.month == selected_month)].copy()
                 filtered_df['date'] = filtered_df['date'].dt.strftime('%d/%m/%Y')
                 
                 def color_result(val):
-                    if val == 'WIN': return 'color: #10B981; font-weight: 600;'
-                    elif val == 'LOSS': return 'color: #F43F5E; font-weight: 600;'
-                    return 'color: #94A3B8;'
+                    if val == 'WIN': return 'color: #33ff00; font-weight: bold;'
+                    elif val == 'LOSS': return 'color: #ff3333; font-weight: bold;'
+                    return 'color: #1f521f;'
                 def color_pnl(val):
                     try:
                         val = float(val)
-                        if val > 0: return 'color: #10B981;'
-                        elif val < 0: return 'color: #F43F5E;'
+                        if val > 0: return 'color: #33ff00;'
+                        elif val < 0: return 'color: #ff3333;'
                     except: pass
-                    return 'color: #94A3B8;'
+                    return 'color: #1f521f;'
 
                 styled_df = filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style \
                     .map(color_result, subset=['result']) \
