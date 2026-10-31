@@ -157,6 +157,31 @@ st.markdown("""
         font-weight: bold;
     }
     
+    .smc-card {
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        background: rgba(11, 25, 44, 0.6);
+        padding: 15px;
+        min-height: 150px;
+    }
+    .smc-title {
+        color: #00F0FF;
+        font-weight: bold;
+        font-size: 14px;
+        border-bottom: 1px dashed rgba(0, 240, 255, 0.3);
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+    }
+    .smc-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+    .smc-val { color: #E2E8F0; font-weight: bold; font-family: 'JetBrains Mono', monospace;}
+    .val-green { color: #00F0FF; }
+    .val-red { color: #FF3333; }
+    
     footer {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     </style>
@@ -268,19 +293,7 @@ def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
         delta_html = f"<div style='color: {delta_color}; font-size: 11px; font-weight: bold; margin-top: 8px; border-top: 1px dashed rgba(226, 232, 240, 0.2); padding-top: 6px; letter-spacing: 1px;'>[{delta_text}]</div>"
         
     html_code = f"""
-    <div style="
-        background-color: rgba(11, 25, 44, 0.8);
-        padding: 15px 18px;
-        border: 1px solid {border_color};
-        font-family: 'Roboto Mono', monospace;
-        position: relative;
-        min-height: 105px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.03);
-    ">
-        <!-- Corner Brackets -->
+    <div style="background-color: rgba(11, 25, 44, 0.8); padding: 15px 18px; border: 1px solid {border_color}; font-family: 'Roboto Mono', monospace; position: relative; min-height: 105px; display: flex; flex-direction: column; justify-content: center; box-shadow: inset 0 0 15px rgba(0, 240, 255, 0.03);">
         <div style="position: absolute; top: 0; left: 0; width: 8px; height: 8px; border-top: 2px solid {text_color}; border-left: 2px solid {text_color};"></div>
         <div style="position: absolute; top: 0; right: 0; width: 8px; height: 8px; border-top: 2px solid {text_color}; border-right: 2px solid {text_color};"></div>
         <div style="position: absolute; bottom: 0; left: 0; width: 8px; height: 8px; border-bottom: 2px solid {text_color}; border-left: 2px solid {text_color};"></div>
@@ -289,13 +302,7 @@ def blueprint_metric(label, value_str, delta_text=None, is_positive=None):
         <div style="color: rgba(226, 232, 240, 0.7); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">{label}</div>
         <div style="display: flex; justify-content: space-between; align-items: flex-end;">
             <span style="color: {text_color}; font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; text-shadow: 0 0 8px {border_color};">{value_str}</span>
-            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerText='ĐÃ CHÉP'; setTimeout(() => this.innerText='SAO CHÉP', 2000);"
-                    style="background: transparent; border: 1px solid {border_color}; cursor: pointer; font-size: 9px; color: {text_color}; padding: 4px 6px; font-family: 'Roboto Mono', monospace; transition: 0.2s;" 
-                    onmouseover="this.style.background='{border_color}'; this.style.color='#000'"
-                    onmouseout="this.style.background='transparent'; this.style.color='{text_color}'"
-                    title="Sao chép giá trị">
-                SAO CHÉP
-            </button>
+            <button onclick="navigator.clipboard.writeText('{value_str}'); this.innerText='ĐÃ CHÉP'; setTimeout(() => this.innerText='SAO CHÉP', 2000);" style="background: transparent; border: 1px solid {border_color}; cursor: pointer; font-size: 9px; color: {text_color}; padding: 4px 6px; font-family: 'Roboto Mono', monospace; transition: 0.2s;" onmouseover="this.style.background='{border_color}'; this.style.color='#000'" onmouseout="this.style.background='transparent'; this.style.color='{text_color}'" title="Sao chép giá trị">SAO CHÉP</button>
         </div>
         {delta_html}
     </div>
@@ -434,7 +441,7 @@ with st.spinner("⚙️ ĐANG TÍNH TOÁN CHỈ BÁO..."):
 
 run_bot_engine(df, ticker, timeframe)
 
-# TITLE BLOCK (Việt hóa)
+# TITLE BLOCK
 st.markdown(f"""
     <div class='title-block'>
         <div>
@@ -571,12 +578,85 @@ elif menu_selection == "🎯 KẾ HOẠCH GIAO DỊCH":
         st.dataframe(display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style.map(color_bot_status, subset=['status']), hide_index=True, width='stretch')
 
 # ------------------------------------------------------------
-# KHU VỰC 3, 4, 5 (SMC, NEWS, JOURNAL)
+# KHU VỰC 3: PHÂN TÍCH SMC (ĐÃ FIX LỖI)
 # ------------------------------------------------------------
 elif menu_selection == "🧠 PHÂN TÍCH SMC":
-    st.markdown("<span class='drafting-label'>PHẦN 3: PHÂN TÍCH DÒNG TIỀN THÔNG MINH (SMC)</span>", unsafe_allow_html=True)
-    st.info("> HỆ THỐNG ĐANG PHÂN TÍCH CẤU TRÚC THỊ TRƯỜNG... [ĐANG PHÁT TRIỂN]")
+    st.markdown("<span class='drafting-label'>PHẦN 3: PHÂN TÍCH CẤU TRÚC THỊ TRƯỜNG (SMC)</span>", unsafe_allow_html=True)
+    
+    if not HAS_SMC:
+        st.warning("Thư viện `pyvsmc` chưa được cài đặt. Vui lòng kiểm tra lại requirements.txt.")
+    else:
+        with st.spinner("🔎 ĐANG QUÉT CẤU TRÚC DÒNG TIỀN..."):
+            try:
+                high_arr, low_arr, close_arr, open_arr = df["High"].values, df["Low"].values, df["Close"].values, df["Open"].values
+                
+                # 1. Phát hiện FVG
+                fvg = smc.detect_fvg(high_arr, low_arr, close=close_arr, compute_mitigation=True)
+                
+                # 2. Phát hiện Order Blocks
+                obs = smc.detect_order_blocks(open_arr, high_arr, low_arr, close_arr, lookback=5, zone_mode="body")
+                
+                # 3. Phát hiện Cấu trúc (BOS/CHOCH)
+                structure = smc.detect_structure(high_arr, low_arr, close_arr, window_size=2, break_mode="close")
+                
+                # Xử lý an toàn cho thuộc tính trend
+                trend_val = structure.trend[-1] if len(structure.trend) > 0 else 0
+                trend_text = "TĂNG (UPTREND)" if trend_val == 1 else ("GIẢM (DOWNTREND)" if trend_val == -1 else "ĐI NGANG (SIDEWAY)")
+                trend_color = "val-green" if trend_val == 1 else ("val-red" if trend_val == -1 else "")
+                
+                # Xử lý an toàn cho BOS
+                bos_bull = structure.bos_bullish[-1] if isinstance(structure.bos_bullish, np.ndarray) else structure.bos_bullish
+                bos_bear = structure.bos_bearish[-1] if isinstance(structure.bos_bearish, np.ndarray) else structure.bos_bearish
+                
+                # Xử lý an toàn cho CHOCH (Tránh lỗi version)
+                choch_val = 0
+                if hasattr(structure, 'choch'):
+                    choch_val = structure.choch[-1] if isinstance(structure.choch, np.ndarray) else structure.choch
+                elif hasattr(structure, 'choch_bullish'):
+                    c_bull = structure.choch_bullish[-1] if isinstance(structure.choch_bullish, np.ndarray) else False
+                    c_bear = structure.choch_bearish[-1] if isinstance(structure.choch_bearish, np.ndarray) else False
+                    choch_val = 1 if c_bull else (-1 if c_bear else 0)
+                
+                # Hiển thị UI
+                col_fvg, col_obs, col_struct = st.columns(3)
+                
+                with col_fvg:
+                    st.markdown(f"""
+                        <div class='smc-card'>
+                            <div class='smc-title'>Fair Value Gaps (FVG)</div>
+                            <div class='smc-row'><span>FVG Tăng:</span> <span class='smc-val val-green'>{len(fvg.bullish)}</span></div>
+                            <div class='smc-row'><span>FVG Giảm:</span> <span class='smc-val val-red'>{len(fvg.bearish)}</span></div>
+                            <div class='smc-row'><span>Đã lấp đầy:</span> <span class='smc-val'>{len(fvg.mitigated_50)}</span></div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                with col_obs:
+                    st.markdown(f"""
+                        <div class='smc-card'>
+                            <div class='smc-title'>Order Blocks (OB)</div>
+                            <div class='smc-row'><span>OB Cầu (Demand):</span> <span class='smc-val val-green'>{len(obs.bullish_ob)}</span></div>
+                            <div class='smc-row'><span>OB Cung (Supply):</span> <span class='smc-val val-red'>{len(obs.bearish_ob)}</span></div>
+                            <div class='smc-row'><span>OB Bị phá vỡ:</span> <span class='smc-val'>{len(obs.is_breaker)}</span></div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                with col_struct:
+                    st.markdown(f"""
+                        <div class='smc-card'>
+                            <div class='smc-title'>Cấu Trúc Giá</div>
+                            <div class='smc-row'><span>Xu hướng:</span> <span class='smc-val {trend_color}'>{trend_text}</span></div>
+                            <div class='smc-row'><span>BOS Tăng:</span> <span class='smc-val val-green'>{'CÓ' if bos_bull else 'KHÔNG'}</span></div>
+                            <div class='smc-row'><span>BOS Giảm:</span> <span class='smc-val val-red'>{'CÓ' if bos_bear else 'KHÔNG'}</span></div>
+                            <div class='smc-row'><span>Đảo chiều (CHOCH):</span> <span class='smc-val'>{'CÓ' if choch_val != 0 else 'KHÔNG'}</span></div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+            except Exception as e:
+                st.error(f"Lỗi phân tích SMC: {e}")
 
+# ------------------------------------------------------------
+# KHU VỰC 4: TIN TỨC
+# ------------------------------------------------------------
 elif menu_selection == "📰 TIN TỨC":
     st.markdown("<span class='drafting-label'>PHẦN 4: BẢNG TIN THỊ TRƯỜNG</span>", unsafe_allow_html=True)
     news = fetch_news(ticker)
@@ -591,6 +671,9 @@ elif menu_selection == "📰 TIN TỨC":
             </div>
         """, unsafe_allow_html=True)
 
+# ------------------------------------------------------------
+# KHU VỰC 5: NHẬT KÝ GIAO DỊCH
+# ------------------------------------------------------------
 elif menu_selection == "📓 NHẬT KÝ GIAO DỊCH":
     st.markdown("<span class='drafting-label'>PHẦN 5: NHẬT KÝ GIAO DỊCH THỦ CÔNG</span>", unsafe_allow_html=True)
     col_form, col_history = st.columns([1, 2], gap="large")
