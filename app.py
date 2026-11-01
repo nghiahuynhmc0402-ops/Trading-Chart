@@ -565,7 +565,7 @@ html.nt-warping .block-container { animation: none; }
 
 /* ===================== V5: KHÓA KHUNG HÌNH + MOBILE-FIRST ===================== */
 html, body { overflow-x: hidden !important; max-width: 100%; overscroll-behavior-x: none; -webkit-text-size-adjust: 100%; touch-action: pan-y pinch-zoom; }
-.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], section.main, .block-container { overflow-x: hidden !important; max-width: 100vw; touch-action: pan-y pinch-zoom; -webkit-tap-highlight-color: transparent; }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] { overflow-x: hidden !important; max-width: 100vw; touch-action: pan-y pinch-zoom; -webkit-tap-highlight-color: transparent; }
 [data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"] > div, [data-testid="stElementContainer"], [data-testid="stMarkdownContainer"], [data-testid="stRadio"] { min-width: 0; max-width: 100%; }
 .hero-in { overflow: hidden; }
 input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
@@ -635,6 +635,66 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
   [data-testid="stToolbarActions"] { display: none !important; }
   .st-key-nt_menu { bottom: var(--nt-lift, 52px) !important; }
   .block-container { padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* ===================== V8: CUỘN TỚI MỤC + CUỘN LIÊN TỤC ===================== */
+.block-container, section.main { max-width: 100vw; }
+@supports (overflow: clip) { .block-container, section.main { overflow-x: clip; } }
+@supports not (overflow: clip) { .block-container, section.main { overflow-x: hidden; } }
+.sec-anchor { display: block; height: 0; scroll-margin-top: 78px; }
+.sec-sep { display: flex; align-items: center; gap: 12px; margin: 36px 0 6px; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .3px; }
+.sec-sep::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(160,140,255,.55), transparent); }
+.nt-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 6px; border-radius: 16px; background: rgba(16,12,40,.94); border: 1px solid rgba(160,140,255,.28); box-shadow: 0 8px 30px -10px rgba(0,0,0,.8); }
+.nt-nav::-webkit-scrollbar { display: none; }
+.nt-navlink { flex: 0 0 auto; white-space: nowrap; padding: 10px 16px; border-radius: 12px; font-size: 13.5px; font-weight: 600; color: #c9cbe0; cursor: pointer; -webkit-user-select: none; user-select: none; transition: background .2s, color .2s; }
+.nt-navlink:hover { background: rgba(255,255,255,.06); }
+.nt-navlink.act { color: #fff; background: linear-gradient(135deg, rgba(124,124,255,.6), rgba(56,225,255,.3)); box-shadow: 0 0 18px -4px rgba(139,123,255,.85); }
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.nt-nav) { position: sticky; top: 58px; z-index: 60; animation: none !important; }
+@media (max-width: 768px) {
+  .block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.nt-nav) { position: static; }
+  .nt-nav { position: fixed; left: 10px; right: 10px; bottom: calc(var(--nt-lift, 52px) + env(safe-area-inset-bottom, 0px)); z-index: 999; border-radius: 22px; background: rgba(16,12,40,.96); box-shadow: 0 10px 40px -8px rgba(0,0,0,.85); }
+  .nt-navlink { min-height: 46px; display: flex; align-items: center; padding: 0 15px; font-size: 13px; }
+}
+
+/* ===================== V9: THANH ICON DỌC BÊN TRÁI (TỪ DƯỚI LÊN) ===================== */
+.stApp .st-key-nt_menu {
+    position: fixed !important; left: calc(var(--nt-left, 0px) + 10px) !important; right: auto !important; top: auto !important;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; width: auto !important; max-width: none !important;
+    padding: 0 !important; background: none !important; z-index: 999; pointer-events: none;
+}
+.stApp .st-key-nt_menu div[data-testid="stRadio"] { width: auto !important; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"],
+.stApp .nt-nav {
+    pointer-events: auto; display: flex; flex-direction: column-reverse !important; flex-wrap: nowrap !important; align-items: center;
+    gap: 4px !important; padding: 6px; width: auto; max-width: none; max-height: calc(100vh - 130px);
+    overflow-x: hidden !important; overflow-y: auto; touch-action: pan-y; scrollbar-width: none;
+    border-radius: 22px; background: rgba(16,12,40,.92); border: 1px solid rgba(160,140,255,.32);
+    box-shadow: 0 10px 40px -8px rgba(0,0,0,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar,
+.stApp .nt-nav::-webkit-scrollbar { display: none; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label,
+.stApp .nt-navlink {
+    width: 44px !important; min-width: 44px !important; height: 44px; min-height: 44px; padding: 0 !important; margin: 0 !important;
+    display: flex !important; align-items: center; justify-content: center !important; border-radius: 14px !important;
+    font-size: 21px; line-height: 1; flex: 0 0 auto !important;
+}
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label [data-testid="stMarkdownContainer"] { width: auto !important; min-width: 0 !important; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label p { font-size: 21px !important; line-height: 1 !important; text-align: center; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label:hover,
+.stApp .nt-navlink:hover { transform: scale(1.08); }
+.stApp .nt-nav {
+    position: fixed !important; left: calc(var(--nt-left, 0px) + 10px); right: auto; top: auto;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 999;
+}
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.nt-nav) { position: static !important; }
+.stApp .block-container { padding-bottom: 40vh !important; }
+@media (max-width: 1100px) { .stApp .block-container { padding-left: 66px !important; } }
+@media (max-width: 768px) {
+  .stApp .st-key-nt_menu, .stApp .nt-nav { left: calc(var(--nt-left, 0px) + 4px) !important; bottom: calc(var(--nt-lift, 52px) + env(safe-area-inset-bottom, 0px)) !important; }
+  .stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"], .stApp .nt-nav { padding: 4px; border-radius: 20px; max-height: calc(100vh - 190px); }
+  .stApp .st-key-nt_menu div[data-testid="stRadio"] label, .stApp .nt-navlink { width: 40px !important; min-width: 40px !important; height: 40px; min-height: 40px; }
+  .stApp .block-container { padding-left: 54px !important; padding-right: .75rem !important; padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important; }
 }
 
 footer {visibility: hidden;}
@@ -804,10 +864,53 @@ FX_JS2 = r"""
     if (t && t.scrollLeft && (t === D.scrollingElement || (t.matches && t.matches('[data-testid="stMain"],[data-testid="stAppViewContainer"],.stApp,body')))) t.scrollLeft = 0;
   }, true);
 
+  /* ---- Chọn mục: tự kéo lên đầu mục; cuộn liên tục: nhảy tới mục + sáng theo mục đang xem ---- */
+  var MENU = __MENU__;
+  var pend = null, pendT = 0, raf2 = 0;
+  function trimT(t){ return (t || '').replace(/\s+/g, ' ').trim(); }
+  function key(s){ return trimT(s).split(' ')[0]; }   /* icon đứng đầu tên mục */
+  function goSec(name){
+    var k = key(name), a = D.querySelectorAll('.sec-anchor');
+    for (var i = 0; i < a.length; i++) if (key(a[i].getAttribute('data-sec')) === k) { a[i].scrollIntoView({behavior: 'smooth', block: 'start'}); return true; }
+    return false;
+  }
+  /* Tooltip cho nút chỉ có icon + đặt thanh icon ngay sau sidebar (nếu đang mở) */
+  function tip(){
+    D.querySelectorAll('.st-key-nt_menu label').forEach(function(l){
+      if (l.title) return;
+      var k = key(l.textContent);
+      for (var i = 0; i < MENU.length; i++) if (key(MENU[i]) === k) { l.title = trimT(MENU[i]).slice(k.length + 1); l.setAttribute('aria-label', l.title); break; }
+    });
+  }
+  function side(){
+    var sb = D.querySelector('[data-testid="stSidebar"]'), x = 0;
+    if (sb) { var r = sb.getBoundingClientRect(); if (r.width > 0 && r.right > 0 && window.innerWidth > 768) x = Math.round(r.right); }
+    D.documentElement.style.setProperty('--nt-left', x + 'px');
+  }
+  window.addEventListener('resize', side); side();
+  function chk(){
+    if (!pend) return;
+    if (performance.now() - pendT > 8000) { pend = null; return; }
+    if (goSec(pend)) { pend = null; return; }
+    setTimeout(chk, 200);
+  }
   D.addEventListener('click', function(e){
+    var n = q(e, '.nt-navlink');
+    if (n) { goSec(n.getAttribute('data-sec')); return; }
     var l = q(e, '.st-key-nt_menu label');
-    if (l && l.scrollIntoView) setTimeout(function(){ l.scrollIntoView({inline: 'center', block: 'nearest', behavior: 'smooth'}); }, 60);
+    if (l) { pend = key(l.textContent); pendT = performance.now(); setTimeout(chk, 250); setTimeout(side, 300); }
   });
+  function mark(){
+    raf2 = 0;
+    var as = D.querySelectorAll('.sec-anchor'), nm = as.length ? as[0].getAttribute('data-sec') : null;
+    for (var i = 0; i < as.length; i++) if (as[i].getBoundingClientRect().top <= 140) nm = as[i].getAttribute('data-sec');
+    D.querySelectorAll('.nt-navlink').forEach(function(a){
+      var on = a.getAttribute('data-sec') === nm;
+      if (on !== a.classList.contains('act')) { a.classList.toggle('act', on); if (on && a.scrollIntoView) a.scrollIntoView({inline: 'nearest', block: 'nearest'}); }
+    });
+  }
+  D.addEventListener('scroll', function(){ if (!raf2) raf2 = requestAnimationFrame(mark); }, true);
+  setInterval(function(){ if (D.hidden) return; tip(); side(); if (D.querySelector('.nt-navlink')) mark(); }, 700);
 
   /* ---- Lật thẻ khi chạm ---- */
   D.addEventListener('click', function(e){
@@ -945,6 +1048,9 @@ POPULAR_ASSETS = {
 flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
 
 DB_FILE = "trading_journal.db"
+
+# Menu: icon đứng đầu tên mục (thanh dọc chỉ hiển thị icon, tên hiện ở tooltip)
+MENU_ITEMS = ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"]
 
 
 def init_db():
@@ -1572,6 +1678,11 @@ def ai_clean(cfg):
     return out
 
 
+def ui_set(k, v):
+    d = ai_cfg_get("__ui__"); d[k] = v
+    ai_cfg_put("__ui__", d)
+
+
 def ai_snapshot():
     snap = {k: st.session_state.get(k, d) for k, d in AI_DEFAULTS.items()}
     snap.update({k: v for k, v in st.session_state.items() if str(k).startswith("ai_cv_")})
@@ -1645,7 +1756,7 @@ with st.sidebar:
     if "ui_full" not in st.session_state:
         st.session_state["ui_full"] = bool(ai_cfg_get("__ui__").get("full", False))
     st.toggle("✨ Hiệu ứng đầy đủ (nặng, dễ giật)", key="ui_full",
-              on_change=lambda: ai_cfg_put("__ui__", {"full": bool(st.session_state["ui_full"])}))
+              on_change=lambda: ui_set("full", bool(st.session_state["ui_full"])))
     if not st.session_state["ui_full"]:
         st.html("<style>" + LITE_CSS + "</style>")
 
@@ -1659,7 +1770,7 @@ with st.sidebar:
 
     if not st.session_state.get("_fx_loaded"):
         st.session_state["_fx_loaded"] = True
-        inject_js(FX_JS + "\n" + FX_JS2)
+        inject_js(FX_JS + "\n" + FX_JS2.replace("__MENU__", json.dumps(MENU_ITEMS, ensure_ascii=False)))
 
 # ============================================================
 # 5. MAIN AREA
@@ -1724,20 +1835,28 @@ html(f"""
     </div>
 """)
 
-# MENU NGANG (viên thuốc, vuốt ngang trên di động)
-menu_selection = st.radio(
-    "Menu",
-    ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"],
-    horizontal=True, label_visibility="collapsed", key="nt_menu"
-)
+# MENU DỌC BÊN TRÁI (chỉ icon, từ dưới lên; chọn mục sẽ tự cuộn lên đầu mục)
+if "nt_view" not in st.session_state:
+    st.session_state["nt_view"] = ai_cfg_get("__ui__").get("view", "Từng mục")
+st.segmented_control("Chế độ xem", ["Từng mục", "Cuộn liên tục"], key="nt_view", label_visibility="collapsed",
+                     on_change=lambda: ui_set("view", st.session_state.get("nt_view") or "Từng mục"))
+feed = st.session_state.get("nt_view") == "Cuộn liên tục"
+if feed:
+    html("<div class='nt-nav'>" + "".join(f"<div class='nt-navlink' role='button' tabindex='0' title='{m.split(' ', 1)[1]}' aria-label='{m.split(' ', 1)[1]}' data-sec='{m}'>{m.split(' ', 1)[0]}</div>" for m in MENU_ITEMS) + "</div>")
+    menu_selection = MENU_ITEMS[0]
+    st.caption("Cuộn liên tục: tất cả các mục nằm trên một trang, vuốt xuống để đọc lần lượt; bấm icon ở thanh bên trái để nhảy tới mục. Chế độ này tải mọi mục nên có thể chậm hơn.")
+else:
+    menu_selection = st.radio("Menu", MENU_ITEMS, horizontal=True, label_visibility="collapsed", key="nt_menu", format_func=lambda m: m.split(" ", 1)[0])
+    html(f"<div class='sec-anchor' data-sec='{menu_selection}'></div>")
 html("<div style='height:14px'></div>")
-if menu_selection != "🤖 AI Vào lệnh":
+if feed or menu_selection != "🤖 AI Vào lệnh":
     live_monitor(ticker, None, 0.0, 1.0, float(df["ATR"].iloc[-1]))
 
 # ------------------------------------------------------------
 # KHU VỰC 1: BIỂU ĐỒ (Bao gồm KPI)
 # ------------------------------------------------------------
-if menu_selection == "📊 Biểu đồ":
+if feed or menu_selection == "📊 Biểu đồ":
+    if feed: html("<div class='sec-anchor' data-sec='📊 Biểu đồ'></div><div class='sec-sep'>📊 Biểu đồ</div>")
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     with kpi1: quantum_metric("GIÁ HIỆN TẠI", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0), raw=last_close)
     with kpi2: quantum_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "QUÁ MUA" if df['RSI'].iloc[-1] > 70 else ("QUÁ BÁN" if df['RSI'].iloc[-1] < 30 else "TRUNG TÍNH"), is_positive=(df['RSI'].iloc[-1] < 70), raw=df['RSI'].iloc[-1], dec=1, vn=False)
@@ -1799,7 +1918,8 @@ if menu_selection == "📊 Biểu đồ":
 # ------------------------------------------------------------
 # KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & CHUẨN ĐOÁN
 # ------------------------------------------------------------
-elif menu_selection == "🎯 Kế hoạch giao dịch":
+if feed or menu_selection == "🎯 Kế hoạch giao dịch":
+    if feed: html("<div class='sec-anchor' data-sec='🎯 Kế hoạch giao dịch'></div><div class='sec-sep'>🎯 Kế hoạch giao dịch</div>")
     st.subheader("Chuẩn đoán & Kế hoạch giao dịch")
 
     col_left, col_right = st.columns([1.5, 1], gap="large")
@@ -1930,7 +2050,8 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
 # ------------------------------------------------------------
 # KHU VỰC 3: PHÂN TÍCH SMC
 # ------------------------------------------------------------
-elif menu_selection == "🤖 AI Vào lệnh":
+if feed or menu_selection == "🤖 AI Vào lệnh":
+    if feed: html("<div class='sec-anchor' data-sec='🤖 AI Vào lệnh'></div><div class='sec-sep'>🤖 AI Vào lệnh</div>")
     st.subheader("AI Vào lệnh: chọn lọc, có kiểm chứng, an toàn vốn")
     if "_ai_store" not in st.session_state:
         st.session_state["_ai_store"] = ai_clean(ai_cfg_get("__last__"))
@@ -2079,7 +2200,8 @@ elif menu_selection == "🤖 AI Vào lệnh":
         plan = dict(side=dec["side"], entry=dec["entry"], sl=dec["sl"], tp2=dec["tp2"])
         live_monitor(ticker, plan if dec["ok"] else None, float(lot), float(cv), float(dec["atr"]))
 
-elif menu_selection == "🧠 Phân tích SMC":
+if feed or menu_selection == "🧠 Phân tích SMC":
+    if feed: html("<div class='sec-anchor' data-sec='🧠 Phân tích SMC'></div><div class='sec-sep'>🧠 Phân tích SMC</div>")
     st.subheader("Phân tích Cấu trúc Thị trường (SMC)")
     if not HAS_SMC:
         st.warning("Thư viện `pyvsmc` chưa được cài đặt.")
@@ -2135,7 +2257,8 @@ elif menu_selection == "🧠 Phân tích SMC":
 # ------------------------------------------------------------
 # KHU VỰC 4: ĐA KHUNG THỜI GIAN (MTF)
 # ------------------------------------------------------------
-elif menu_selection == "🌐 Đa Khung Thời Gian":
+if feed or menu_selection == "🌐 Đa Khung Thời Gian":
+    if feed: html("<div class='sec-anchor' data-sec='🌐 Đa Khung Thời Gian'></div><div class='sec-sep'>🌐 Đa Khung Thời Gian</div>")
     st.subheader("Phân Tích Đa Khung Thời Gian (MTF)")
     html("<p style='color: #8b90a0; font-size: 14px; line-height:1.6;'>Hệ thống tự động quét xu hướng dựa trên giao cắt EMA20 và EMA50 trên 3 khung thời gian. Khi cả 3 khung đồng thuận, xác suất thắng sẽ cao hơn.</p>")
 
@@ -2170,7 +2293,8 @@ elif menu_selection == "🌐 Đa Khung Thời Gian":
 # ------------------------------------------------------------
 # KHU VỰC 5: FIBONACCI
 # ------------------------------------------------------------
-elif menu_selection == "📏 Fibonacci":
+if feed or menu_selection == "📏 Fibonacci":
+    if feed: html("<div class='sec-anchor' data-sec='📏 Fibonacci'></div><div class='sec-sep'>📏 Fibonacci</div>")
     st.subheader("Fibonacci Retracement (100 nến gần nhất)")
     fib_data = calculate_fibonacci(df)
 
@@ -2202,7 +2326,8 @@ elif menu_selection == "📏 Fibonacci":
 # ------------------------------------------------------------
 # KHU VỰC 6: TIN TỨC
 # ------------------------------------------------------------
-elif menu_selection == "📰 Tin tức":
+if feed or menu_selection == "📰 Tin tức":
+    if feed: html("<div class='sec-anchor' data-sec='📰 Tin tức'></div><div class='sec-sep'>📰 Tin tức</div>")
     st.subheader(f"Tin tức: {selected_asset.split(' - ')[1]}")
     news = fetch_news(ticker)
     if not news:
@@ -2222,7 +2347,8 @@ elif menu_selection == "📰 Tin tức":
 # ------------------------------------------------------------
 # KHU VỰC 7: NHẬT KÝ GIAO DỊCH
 # ------------------------------------------------------------
-elif menu_selection == "📓 Nhật ký":
+if feed or menu_selection == "📓 Nhật ký":
+    if feed: html("<div class='sec-anchor' data-sec='📓 Nhật ký'></div><div class='sec-sep'>📓 Nhật ký</div>")
     st.subheader("Nhật ký giao dịch thủ công")
     col_form, col_history = st.columns([1, 2], gap="large")
 
