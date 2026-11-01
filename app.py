@@ -605,7 +605,8 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 @media (max-width: 768px) {
   [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"], [data-testid="stHorizontalBlock"] > div { flex: 1 1 100% !important; min-width: 100% !important; }
-  [data-testid="stHorizontalBlock"]:has(.flip) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.flip) > div { flex: 1 1 calc(50% - .4rem) !important; min-width: calc(50% - .4rem) !important; }
+  [data-testid="stHorizontalBlock"]:has(.flip):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.flip):not(:has([data-testid="stHorizontalBlock"])) > div { flex: 1 1 calc(50% - .4rem) !important; min-width: calc(50% - .4rem) !important; }
+  [data-testid="stHorizontalBlock"]:has(.nt-copy):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.nt-copy):not(:has([data-testid="stHorizontalBlock"])) > div { flex: 1 1 100% !important; min-width: 100% !important; }
   .glass-card, .signal-card, .math-box { padding: 16px !important; }
   .card-title { font-size: 14px; }
   .row-item { flex-wrap: wrap; row-gap: 4px; }
@@ -613,6 +614,27 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
   .qm-val { font-size: 19px; }
   .qm { padding: 14px 14px; }
   .modebar-container { display: none !important; }
+}
+
+/* ===================== V7: TINH CHỈNH ===================== */
+[data-testid="stHeader"] { background: rgba(8,6,24,.97) !important; }
+.qm-row { min-width: 0; }
+.qm-val { min-width: 0; flex: 1 1 auto; font-size: clamp(18px, 5.4vw, 24px); overflow: hidden; text-overflow: clip; }
+.nt-copy { flex: 0 0 auto; margin-left: auto; }
+[data-testid="stWidgetLabel"] p { font-size: 12.5px !important; font-weight: 600; color: var(--muted); letter-spacing: .2px; }
+[data-testid="stButtonGroup"] { flex-wrap: wrap !important; overflow: visible !important; -webkit-mask-image: none !important; mask-image: none !important; gap: 6px; }
+[data-testid="stButtonGroup"] button { min-height: 38px; padding: 6px 13px; font-size: 13px; }
+[data-testid="stBaseButton-pills"], [data-testid="stBaseButton-segmented_control"] { background: rgba(255,255,255,.04) !important; border: 1px solid rgba(255,255,255,.12) !important; color: #c9cbe0 !important; }
+[data-testid="stBaseButton-pillsActive"], [data-testid="stBaseButton-segmented_controlActive"] { background: linear-gradient(135deg, rgba(124,124,255,.55), rgba(56,225,255,.28)) !important; border-color: rgba(160,140,255,.75) !important; color: #fff !important; box-shadow: 0 0 16px -4px rgba(139,123,255,.8); }
+.reason-line.rl { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0 !important; text-indent: 0; }
+.dot { flex: 0 0 18px; height: 18px; margin-top: 2px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; font-style: normal; text-indent: 0; }
+.dot.ok { background: rgba(34,211,160,.14); color: #22d3a0; border: 1px solid rgba(34,211,160,.45); }
+.dot.no { background: rgba(255,84,112,.14); color: #ff5470; border: 1px solid rgba(255,84,112,.45); }
+.dot.mid { background: rgba(255,255,255,.07); color: #aab0c4; border: 1px solid rgba(255,255,255,.2); }
+@media (max-width: 768px) {
+  [data-testid="stToolbarActions"] { display: none !important; }
+  .st-key-nt_menu { bottom: var(--nt-lift, 52px) !important; }
+  .block-container { padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px)) !important; }
 }
 
 footer {visibility: hidden;}
@@ -989,8 +1011,22 @@ def to_vn_naive(x):
 # ============================================================
 # 3. UI COMPONENTS & LOGIC
 # ============================================================
+import re as _re
+_RL = _re.compile(r"(<div class='reason-line'[^>]*>)(.*?)(</div>)", _re.S)
+_DOT = {"🟢": ("ok", "✓"), "⛔": ("no", "✕"), "🔴": ("no", "✕"), "❌": ("no", "✕"), "⚪": ("mid", "•"), "🟡": ("mid", "•"), "⚠️": ("mid", "!")}
+
+
+def _dotify(m):
+    body = m.group(2).lstrip()
+    for e, (c, g) in _DOT.items():
+        if body.startswith(e):
+            return f"{m.group(1).replace('reason-line', 'reason-line rl', 1)}<i class='dot {c}'>{g}</i><span>{body[len(e):].lstrip()}</span>{m.group(3)}"
+    return m.group(0)
+
+
 def html(s: str):
     """Gộp HTML thành 1 dòng để Markdown không biến nó thành code block."""
+    s = _RL.sub(_dotify, s)
     st.markdown("".join(line.strip() for line in s.splitlines()), unsafe_allow_html=True)
 
 
