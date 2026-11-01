@@ -710,6 +710,22 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 .stApp .nt-navlink.act::after { content: ""; position: absolute; right: -7px; top: 50%; width: 3px; height: 18px; margin-top: -9px; border-radius: 3px; background: #38e1ff; box-shadow: 0 0 10px #38e1ff; }
 @keyframes secIn { from { opacity: 0; transform: translateY(26px) scale(.985); } to { opacity: 1; transform: none; } }
 .sec-sep ~ * { }
+/* ===================== V10: RADIO ẨN + THANH ICON NHỎ GỌN ===================== */
+.stApp .st-key-nt_menu { position: fixed !important; left: -9999px !important; top: 0 !important; bottom: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important; padding: 0 !important; margin: 0 !important; }
+.stApp .nt-nav { gap: 3px !important; padding: 4px !important; border-radius: 18px !important; }
+.stApp .nt-navlink { width: 36px !important; min-width: 36px !important; height: 36px !important; min-height: 36px !important; font-size: 17px !important; border-radius: 12px !important; }
+.stApp .nt-navlink.act { background: linear-gradient(135deg, rgba(124,124,255,.65), rgba(56,225,255,.35)); box-shadow: 0 0 16px -4px rgba(139,123,255,.9); }
+@media (max-width: 768px) {
+  .stApp .nt-navlink { width: 34px !important; min-width: 34px !important; height: 34px !important; min-height: 34px !important; font-size: 16px !important; }
+  .stApp .block-container { padding-left: 46px !important; }
+}
+@media (min-width: 769px) and (max-width: 1100px) { .stApp .block-container { padding-left: 56px !important; } }
+.nt-top { position: fixed; right: 14px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); width: 40px; height: 40px; border-radius: 50%; z-index: 999; display: grid; place-items: center; cursor: pointer; color: #fff; font-size: 18px; background: linear-gradient(135deg, #6a4cff, #ff5ecb); box-shadow: 0 8px 24px -6px rgba(178,76,255,.8); opacity: 0; transform: translateY(14px) scale(.8); pointer-events: none; transition: opacity .3s, transform .3s; }
+.nt-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.nt-top:active { transform: scale(.9); }
+.sec-sep.pre { opacity: 0; transform: translateY(28px); }
+.sec-sep { transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -888,7 +904,7 @@ FX_JS2 = r"""
     return false;
   }
   /* Tooltip cho nút chỉ có icon + đặt thanh icon ngay sau sidebar (nếu đang mở) */
-  function tip(){
+  function tip(){ return;
     D.querySelectorAll('.st-key-nt_menu label').forEach(function(l){
       if (l.title) return;
       var k = key(l.textContent);
@@ -909,12 +925,19 @@ FX_JS2 = r"""
   }
   D.addEventListener('click', function(e){
     var n = q(e, '.nt-navlink');
-    if (n) { goSec(n.getAttribute('data-sec')); return; }
-    var l = q(e, '.st-key-nt_menu label');
-    if (l) { pend = key(l.textContent); pendT = performance.now(); setTimeout(chk, 250); setTimeout(side, 300); }
+    if (n) {
+      var nav = n.closest('.nt-nav');
+      if (nav && nav.getAttribute('data-mode') === 'single') {
+        var kk = key(n.getAttribute('data-sec')), ls = D.querySelectorAll('.st-key-nt_menu label');
+        for (var j = 0; j < ls.length; j++) if (key(ls[j].textContent) === kk) { pend = kk; pendT = performance.now(); ls[j].click(); setTimeout(chk, 250); break; }
+        D.querySelectorAll('.nt-navlink').forEach(function(a){ a.classList.toggle('act', a === n); });
+      } else goSec(n.getAttribute('data-sec'));
+      return;
+    }
   });
   function mark(){
     raf2 = 0;
+    if (D.querySelector('.nt-nav[data-mode="single"]')) return;
     var as = D.querySelectorAll('.sec-anchor'), nm = as.length ? as[0].getAttribute('data-sec') : null;
     for (var i = 0; i < as.length; i++) if (as[i].getBoundingClientRect().top <= 140) nm = as[i].getAttribute('data-sec');
     D.querySelectorAll('.nt-navlink').forEach(function(a){
@@ -923,7 +946,24 @@ FX_JS2 = r"""
     });
   }
   D.addEventListener('scroll', function(){ if (!raf2) raf2 = requestAnimationFrame(mark); }, true);
-  setInterval(function(){ if (D.hidden) return; tip(); side(); if (D.querySelector('.nt-navlink')) mark(); }, 700);
+  setInterval(function(){ if (D.hidden) return; side(); if (D.querySelector('.nt-navlink')) mark(); reveal(); }, 700);
+  /* ---- Mục trượt vào khi cuộn tới ---- */
+  var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function(es){ es.forEach(function(x){ if (x.isIntersecting) { x.target.classList.remove('pre'); io.unobserve(x.target); } }); }, {threshold: .15}) : null;
+  function reveal(){
+    if (!io) return;
+    D.querySelectorAll('.sec-sep:not([data-ro])').forEach(function(el){
+      el.setAttribute('data-ro', '1');
+      if (el.getBoundingClientRect().top > window.innerHeight) { el.classList.add('pre'); io.observe(el); }
+    });
+  }
+  /* ---- Nút lên đầu trang ---- */
+  var tp = D.createElement('div'); tp.className = 'nt-top'; tp.textContent = '\u2191'; tp.title = 'Lên đầu trang'; D.body.appendChild(tp);
+  var topEl = null;
+  tp.addEventListener('click', function(){ if (topEl) topEl.scrollTo({top: 0, behavior: 'smooth'}); });
+  D.addEventListener('scroll', function(e){
+    var t = e.target === D ? D.scrollingElement : e.target;
+    if (t && typeof t.scrollTop === 'number' && t.scrollHeight - t.clientHeight > 200) { topEl = t; tp.classList.toggle('show', t.scrollTop > 600); }
+  }, true);
 
   /* ---- Thanh tiến độ đọc ---- */
   var pg = D.createElement('div'); pg.className = 'nt-progress'; D.body.appendChild(pg);
@@ -1863,12 +1903,13 @@ st.segmented_control("Chế độ xem", ["Từng mục", "Cuộn liên tục"], 
                      on_change=lambda: ui_set("view", st.session_state.get("nt_view") or "Từng mục"))
 feed = st.session_state.get("nt_view") == "Cuộn liên tục"
 if feed:
-    html("<div class='nt-nav'>" + "".join(f"<div class='nt-navlink' role='button' tabindex='0' title='{m.split(' ', 1)[1]}' aria-label='{m.split(' ', 1)[1]}' data-sec='{m}'>{m.split(' ', 1)[0]}</div>" for m in MENU_ITEMS) + "</div>")
     menu_selection = MENU_ITEMS[0]
-    st.caption("Cuộn liên tục: tất cả các mục nằm trên một trang, vuốt xuống để đọc lần lượt; bấm icon ở thanh bên trái để nhảy tới mục. Chế độ này tải mọi mục nên có thể chậm hơn.")
 else:
     menu_selection = st.radio("Menu", MENU_ITEMS, horizontal=True, label_visibility="collapsed", key="nt_menu", format_func=lambda m: m.split(" ", 1)[0])
     html(f"<div class='sec-anchor' data-sec='{menu_selection}'></div>")
+html("<div class='nt-nav' data-mode='" + ("feed" if feed else "single") + "'>" + "".join(
+    f"<div class='nt-navlink{' act' if (not feed and m == menu_selection) else ''}' role='button' tabindex='0' title='{m.split(' ', 1)[1]}' aria-label='{m.split(' ', 1)[1]}' data-sec='{m}'>{m.split(' ', 1)[0]}</div>"
+    for m in MENU_ITEMS) + "</div>")
 html("<div style='height:14px'></div>")
 if feed or menu_selection != "🤖 AI Vào lệnh":
     live_monitor(ticker, None, 0.0, 1.0, float(df["ATR"].iloc[-1]))
@@ -1934,7 +1975,6 @@ if feed or menu_selection == "📊 Biểu đồ":
     fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", side="right", gridwidth=1)
 
     st.plotly_chart(fig, width="stretch", config={'scrollZoom': True, 'displayModeBar': True, 'displaylogo': False})
-    st.caption("💡 **Mẹo di động:** Dùng 2 ngón tay để phóng to/thu nhỏ. Dùng 1 ngón tay để kéo biểu đồ. Hoặc dùng thanh trượt ở dưới cùng.")
 
 # ------------------------------------------------------------
 # KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & CHUẨN ĐOÁN
@@ -2281,7 +2321,6 @@ if feed or menu_selection == "🧠 Phân tích SMC":
 if feed or menu_selection == "🌐 Đa Khung Thời Gian":
     if feed: html("<div class='sec-anchor' data-sec='🌐 Đa Khung Thời Gian'></div><div class='sec-sep'>🌐 Đa Khung Thời Gian</div>")
     st.subheader("Phân Tích Đa Khung Thời Gian (MTF)")
-    html("<p style='color: #8b90a0; font-size: 14px; line-height:1.6;'>Hệ thống tự động quét xu hướng dựa trên giao cắt EMA20 và EMA50 trên 3 khung thời gian. Khi cả 3 khung đồng thuận, xác suất thắng sẽ cao hơn.</p>")
 
     mtf_data = load_mtf_data(ticker)
     col1, col2, col3 = st.columns(3)
