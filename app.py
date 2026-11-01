@@ -587,6 +587,34 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
   [data-testid="stHorizontalBlock"] { gap: .6rem !important; }
 }
 
+/* ===================== V6: CHỮ, CANH LỀ, THẺ TRÊN MOBILE ===================== */
+.stApp, .stApp button, .stApp input, .stApp textarea, .stApp select { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+.qm-val, .val-data, .hero-price, .hero-stats b, .ring-num, [data-testid="stMetricValue"], .chg { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace !important; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+[data-testid="stHeader"] { background: rgba(8,6,24,.82) !important; border-bottom: 1px solid rgba(255,255,255,.06); }
+.st-key-nt_menu [data-testid="stWidgetLabel"] { display: none !important; }
+.qm { min-width: 0; }
+.qm-lbl { font-size: 11px; letter-spacing: .5px; line-height: 1.3; overflow-wrap: normal; word-break: keep-all; }
+.reason-line { padding-left: 1.75em !important; text-indent: -1.75em; overflow-wrap: anywhere; text-align: left; }
+.math-box, .card-title, .row-item { text-align: left; }
+.row-item { gap: 12px; }
+.row-item > span:last-child { text-align: right; }
+.flip-in { min-height: 124px; }
+.fb { justify-content: flex-start; padding: 12px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.fb b { margin-top: auto; }
+.fb span { margin-bottom: auto; font-size: 12px; line-height: 1.45; }
+@media (max-width: 768px) {
+  [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
+  [data-testid="stHorizontalBlock"] > [data-testid="stColumn"], [data-testid="stHorizontalBlock"] > div { flex: 1 1 100% !important; min-width: 100% !important; }
+  [data-testid="stHorizontalBlock"]:has(.flip) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.flip) > div { flex: 1 1 calc(50% - .4rem) !important; min-width: calc(50% - .4rem) !important; }
+  .glass-card, .signal-card, .math-box { padding: 16px !important; }
+  .card-title { font-size: 14px; }
+  .row-item { flex-wrap: wrap; row-gap: 4px; }
+  .row-item > span:last-child { margin-left: auto; }
+  .qm-val { font-size: 19px; }
+  .qm { padding: 14px 14px; }
+  .modebar-container { display: none !important; }
+}
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -753,6 +781,11 @@ FX_JS2 = r"""
     var t = e.target === D ? D.scrollingElement : e.target;
     if (t && t.scrollLeft && (t === D.scrollingElement || (t.matches && t.matches('[data-testid="stMain"],[data-testid="stAppViewContainer"],.stApp,body')))) t.scrollLeft = 0;
   }, true);
+
+  D.addEventListener('click', function(e){
+    var l = q(e, '.st-key-nt_menu label');
+    if (l && l.scrollIntoView) setTimeout(function(){ l.scrollIntoView({inline: 'center', block: 'nearest', behavior: 'smooth'}); }, 60);
+  });
 
   /* ---- Lật thẻ khi chạm ---- */
   D.addEventListener('click', function(e){
@@ -1572,6 +1605,7 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
+    st.html("<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');</style>")
     if "ui_full" not in st.session_state:
         st.session_state["ui_full"] = bool(ai_cfg_get("__ui__").get("full", False))
     st.toggle("✨ Hiệu ứng đầy đủ (nặng, dễ giật)", key="ui_full",
