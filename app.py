@@ -563,6 +563,30 @@ html.nt-warping .block-container { animation: none; }
 .fb span { color: #cfd1e6; font-size: 12.5px; line-height: 1.5; }
 .mtf-icon { animation: coin 5s cubic-bezier(.6,0,.4,1) infinite; }
 
+/* ===================== V5: KHÓA KHUNG HÌNH + MOBILE-FIRST ===================== */
+html, body { overflow-x: hidden !important; max-width: 100%; overscroll-behavior-x: none; -webkit-text-size-adjust: 100%; touch-action: pan-y pinch-zoom; }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], section.main, .block-container { overflow-x: hidden !important; max-width: 100vw; touch-action: pan-y pinch-zoom; -webkit-tap-highlight-color: transparent; }
+[data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"] > div, [data-testid="stElementContainer"], [data-testid="stMarkdownContainer"], [data-testid="stRadio"] { min-width: 0; max-width: 100%; }
+.hero-in { overflow: hidden; }
+input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
+.stButton > button:active, .flip:active { transform: scale(.97); }
+.block-container [data-testid="stVerticalBlock"] > div.st-key-nt_menu[data-testid="stElementContainer"],
+.block-container [data-testid="stVerticalBlock"] > div.st-key-nt_menu[data-testid="element-container"] { animation: none !important; }
+.st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"] { max-width: 100%; overflow-x: auto; flex-wrap: nowrap !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+.st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar { display: none; }
+@media (max-width: 768px) {
+  .block-container { padding: 3.2rem .75rem calc(104px + env(safe-area-inset-bottom, 0px)) !important; }
+  .st-key-nt_menu { position: fixed !important; left: 0; right: 0; bottom: 0; z-index: 999; padding: 18px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, rgba(8,6,24,0), rgba(8,6,24,.94) 45%); pointer-events: none; }
+  .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"] { pointer-events: auto; border-radius: 22px; padding: 6px; gap: 4px !important; background: rgba(16,12,40,.96); border: 1px solid rgba(160,140,255,.35); box-shadow: 0 10px 40px -8px rgba(0,0,0,.85); }
+  .st-key-nt_menu div[data-testid="stRadio"] label { min-height: 46px; padding: 0 15px !important; border-radius: 16px !important; display: flex; align-items: center; font-size: 13px; }
+  .st-key-nt_menu div[data-testid="stRadio"] label > div:first-child { display: none; }
+  .st-key-nt_menu div[data-testid="stRadio"] label:has(input:checked) { background: linear-gradient(135deg, rgba(124,124,255,.6), rgba(56,225,255,.32)) !important; box-shadow: 0 0 18px -4px rgba(139,123,255,.85); }
+  .hero-in { padding: 16px !important; }
+  .orbit { width: 150px !important; height: 150px !important; right: -24px !important; top: -24px !important; }
+  .hero-price { font-size: clamp(30px, 9vw, 42px) !important; }
+  [data-testid="stHorizontalBlock"] { gap: .6rem !important; }
+}
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -721,6 +745,14 @@ FX_JS2 = r"""
   var q = function(e, s){ return e.target.closest && e.target.closest(s); };
   var _lt = false, _lt_t = 0;
   function lite(){ var n = performance.now(); if (n - _lt_t > 700) { _lt_t = n; _lt = getComputedStyle(D.documentElement).getPropertyValue('--nt-lite').trim() === '1'; } return _lt; }
+
+  /* ---- Khóa khung hình: không cho kéo lệch ngang ---- */
+  var vm = D.querySelector('meta[name="viewport"]');
+  if (vm && vm.content.indexOf('viewport-fit') < 0) vm.content += ', viewport-fit=cover';
+  D.addEventListener('scroll', function(e){
+    var t = e.target === D ? D.scrollingElement : e.target;
+    if (t && t.scrollLeft && (t === D.scrollingElement || (t.matches && t.matches('[data-testid="stMain"],[data-testid="stAppViewContainer"],.stApp,body')))) t.scrollLeft = 0;
+  }, true);
 
   /* ---- Lật thẻ khi chạm ---- */
   D.addEventListener('click', function(e){
@@ -1626,7 +1658,7 @@ html(f"""
 menu_selection = st.radio(
     "Menu",
     ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"],
-    horizontal=True, label_visibility="collapsed"
+    horizontal=True, label_visibility="collapsed", key="nt_menu"
 )
 html("<div style='height:14px'></div>")
 if menu_selection != "🤖 AI Vào lệnh":
