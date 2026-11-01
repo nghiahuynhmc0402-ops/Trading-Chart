@@ -522,7 +522,7 @@ div[data-testid="stRadio"] label:has(input:checked) {
 a.news-card { display: block; text-decoration: none; color: inherit; }
 
 /* ===================== V4: WARP / LẬT / XOAY ===================== */
-@keyframes warpIn { from { opacity: 0; transform: perspective(1200px) translateZ(-280px) rotateX(16deg) scale(.93); filter: blur(10px) brightness(1.8); } }
+@keyframes warpIn { from { opacity: 0; transform: perspective(1200px) translateZ(-280px) rotateX(16deg) scale(.93); } }
 @keyframes coin { to { transform: rotateY(360deg); } }
 .block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
 .block-container [data-testid="stVerticalBlock"] > div[data-testid="element-container"] { animation: warpIn .85s var(--ease) both; }
@@ -585,17 +585,25 @@ FX_JS = r"""
   if (window.__ntFx3) return; window.__ntFx3 = true;
   var D = document;
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var _lt = false, _lt_t = 0;
+  function lite(){ var n = performance.now(); if (n - _lt_t > 700) { _lt_t = n; _lt = getComputedStyle(D.documentElement).getPropertyValue('--nt-lite').trim() === '1'; } return _lt; }
 
   /* ---- Đèn rọi + nghiêng 3D ---- */
-  D.addEventListener('pointermove', function(e){
-    var c = e.target.closest && e.target.closest('.glass-card'); if (!c) return;
-    var r = c.getBoundingClientRect();
-    c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-    c.style.setProperty('--my', (e.clientY - r.top) + 'px');
-    if (e.pointerType === 'mouse') {
-      c.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * 7).toFixed(2) + 'deg');
-      c.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+  var _pm = null, _raf = 0;
+  function _apply(){
+    _raf = 0; var m = _pm; if (!m) return;
+    var r = m.c.getBoundingClientRect();
+    m.c.style.setProperty('--mx', (m.x - r.left) + 'px'); m.c.style.setProperty('--my', (m.y - r.top) + 'px');
+    if (m.t === 'mouse') {
+      m.c.style.setProperty('--rx', (-((m.y - r.top) / r.height - .5) * 7).toFixed(2) + 'deg');
+      m.c.style.setProperty('--ry', (((m.x - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
     }
+  }
+  D.addEventListener('pointermove', function(e){
+    if (lite()) return;
+    var c = e.target.closest && e.target.closest('.glass-card'); if (!c) return;
+    _pm = {c: c, x: e.clientX, y: e.clientY, t: e.pointerType};
+    if (!_raf) _raf = requestAnimationFrame(_apply);
   }, {passive:true});
   D.addEventListener('pointerout', function(e){
     var c = e.target.closest && e.target.closest('.glass-card');
@@ -623,7 +631,7 @@ FX_JS = r"""
       var to = parseFloat(el.getAttribute('data-v')), d = parseInt(el.getAttribute('data-d') || '0', 10);
       var plain = el.getAttribute('data-vn') === '0';
       if (isNaN(to)) return;
-      var orig = el.textContent, t0 = performance.now(), dur = 1200;
+      var orig = el.textContent, t0 = performance.now(), dur = lite() ? 400 : 1200;
       var step = function(now){
         var p = Math.min(1, (now - t0) / dur), k = 1 - Math.pow(1 - p, 4);
         el.textContent = plain ? (to * k).toFixed(d) : fmt(to * k, d);
@@ -633,7 +641,12 @@ FX_JS = r"""
     });
   };
   run();
-  new MutationObserver(run).observe(D.body, {childList: true, subtree: true});
+  var _mt = 0;
+  new MutationObserver(function(ms){
+    if (_mt) return;
+    var real = ms.some(function(m){ var t = m.target.nodeType === 1 ? m.target : m.target.parentElement; return !(t && t.closest && t.closest('.nt-count')); });
+    if (real) _mt = setTimeout(function(){ _mt = 0; run(); }, 150);
+  }).observe(D.body, {childList: true, subtree: true});
 
   if (reduce) return;
 
@@ -651,7 +664,7 @@ FX_JS = r"""
   }
   size(); window.addEventListener('resize', size);
 
-  var N = window.innerWidth < 700 ? 80 : 160, stars = [], shoot = [];
+  var N = window.innerWidth < 700 ? 60 : 110, stars = [], shoot = [], pl = null;
   var cols = ['255,255,255', '190,215,255', '255,205,235', '170,255,240'];
   for (var i = 0; i < N; i++) {
     var z = Math.random() * .9 + .1;
@@ -661,14 +674,17 @@ FX_JS = r"""
   var pal = ['139,123,255', '56,225,255', '255,94,203', '255,255,255', '45,226,166'];
 
   D.addEventListener('pointermove', function(e){
+    if (lite()) return;
     tx = e.clientX / w - .5; ty = e.clientY / h - .5;
   }, {passive:true});
-  D.addEventListener('scroll', function(e){ var t = e.target; if (t && typeof t.scrollTop === 'number') sy = t.scrollTop; }, true);
+  D.addEventListener('scroll', function(e){ if (lite()) return; var t = e.target; if (t && typeof t.scrollTop === 'number') sy = t.scrollTop; }, true);
 
   var last = 0;
   function frame(t){
     requestAnimationFrame(frame);
-    if (D.hidden || t - last < 30) return;
+    var L = lite();
+    if (D.hidden || t - last < (L ? 250 : 30)) return;
+    if (L !== pl) { pl = L; dpr = L ? 1 : Math.min(window.devicePixelRatio || 1, 2); size(); }
     var dt = Math.min((t - last) / 16.7, 3); last = t;
     px += (tx - px) * .04; py += (ty - py) * .04;
     a.clearRect(0, 0, w, h);
@@ -679,9 +695,9 @@ FX_JS = r"""
       var al = .3 + .7 * (.5 + .5 * Math.sin(t * .0012 * s.sp + s.tw));
       a.fillStyle = 'rgba(' + s.c + ',' + al.toFixed(3) + ')';
       a.beginPath(); a.arc(x, y, s.r, 0, 6.283); a.fill();
-      if (s.r > 1.1) { a.fillStyle = 'rgba(' + s.c + ',' + (al * .16).toFixed(3) + ')'; a.beginPath(); a.arc(x, y, s.r * 3.4, 0, 6.283); a.fill(); }
+      if (s.r > 1.1 && !L) { a.fillStyle = 'rgba(' + s.c + ',' + (al * .16).toFixed(3) + ')'; a.beginPath(); a.arc(x, y, s.r * 3.4, 0, 6.283); a.fill(); }
     }
-    if (shoot.length < 2 && Math.random() < .005) {
+    if (!L && shoot.length < 2 && Math.random() < .005) {
       shoot.push({x: Math.random() * w * .9, y: Math.random() * h * .35, vx: 7 + Math.random() * 5, vy: 3 + Math.random() * 3, l: 1});
     }
     for (var k = shoot.length - 1; k >= 0; k--) {
@@ -703,6 +719,8 @@ FX_JS2 = r"""
   if (window.__ntFx4) return; window.__ntFx4 = true;
   var D = document, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var q = function(e, s){ return e.target.closest && e.target.closest(s); };
+  var _lt = false, _lt_t = 0;
+  function lite(){ var n = performance.now(); if (n - _lt_t > 700) { _lt_t = n; _lt = getComputedStyle(D.documentElement).getPropertyValue('--nt-lite').trim() === '1'; } return _lt; }
 
   /* ---- Lật thẻ khi chạm ---- */
   D.addEventListener('click', function(e){
@@ -723,12 +741,14 @@ FX_JS2 = r"""
 
   function go(){ if (!running) { running = true; last = performance.now(); requestAnimationFrame(tick); } }
   function warp(){
+    if (lite()) return;
     t0 = performance.now(); on = true; st = [];
-    for (var i = 0, n = w < 700 ? 110 : 230; i < n; i++) st.push({a: Math.random() * 6.283, r: Math.random() * .12, v: .5 + Math.random(), c: pal[i % 4]});
+    for (var i = 0, n = w < 700 ? 80 : 150; i < n; i++) st.push({a: Math.random() * 6.283, r: Math.random() * .12, v: .5 + Math.random(), c: pal[i % 4]});
     D.documentElement.classList.add('nt-warping'); go();
   }
   function ring(x, y){ rings.push({x: x, y: y, r: 4, l: 1}, {x: x, y: y, r: -10, l: .7}); go(); }
   function roll(){
+    if (lite()) return;
     var el = D.querySelector('.hero'); if (!el || !el.animate) return;
     el.animate([{transform: 'perspective(1100px) rotateY(0deg)'}, {transform: 'perspective(1100px) rotateY(360deg) scale(1.03)'}, {transform: 'perspective(1100px) rotateY(360deg)'}], {duration: 1100, easing: 'cubic-bezier(.3,.9,.3,1)'});
   }
@@ -773,6 +793,7 @@ FX_JS2 = r"""
   /* ---- Hero: kéo để xoay (chuột + cảm ứng), rê chuột nghiêng nhẹ, con quay hồi chuyển ---- */
   var drag = null;
   function tilt(el, e, amp){
+    if (lite()) return;
     var r = el.getBoundingClientRect();
     el.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * amp).toFixed(1) + 'deg');
     el.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * amp).toFixed(1) + 'deg');
@@ -789,11 +810,24 @@ FX_JS2 = r"""
   function end(){ if (!drag) return; drag.classList.remove('drag'); reset(drag); drag = null; }
   D.addEventListener('pointerup', end); D.addEventListener('pointercancel', end);
   window.addEventListener('deviceorientation', function(e){
-    var el = D.querySelector('.hero'); if (!el || drag || e.gamma == null) return;
+    if (lite()) return; var el = D.querySelector('.hero'); if (!el || drag || e.gamma == null) return;
     el.style.setProperty('--ry', Math.max(-12, Math.min(12, e.gamma / 3)).toFixed(1) + 'deg');
     el.style.setProperty('--rx', Math.max(-12, Math.min(12, ((e.beta || 45) - 45) / 4)).toFixed(1) + 'deg');
   }, {passive: true});
 })();
+"""
+
+
+LITE_CSS = r"""
+:root{--nt-lite:1}
+*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.stApp::before,.stApp::after{animation:none!important;filter:none!important}
+[data-testid="stAppViewContainer"]::before,[data-testid="stAppViewContainer"]::after{animation:none!important}
+.sidebar-logo,.pro-card::after,.reason-line,.mtf-card,.mtf-icon,.page-header,.hero,.hero-in,.orbit i,.fb::before,.stButton>button,.stDownloadButton>button,[data-testid^="stBaseButton"]{animation:none!important}
+.orbit{transition:none!important}
+.hero{will-change:auto!important;transform:none!important;cursor:default!important}
+.block-container [data-testid="stVerticalBlock"]>div[data-testid="stElementContainer"],.block-container [data-testid="stVerticalBlock"]>div[data-testid="element-container"],[data-testid="stHorizontalBlock"]>div{animation:fadeIn .2s ease both!important;animation-delay:0s!important}
+.glass-card:hover{transform:none!important}
 """
 
 
@@ -1097,6 +1131,13 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_ready(ticker: str, interval: str):
+    """Tải + tính chỉ báo một lần, dùng lại cho mọi thao tác trong 5 phút."""
+    d = load_data(ticker, interval)
+    return None if d is None or len(d) < 50 else compute_indicators(d)
+
+
 def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
     if len(df) < 20: return None
     last, atr = df.iloc[-1], df.iloc[-1]["ATR"]
@@ -1128,6 +1169,7 @@ def calculate_fibonacci(df: pd.DataFrame) -> dict:
 # ============================================================
 # 3b. AI ENTRY ENGINE (numpy thuần: logistic regression + triple-barrier + kiểm chứng ngoài mẫu)
 # ============================================================
+import threading, time
 SESSIONS_UTC = {"Á": (0, 8), "Âu": (7, 16), "Mỹ": (13, 21)}  # xấp xỉ, lệch ±1h theo DST. Giờ VN = UTC+7
 SESSION_VN = {"Á": "07–15h", "Âu": "14–23h", "Mỹ": "20–04h"}
 
@@ -1185,16 +1227,20 @@ def sl_distance(df: pd.DataFrame, side: str, mode: str, k: float) -> pd.Series:
 
 
 def triple_barrier(df: pd.DataFrame, side: str, sld: pd.Series, rr: float, horizon: int) -> np.ndarray:
-    """1 nếu chạm TP trước SL trong `horizon` nến (cùng nến = thua, hết hạn = không thắng)."""
+    """1 nếu chạm TP trước SL trong `horizon` nến (cùng nến = thua, hết hạn = không thắng). Vector hóa bằng cửa sổ trượt."""
+    from numpy.lib.stride_tricks import sliding_window_view as swv
     hi, lo, cl, d = df["High"].values, df["Low"].values, df["Close"].values, sld.values
     n, y, big = len(df), np.full(len(df), np.nan), 10 ** 6
-    for i in range(n - horizon - 1):
-        if not np.isfinite(d[i]) or d[i] <= 0: continue
-        h, l = hi[i + 1:i + 1 + horizon], lo[i + 1:i + 1 + horizon]
-        if side == "LONG": a, b = l <= cl[i] - d[i], h >= cl[i] + d[i] * rr
-        else: a, b = h >= cl[i] + d[i], l <= cl[i] - d[i] * rr
-        t_sl, t_tp = (a.argmax() if a.any() else big), (b.argmax() if b.any() else big)
-        y[i] = 1.0 if t_tp < t_sl else 0.0
+    m = n - horizon - 1
+    if m <= 0: return y
+    H, Lw = swv(hi[1:], horizon)[:m], swv(lo[1:], horizon)[:m]
+    c, dd = cl[:m, None], d[:m, None]
+    if side == "LONG": a, b = Lw <= c - dd, H >= c + dd * rr
+    else: a, b = H >= c + dd, Lw <= c - dd * rr
+    t_sl = np.where(a.any(1), a.argmax(1), big)
+    t_tp = np.where(b.any(1), b.argmax(1), big)
+    ok = np.isfinite(d[:m]) & (d[:m] > 0)
+    y[:m] = np.where(ok, (t_tp < t_sl).astype(float), np.nan)
     return y
 
 
@@ -1270,8 +1316,7 @@ def ai_decide(res, df, mtf, rr, margin, ticker, now_vn, allow_off, split_tp):
                 entry=entry, sl=entry - sgn * sld, tp1=entry + sgn * sld, tp2=entry + sgn * sld * rr, sld=sld, atr=float(last["ATR"]))
 
 
-@st.cache_data(ttl=3, show_spinner=False)
-def live_price(ticker: str):
+def _fetch_live(ticker: str):
     try:
         fi = yf.Ticker(ticker).fast_info
         return float(fi["last_price"]), float(fi["previous_close"])
@@ -1282,6 +1327,32 @@ def live_price(ticker: str):
             return float(d["Close"].iloc[-1]), float(d["Open"].iloc[0])
         except Exception:
             return None
+
+
+_LIVE, _LIVE_READ, _LIVE_TH = {}, {}, {}
+
+
+def _poll(ticker: str):
+    while time.time() - _LIVE_READ.get(ticker, 0) < 90:  # dừng khi không còn ai xem
+        v = _fetch_live(ticker)
+        if v: _LIVE[ticker] = (v, time.time())
+        time.sleep(4)
+    _LIVE_TH.pop(ticker, None)
+
+
+def live_price(ticker: str):
+    """Đọc giá từ bộ nhớ (luồng nền cập nhật mỗi ~4s), nên giao diện không bao giờ phải chờ mạng."""
+    _LIVE_READ[ticker] = time.time()
+    th = _LIVE_TH.get(ticker)
+    if th is None or not th.is_alive():
+        if ticker not in _LIVE or time.time() - _LIVE[ticker][1] > 30:
+            v = _fetch_live(ticker)
+            if v: _LIVE[ticker] = (v, time.time())
+        th = threading.Thread(target=_poll, args=(ticker,), daemon=True)
+        _LIVE_TH[ticker] = th
+        th.start()
+    rec = _LIVE.get(ticker)
+    return rec[0] if rec else None
 
 
 @st.fragment(run_every="5s")
@@ -1469,6 +1540,13 @@ with st.sidebar:
         st.cache_data.clear()
         st.rerun()
 
+    if "ui_full" not in st.session_state:
+        st.session_state["ui_full"] = bool(ai_cfg_get("__ui__").get("full", False))
+    st.toggle("✨ Hiệu ứng đầy đủ (nặng, dễ giật)", key="ui_full",
+              on_change=lambda: ai_cfg_put("__ui__", {"full": bool(st.session_state["ui_full"])}))
+    if not st.session_state["ui_full"]:
+        st.html("<style>" + LITE_CSS + "</style>")
+
     html(f"""
         <div class='pro-card'>
             <h4>Nghia_Trading Pro</h4>
@@ -1484,17 +1562,15 @@ with st.sidebar:
 # ============================================================
 # 5. MAIN AREA
 # ============================================================
-df = load_data(ticker, interval)
+df = load_ready(ticker, interval)
 
 if df is None or len(df) < 50:
     st.error(f"❌ Không có dữ liệu cho {selected_asset}.")
     st.stop()
 
-with st.spinner("⚙️ Đang tính toán..."):
-    df = compute_indicators(df)
-    last_close = df["Close"].iloc[-1]
-    prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
-    change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
+last_close = df["Close"].iloc[-1]
+prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
+change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
 
 run_bot_engine(df, ticker, timeframe)
 
@@ -1582,8 +1658,8 @@ if menu_selection == "📊 Biểu đồ":
         fig.add_hline(y=active_trade['sl'], line_dash="dash", line_color="#ff5470", line_width=1, annotation_text="SL", row=1, col=1)
         fig.add_hline(y=active_trade['tp'], line_dash="dash", line_color="#22d3a0", line_width=1, annotation_text="TP", row=1, col=1)
 
-    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA20"], name="EMA 20", line=dict(color="#38e1ff", width=2, shape="spline", smoothing=0.6)), row=1, col=1)
-    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA50"], name="EMA 50", line=dict(color="#ff5ecb", width=1.5, dash='dot', shape="spline", smoothing=0.6)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA20"], name="EMA 20", line=dict(color="#38e1ff", width=2)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA50"], name="EMA 50", line=dict(color="#ff5ecb", width=1.5, dash='dot')), row=1, col=1)
 
     fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["RSI"], name="RSI", line=dict(color="#fbbf24", width=1.6), fill="tozeroy", fillcolor="rgba(251,191,36,0.05)"), row=2, col=1)
     fig.add_hline(y=70, line_dash="dash", line_color="#ff5470", line_width=1, row=2, col=1)
@@ -1601,7 +1677,7 @@ if menu_selection == "📊 Biểu đồ":
 
     fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", gridwidth=1, rangeslider_visible=False,
                      showspikes=True, spikecolor="rgba(124,124,255,0.5)", spikethickness=1, spikedash="dot", spikemode="across")
-    fig.update_xaxes(rangeslider=dict(visible=True, bgcolor="rgba(255,255,255,0.02)", bordercolor="rgba(255,255,255,0.1)", borderwidth=1), row=3, col=1)
+    fig.update_xaxes(rangeslider=dict(visible=bool(st.session_state.get("ui_full")), bgcolor="rgba(255,255,255,0.02)", bordercolor="rgba(255,255,255,0.1)", borderwidth=1), row=3, col=1)
     fig.update_xaxes(
         rangeselector=dict(
             buttons=list([
