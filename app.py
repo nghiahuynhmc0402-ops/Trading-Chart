@@ -673,15 +673,15 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 }
 .stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar,
 .stApp .nt-nav::-webkit-scrollbar { display: none; }
-.stApp .st-key-nt_menu div[data-testid="stRadio"] label,
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"],
 .stApp .nt-navlink {
     width: 44px !important; min-width: 44px !important; height: 44px; min-height: 44px; padding: 0 !important; margin: 0 !important;
     display: flex !important; align-items: center; justify-content: center !important; border-radius: 14px !important;
     font-size: 21px; line-height: 1; flex: 0 0 auto !important;
 }
-.stApp .st-key-nt_menu div[data-testid="stRadio"] label [data-testid="stMarkdownContainer"] { width: auto !important; min-width: 0 !important; }
-.stApp .st-key-nt_menu div[data-testid="stRadio"] label p { font-size: 21px !important; line-height: 1 !important; text-align: center; }
-.stApp .st-key-nt_menu div[data-testid="stRadio"] label:hover,
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] { width: auto !important; min-width: 0 !important; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"] p { font-size: 21px !important; line-height: 1 !important; text-align: center; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"]:hover,
 .stApp .nt-navlink:hover { transform: scale(1.08); }
 .stApp .nt-nav {
     position: fixed !important; left: calc(var(--nt-left, 0px) + 10px); right: auto; top: auto;
@@ -693,10 +693,23 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 @media (max-width: 768px) {
   .stApp .st-key-nt_menu, .stApp .nt-nav { left: calc(var(--nt-left, 0px) + 4px) !important; bottom: calc(var(--nt-lift, 52px) + env(safe-area-inset-bottom, 0px)) !important; }
   .stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"], .stApp .nt-nav { padding: 4px; border-radius: 20px; max-height: calc(100vh - 190px); }
-  .stApp .st-key-nt_menu div[data-testid="stRadio"] label, .stApp .nt-navlink { width: 40px !important; min-width: 40px !important; height: 40px; min-height: 40px; }
+  .stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"], .stApp .nt-navlink { width: 40px !important; min-width: 40px !important; height: 40px; min-height: 40px; }
   .stApp .block-container { padding-left: 54px !important; padding-right: .75rem !important; padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important; }
 }
 
+/* V9b: gỡ nhãn "Menu", chấm radio và mọi thứ thừa; chỉ giữ icon */
+.stApp .st-key-nt_menu [data-testid="stWidgetLabel"], .stApp .st-key-nt_menu > div > label:not([data-baseweb="radio"]) { display: none !important; }
+.stApp .st-key-nt_menu label[data-baseweb="radio"] input { display: none !important; }
+.stApp .st-key-nt_menu label[data-baseweb="radio"] div:not(:has([data-testid="stMarkdownContainer"])):not([data-testid="stMarkdownContainer"]):not([data-testid="stMarkdownContainer"] *) { display: none !important; }
+.stApp .st-key-nt_menu label[data-baseweb="radio"]:has(input:checked) { background: linear-gradient(135deg, rgba(124,124,255,.65), rgba(56,225,255,.35)) !important; box-shadow: 0 0 18px -4px rgba(139,123,255,.9); }
+/* V9c: cuộn liên tục "peak" hơn */
+.sec-sep { font-size: clamp(18px, 4.6vw, 24px); margin: 54px 0 10px; letter-spacing: .2px; background: linear-gradient(90deg, #fff, #b9a8ff 55%, #38e1ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; filter: drop-shadow(0 0 14px rgba(139,123,255,.45)); }
+.sec-sep::after { height: 2px; background: linear-gradient(90deg, rgba(56,225,255,.7), rgba(139,123,255,.5), transparent); }
+.nt-progress { position: fixed; left: 0; top: 0; height: 3px; width: 0; z-index: 100000; pointer-events: none; background: linear-gradient(90deg, #8b7bff, #38e1ff, #ff5ecb); box-shadow: 0 0 12px rgba(139,123,255,.9); transition: width .12s linear; }
+.stApp .nt-navlink.act { position: relative; }
+.stApp .nt-navlink.act::after { content: ""; position: absolute; right: -7px; top: 50%; width: 3px; height: 18px; margin-top: -9px; border-radius: 3px; background: #38e1ff; box-shadow: 0 0 10px #38e1ff; }
+@keyframes secIn { from { opacity: 0; transform: translateY(26px) scale(.985); } to { opacity: 1; transform: none; } }
+.sec-sep ~ * { }
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -911,6 +924,14 @@ FX_JS2 = r"""
   }
   D.addEventListener('scroll', function(){ if (!raf2) raf2 = requestAnimationFrame(mark); }, true);
   setInterval(function(){ if (D.hidden) return; tip(); side(); if (D.querySelector('.nt-navlink')) mark(); }, 700);
+
+  /* ---- Thanh tiến độ đọc ---- */
+  var pg = D.createElement('div'); pg.className = 'nt-progress'; D.body.appendChild(pg);
+  D.addEventListener('scroll', function(e){
+    var t = e.target === D ? D.scrollingElement : e.target;
+    if (!t || typeof t.scrollTop !== 'number' || t.scrollHeight - t.clientHeight < 200) return;
+    pg.style.width = Math.min(100, t.scrollTop / (t.scrollHeight - t.clientHeight) * 100).toFixed(1) + '%';
+  }, true);
 
   /* ---- Lật thẻ khi chạm ---- */
   D.addEventListener('click', function(e){
