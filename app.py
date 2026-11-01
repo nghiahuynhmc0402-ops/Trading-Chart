@@ -2038,17 +2038,17 @@ if feed or menu_selection == "🎯 Kế hoạch giao dịch":
 
         if trade_plan:
             risk_amount = balance * (risk_pct / 100)
-            sl_distance = abs(trade_plan['entry'] - trade_plan['sl'])
+            sl_dist = abs(trade_plan['entry'] - trade_plan['sl'])
 
-            if sl_distance > 0:
-                position_size = risk_amount / sl_distance
+            if sl_dist > 0:
+                position_size = risk_amount / sl_dist
                 leverage = (position_size * trade_plan['entry']) / balance if balance > 0 else 0
 
                 html(f"""
                     <div class='glass-card'>
                         <div class='card-title'>🧮 Máy Tính Vị Thế</div>
                         <div class='row-item'><span>Tiền rủi ro tối đa:</span> <span class='val-data val-down'>${risk_amount:,.2f}</span></div>
-                        <div class='row-item'><span>Khoảng cách SL:</span> <span class='val-data'>{format_vn_price(sl_distance)}</span></div>
+                        <div class='row-item'><span>Khoảng cách SL:</span> <span class='val-data'>{format_vn_price(sl_dist)}</span></div>
                         <div class='row-item' style='margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.1);'><span style='color: #fff; font-weight: 700;'>Khối lượng (Size):</span> <span class='val-data val-up' style='font-size: 20px;'>{position_size:,.4f}</span></div>
                         <div class='row-item'><span>Đòn bẩy (Leverage) khuyến nghị:</span> <span class='val-data' style='color: #fbbf24;'>x{leverage:.1f}</span></div>
                     </div>
