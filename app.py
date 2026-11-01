@@ -1325,6 +1325,121 @@ def session_stats(ticker: str):
     return {n: float(rng[(hr >= a) & (hr < b)].mean()) for n, (a, b) in SESSIONS_UTC.items()}
 
 
+# ------------------------------------------------------------
+# Cấu hình AI (Vốn & Lot, SL/TP): mẫu nhanh + lưu/tải + tự khôi phục lần sau
+# ------------------------------------------------------------
+AI_SLM = ["ATR (theo biến động)", "Cấu trúc (swing 10 nến)"]
+AI_SAFE = ["Mạo hiểm", "Cân bằng", "Thận trọng"]
+AI_RMODES = ["% vốn", "Số tiền $", "Lot cố định"]
+AI_LEVS = [1, 5, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000]
+AI_DEFAULTS = {"ai_slm": AI_SLM[0], "ai_k": 1.5, "ai_rr": 2.0, "ai_split": True, "ai_safe": "Cân bằng", "ai_off": False,
+               "ai_bal": 1000.0, "ai_rmode": "% vốn", "ai_risk": 1.0, "ai_rusd": 10.0, "ai_flot": 0.01, "ai_lev": 100, "ai_step": 0.01}
+AI_TEMPLATES = {
+    "🛡️ Bảo toàn 0,5%": {"ai_rmode": "% vốn", "ai_risk": 0.5, "ai_safe": "Thận trọng", "ai_rr": 2.0, "ai_k": 1.8, "ai_split": True},
+    "⚖️ Cân bằng 1%": {"ai_rmode": "% vốn", "ai_risk": 1.0, "ai_safe": "Cân bằng", "ai_rr": 2.0, "ai_k": 1.5, "ai_split": True},
+    "⚡ Tấn công 3%": {"ai_rmode": "% vốn", "ai_risk": 3.0, "ai_safe": "Mạo hiểm", "ai_rr": 1.5, "ai_k": 1.2, "ai_split": True},
+    "🔥 Liều cao 10%": {"ai_rmode": "% vốn", "ai_risk": 10.0, "ai_safe": "Mạo hiểm", "ai_rr": 1.5, "ai_k": 1.2, "ai_split": False},
+}
+
+
+def ai_db_init():
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS ai_presets (name TEXT PRIMARY KEY, data TEXT)")
+
+
+ai_db_init()
+
+
+def ai_cfg_put(name, data):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("INSERT OR REPLACE INTO ai_presets (name, data) VALUES (?, ?)", (name, json.dumps(data, ensure_ascii=False)))
+
+
+def ai_cfg_get(name):
+    with sqlite3.connect(DB_FILE) as conn:
+        row = conn.execute("SELECT data FROM ai_presets WHERE name=?", (name,)).fetchone()
+    try: return json.loads(row[0]) if row else {}
+    except Exception: return {}
+
+
+def ai_cfg_list():
+    with sqlite3.connect(DB_FILE) as conn:
+        return [r[0] for r in conn.execute("SELECT name FROM ai_presets WHERE name!='__last__' ORDER BY name")]
+
+
+def ai_cfg_del(name):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM ai_presets WHERE name=?", (name,))
+
+
+def ai_clean(cfg):
+    """Ép kiểu, kẹp biên và làm tròn bước để cấu hình cũ/hỏng không làm vỡ widget."""
+    cfg, out = (cfg or {}), {}
+    for k, d in AI_DEFAULTS.items():
+        v = cfg.get(k, d)
+        try:
+            if k == "ai_slm": v = v if v in AI_SLM else d
+            elif k == "ai_safe": v = v if v in AI_SAFE else d
+            elif k == "ai_rmode": v = v if v in AI_RMODES else d
+            elif k in ("ai_split", "ai_off"): v = bool(v)
+            elif k == "ai_lev": v = int(v) if int(v) in AI_LEVS else d
+            elif k == "ai_step": v = float(v) if float(v) in (0.01, 0.1, 1.0) else d
+            else: v = float(v)
+        except Exception:
+            v = d
+        out[k] = v
+    out["ai_k"] = min(max(round(out["ai_k"] * 10) / 10, 0.8), 3.0)
+    out["ai_rr"] = min(max(round(out["ai_rr"] * 2) / 2, 1.0), 4.0)
+    out["ai_risk"] = min(max(round(out["ai_risk"] * 4) / 4, 0.25), 50.0)
+    out["ai_bal"], out["ai_rusd"] = max(out["ai_bal"], 10.0), max(out["ai_rusd"], 1.0)
+    out["ai_flot"] = max(round(out["ai_flot"], 2), 0.01)
+    for k, v in cfg.items():
+        if k.startswith("ai_cv_"):
+            try: out[k] = max(float(v), 1e-4)
+            except Exception: pass
+    return out
+
+
+def ai_snapshot():
+    snap = {k: st.session_state.get(k, d) for k, d in AI_DEFAULTS.items()}
+    snap.update({k: v for k, v in st.session_state.items() if str(k).startswith("ai_cv_")})
+    return snap
+
+
+def ai_apply(cfg):
+    for k, v in ai_clean({**ai_snapshot(), **cfg}).items(): st.session_state[k] = v
+
+
+def cb_tpl():
+    p = st.session_state.get("ai_tpl")
+    if p in AI_TEMPLATES: ai_apply(AI_TEMPLATES[p]); st.session_state["_ai_msg"] = f"✅ Đã áp dụng mẫu {p}"
+    st.session_state["ai_tpl"] = None
+
+
+def cb_pick(src, dst, cast=float):
+    def _f():
+        v = st.session_state.get(src)
+        if v is not None: st.session_state[dst] = cast(v)
+        st.session_state[src] = None
+    return _f
+
+
+def cb_save():
+    name = (st.session_state.get("ai_cfgname") or "").strip()[:40]
+    if name and name != "__last__": ai_cfg_put(name, ai_snapshot()); st.session_state["_ai_msg"] = f"✅ Đã lưu cấu hình “{name}”"
+    else: st.session_state["_ai_msg"] = "⚠️ Hãy nhập tên cấu hình."
+
+
+def cb_load():
+    name = st.session_state.get("ai_cfgsel")
+    if name: ai_apply(ai_cfg_get(name)); st.session_state["_ai_msg"] = f"📂 Đã tải “{name}”"
+
+
+def cb_del():
+    name = st.session_state.get("ai_cfgsel")
+    if name: ai_cfg_del(name); st.session_state["_ai_msg"] = f"🗑️ Đã xóa “{name}”"
+
+
 # ============================================================
 # 4. SIDEBAR
 # ============================================================
@@ -1639,22 +1754,57 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
 # ------------------------------------------------------------
 elif menu_selection == "🤖 AI Vào lệnh":
     st.subheader("AI Vào lệnh: chọn lọc, có kiểm chứng, an toàn vốn")
+    if "_ai_store" not in st.session_state:
+        st.session_state["_ai_store"] = ai_clean(ai_cfg_get("__last__"))
+    for _k, _v in st.session_state["_ai_store"].items():
+        if _k not in st.session_state: st.session_state[_k] = _v
     col_l, col_r = st.columns([1.5, 1], gap="large")
     with col_r:
         html("<div class='side-label'>Tùy biến SL / TP</div>")
-        sl_mode = st.selectbox("Kiểu SL", ["ATR (theo biến động)", "Cấu trúc (swing 10 nến)"], key="ai_slm")
-        k_sl = st.slider("Hệ số ATR cho SL", 0.8, 3.0, 1.5, 0.1, key="ai_k", disabled=sl_mode.startswith("Cấu trúc"))
-        rr_ai = st.slider("Tỷ lệ R:R (TP)", 1.0, 4.0, 2.0, 0.5, key="ai_rr")
-        split_tp = st.toggle("Chia 2 mục tiêu (TP1 = 1R, dời SL về hòa vốn)", value=True, key="ai_split")
-        safety = st.select_slider("Mức an toàn", ["Mạo hiểm", "Cân bằng", "Thận trọng"], value="Cân bằng", key="ai_safe")
-        allow_off = st.toggle("Cho phép vào lệnh ngoài giờ / đóng cửa", value=False, key="ai_off")
+        sl_mode = st.selectbox("Kiểu SL", AI_SLM, key="ai_slm")
+        k_sl = st.slider("Hệ số ATR cho SL", 0.8, 3.0, step=0.1, key="ai_k", disabled=sl_mode.startswith("Cấu trúc"))
+        rr_ai = st.slider("Tỷ lệ R:R (TP)", 1.0, 4.0, step=0.5, key="ai_rr")
+        split_tp = st.toggle("Chia 2 mục tiêu (TP1 = 1R, dời SL về hòa vốn)", key="ai_split")
+        safety = st.select_slider("Mức an toàn", AI_SAFE, key="ai_safe")
+        allow_off = st.toggle("Cho phép vào lệnh ngoài giờ / đóng cửa", key="ai_off")
         html("<div class='side-label' style='margin-top:10px'>Vốn & Lot</div>")
-        bal_ai = st.number_input("Số dư ($)", value=1000.0, step=100.0, key="ai_bal")
-        risk_ai = st.number_input("Rủi ro mỗi lệnh (%)", value=1.0, min_value=0.1, max_value=3.0, step=0.1, key="ai_risk")
-        lev_ai = st.number_input("Đòn bẩy tài khoản (1:x)", value=100, min_value=1, step=10, key="ai_lev")
-        lot_step = st.selectbox("Bước lot", [0.01, 0.1, 1.0], key="ai_step")
+        st.pills("Mẫu nhanh", list(AI_TEMPLATES), key="ai_tpl", on_change=cb_tpl)
+        st.number_input("Số dư ($)", min_value=10.0, step=100.0, format="%.2f", key="ai_bal")
+        st.pills("Gợi ý vốn", [50, 100, 500, 1000, 5000, 10000, 50000], format_func=lambda v: f"${v:,}", key="ai_balpick", on_change=cb_pick("ai_balpick", "ai_bal"))
+        st.segmented_control("Cách đặt rủi ro", AI_RMODES, key="ai_rmode")
+        rmode = st.session_state.get("ai_rmode") or "% vốn"
+        if rmode == "% vốn":
+            st.slider("Rủi ro mỗi lệnh (% vốn)", 0.25, 50.0, step=0.25, key="ai_risk")
+            st.pills("Gợi ý %", [0.5, 1, 2, 3, 5, 10, 25, 50], format_func=lambda v: f"{v:g}%", key="ai_riskpick", on_change=cb_pick("ai_riskpick", "ai_risk"))
+        elif rmode == "Số tiền $":
+            st.number_input("Chấp nhận mất tối đa ($)", min_value=1.0, step=5.0, format="%.2f", key="ai_rusd")
+            st.pills("Gợi ý $", [5, 10, 25, 50, 100, 250, 500], format_func=lambda v: f"${v}", key="ai_rusdpick", on_change=cb_pick("ai_rusdpick", "ai_rusd"))
+        else:
+            st.number_input("Lot cố định", min_value=0.01, step=0.01, format="%.2f", key="ai_flot")
+            st.pills("Gợi ý lot", [0.01, 0.02, 0.05, 0.1, 0.5, 1.0], format_func=lambda v: f"{v:g}", key="ai_flotpick", on_change=cb_pick("ai_flotpick", "ai_flot"))
+        lev_ai = int(st.selectbox("Đòn bẩy tài khoản", AI_LEVS, format_func=lambda v: f"1:{v}", key="ai_lev"))
+        lot_step = float(st.segmented_control("Bước lot", [0.01, 0.1, 1.0], key="ai_step") or 0.01)
+        bal_ai, risk_ai = float(st.session_state["ai_bal"]), float(st.session_state["ai_risk"])
+        rusd_ai, flot_ai = float(st.session_state["ai_rusd"]), float(st.session_state["ai_flot"])
         cv_auto = contract_value(ticker, float(last_close))
-        cv = st.number_input("USD / 1.0 giá / 1 lot (ghi đè nếu broker khác)", value=float(round(cv_auto, 4)), key=f"ai_cv_{ticker}")
+        _cvk = f"ai_cv_{ticker}"
+        if _cvk not in st.session_state: st.session_state[_cvk] = st.session_state["_ai_store"].get(_cvk, float(round(cv_auto, 4)))
+        cv = st.number_input("USD / 1.0 giá / 1 lot (ghi đè nếu broker khác)", min_value=0.0001, format="%.4f", key=_cvk)
+        with st.expander("💾 Cấu hình đã lưu"):
+            st.text_input("Tên cấu hình", placeholder="vd: Vàng - an toàn", key="ai_cfgname")
+            st.button("💾 Lưu cấu hình hiện tại", on_click=cb_save, width="stretch", key="ai_btn_save")
+            _names = ai_cfg_list()
+            if _names:
+                st.selectbox("Cấu hình đã lưu", _names, key="ai_cfgsel")
+                _a, _b = st.columns(2)
+                _a.button("📂 Tải", on_click=cb_load, width="stretch", key="ai_btn_load")
+                _b.button("🗑️ Xóa", on_click=cb_del, width="stretch", key="ai_btn_del")
+            _m = st.session_state.pop("_ai_msg", None)
+            st.caption(_m or "Mọi lựa chọn được tự động lưu và khôi phục ở lần mở sau.")
+        _snap = ai_snapshot()
+        if _snap != st.session_state["_ai_store"]:
+            st.session_state["_ai_store"] = _snap
+            ai_cfg_put("__last__", _snap)
 
     iv_h = {"1m": 48, "5m": 48, "15m": 48, "60m": 24, "1d": 10, "1wk": 6}[interval]
     margin = {"Mạo hiểm": 0.02, "Cân bằng": 0.05, "Thận trọng": 0.08}[safety]
@@ -1686,25 +1836,45 @@ elif menu_selection == "🤖 AI Vào lệnh":
                     </div>{reasons}
                 </div>
             """)
-            lot_raw = (bal_ai * risk_ai / 100) / max(dec["sld"] * cv, 1e-12)
-            lot = max(np.floor(lot_raw / lot_step) * lot_step, lot_step)
+            step = lot_step
+            if rmode == "Lot cố định":
+                lot_raw = flot_ai; lot = max(np.round(lot_raw / step) * step, step)
+                risk_usd = lot * dec["sld"] * cv
+            else:
+                risk_usd = rusd_ai if rmode == "Số tiền $" else bal_ai * risk_ai / 100
+                lot_raw = risk_usd / max(dec["sld"] * cv, 1e-12); lot = max(np.floor(lot_raw / step) * step, step)
+            lot_cap = np.floor(bal_ai * lev_ai / max(cv * dec["entry"], 1e-12) / step) * step
+            capped = lot > lot_cap
+            if capped: lot = max(lot_cap, step)
             real_risk = lot * dec["sld"] * cv
+            rp = min(real_risk / max(bal_ai, 1e-9), 1.0)
+            tier, tcol = (("AN TOÀN", "#22d3a0") if rp <= 0.02 else ("CAO", "#fbbf24") if rp <= 0.05 else ("RẤT CAO", "#fb923c") if rp <= 0.10
+                          else ("NGUY HIỂM", "#ff5470") if rp <= 0.25 else ("CỰC KỲ NGUY HIỂM", "#ff2d55"))
+            n50 = 1 if rp >= 0.5 else int(np.ceil(np.log(0.5) / np.log(1 - rp))) if rp > 0 else 999
+            risk_html = f"""
+                <div class='row-item' style='margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.1);'><span>Mức rủi ro:</span><span class='val-data' style='color:{tcol};font-weight:800'>{tier} ({rp * 100:.1f}% vốn)</span></div>
+                <div class='row-item'><span>Vốn còn lại sau 1 / 3 lệnh thua liên tiếp:</span><span class='val-data'>{(1 - rp) * 100:.0f}% / {(1 - rp) ** 3 * 100:.0f}%</span></div>
+                <div class='row-item'><span>Số lệnh thua liên tiếp để mất 50% vốn:</span><span class='val-data' style='color:{tcol}'>{n50}</span></div>"""
+            if rp > 0.10:
+                risk_html += "<div class='row-item'><span style='color:#ff5470'>⚠️ Rủi ro rất cao: một chuỗi thua ngắn có thể xóa phần lớn tài khoản. Chỉ dùng số tiền bạn sẵn sàng mất.</span></div>"
             c1, c2, c3 = st.columns(3)
             with c1: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(dec["entry"]), "NẾN ĐÃ ĐÓNG", is_positive=None, raw=dec["entry"])
             with c2: quantum_metric("CẮT LỖ (SL)", format_vn_price(dec["sl"]), f"-{real_risk:,.2f}$", is_positive=False, raw=dec["sl"])
             with c3: quantum_metric("CHỐT LỜI (TP)", format_vn_price(dec["tp2"]), f"+{real_risk * rr_ai:,.2f}$", is_positive=True, raw=dec["tp2"])
             if split_tp:
                 html(f"<div class='math-box'><b style='color:#fff;'>Kế hoạch 2 mục tiêu:</b> chốt 50% tại TP1 <b style='color:#22d3a0'>{format_vn_price(dec['tp1'])}</b> (1R), dời SL về giá vào lệnh, phần còn lại chạy tới TP <b style='color:#22d3a0'>{format_vn_price(dec['tp2'])}</b>.</div>")
-            warn = "" if lot_raw >= lot_step else "<div class='row-item'><span style='color:#fbbf24'>⚠️ SL quá xa so với vốn: lot tối thiểu đã vượt mức rủi ro bạn đặt.</span></div>"
+            warn = ""
+            if rmode != "Lot cố định" and lot_raw < step: warn += "<div class='row-item'><span style='color:#fbbf24'>⚠️ SL quá xa so với vốn: lot tối thiểu đã vượt mức rủi ro bạn đặt.</span></div>"
+            if capped: warn += "<div class='row-item'><span style='color:#fbbf24'>⚠️ Lot đã bị giới hạn theo ký quỹ (đòn bẩy 1:" + str(lev_ai) + "), nên rủi ro thực tế thấp hơn mục tiêu.</span></div>"
             notional = lot * cv * dec["entry"]
             html(f"""
                 <div class='glass-card'>
                     <div class='card-title'>🧮 Khối lượng (Lot) & Rủi ro</div>
-                    <div class='row-item'><span>Tiền rủi ro mục tiêu:</span><span class='val-data'>${bal_ai * risk_ai / 100:,.2f}</span></div>
+                    <div class='row-item'><span>Tiền rủi ro mục tiêu:</span><span class='val-data'>${risk_usd:,.2f}</span></div>
                     <div class='row-item'><span>Khoảng cách SL:</span><span class='val-data'>{format_vn_price(dec['sld'])}</span></div>
                     <div class='row-item' style='margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.1);'><span style='color:#fff;font-weight:700'>Lot đề xuất:</span><span class='val-data val-up' style='font-size:22px'>{lot:.2f}</span></div>
                     <div class='row-item'><span>Rủi ro thực tế sau làm tròn:</span><span class='val-data val-down'>${real_risk:,.2f} ({real_risk / max(bal_ai, 1e-9) * 100:.2f}%)</span></div>
-                    <div class='row-item'><span>Giá trị vị thế / Ký quỹ ước tính (1:{lev_ai}):</span><span class='val-data'>${notional:,.0f} / ${notional / lev_ai:,.2f}</span></div>{warn}
+                    <div class='row-item'><span>Giá trị vị thế / Ký quỹ ước tính (1:{lev_ai}):</span><span class='val-data'>${notional:,.0f} / ${notional / lev_ai:,.2f}</span></div>{warn}{risk_html}
                 </div>
             """)
             r = dec["r"]
