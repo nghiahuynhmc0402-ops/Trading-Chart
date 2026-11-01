@@ -935,6 +935,9 @@ def quantum_metric(label, value_str, delta_text=None, is_positive=None, raw=None
         "GIÁ HIỆN TẠI": "Giá đóng cửa của nến mới nhất. Xanh là tăng so với nến trước, đỏ là giảm.",
         "RSI (14)": "Trên 70: quá mua, dễ điều chỉnh. Dưới 30: quá bán, dễ hồi. Quanh 50: trung tính.",
         "ADX (14)": "Đo sức mạnh xu hướng, không đo hướng. Trên 25 là xu hướng mạnh, dưới 20 là đi ngang.",
+        "PHIÊN Á 07–15H": "Giờ VN (xấp xỉ). Thanh khoản vừa, hay đi ngang; Vàng và JPY hoạt động nhiều.",
+        "PHIÊN ÂU 14–23H": "Giờ VN (xấp xỉ). Biên độ lớn, thường tạo xu hướng trong ngày.",
+        "PHIÊN MỸ 20–04H": "Giờ VN (xấp xỉ). Biến động mạnh nhất, nhất là lúc giao phiên với Âu.",
         "ATR (14)": "Biên độ dao động trung bình 14 nến. Dùng để đặt SL/TP theo độ biến động.",
         "GIÁ VÀO LỆNH": "Giá đóng cửa nến mới nhất, dùng làm điểm vào tham chiếu.",
         "CẮT LỖ (SL)": "Vùng thoát lệnh khi thị trường đi sai: ngoài đỉnh/đáy 20 nến, cộng thêm 0,5 ATR.",
@@ -1123,6 +1126,206 @@ def calculate_fibonacci(df: pd.DataFrame) -> dict:
 
 
 # ============================================================
+# 3b. AI ENTRY ENGINE (numpy thuần: logistic regression + triple-barrier + kiểm chứng ngoài mẫu)
+# ============================================================
+SESSIONS_UTC = {"Á": (0, 8), "Âu": (7, 16), "Mỹ": (13, 21)}  # xấp xỉ, lệch ±1h theo DST. Giờ VN = UTC+7
+SESSION_VN = {"Á": "07–15h", "Âu": "14–23h", "Mỹ": "20–04h"}
+
+
+def contract_value(ticker: str, price: float) -> float:
+    """USD lãi/lỗ cho mỗi 1.0 đơn vị giá của 1 lot chuẩn (ước tính, có thể ghi đè)."""
+    if ticker == "GC=F": return 100.0
+    if ticker == "SI=F": return 5000.0
+    if ticker == "CL=F": return 1000.0
+    if ticker == "JPY=X": return 100000.0 / max(price, 1e-9)
+    if ticker.endswith("=X"): return 100000.0
+    return 1.0
+
+
+def market_state(ticker: str, now_vn):
+    """(đang đóng cửa?, danh sách phiên đang mở) tại giờ VN (naive)."""
+    utc = now_vn - timedelta(hours=7)
+    h, wd = utc.hour + utc.minute / 60, utc.weekday()
+    crypto = ticker.endswith("-USD")
+    closed = False
+    if not crypto:
+        if ticker.startswith("^") or ticker.isalpha():
+            closed = wd >= 5 or not (13.5 <= h < 21)
+        else:
+            closed = wd == 5 or (wd == 4 and h >= 22) or (wd == 6 and h < 22)
+    sess = [n for n, (a, b) in SESSIONS_UTC.items() if a <= h < b]
+    return closed, (sess or ["Ngoài giờ"])
+
+
+def ai_features(df: pd.DataFrame) -> pd.DataFrame:
+    c, atr = df["Close"], df["ATR"].replace(0, np.nan)
+    f = pd.DataFrame(index=df.index)
+    f["trend"] = (df["EMA20"] - df["EMA50"]) / atr
+    f["pos"] = (c - df["EMA20"]) / atr
+    f["r1"], f["r5"], f["r20"] = c.diff(1) / atr, c.diff(5) / atr, c.diff(20) / atr
+    f["rsi"] = (df["RSI"] - 50) / 50
+    f["macd"] = df["MACD_hist"] / atr
+    f["adx"] = df["ADX"] / 50
+    f["bb"] = (c - df["BB_lower"]) / (df["BB_upper"] - df["BB_lower"]).replace(0, np.nan) - 0.5
+    f["vol"] = (atr / c).rolling(100, min_periods=30).rank(pct=True) - 0.5
+    f["body"] = (c - df["Open"]) / (df["High"] - df["Low"]).replace(0, np.nan)
+    f["dhi"] = (df["High"].rolling(20).max() - c) / atr
+    f["dlo"] = (c - df["Low"].rolling(20).min()) / atr
+    hr = (df["Time"] - pd.Timedelta(hours=7)).dt.hour
+    f["hs"], f["hc"] = np.sin(2 * np.pi * hr / 24), np.cos(2 * np.pi * hr / 24)
+    return f.replace([np.inf, -np.inf], np.nan).clip(-6, 6)
+
+
+def sl_distance(df: pd.DataFrame, side: str, mode: str, k: float) -> pd.Series:
+    atr = df["ATR"]
+    if mode == "Cấu trúc (swing 10 nến)":
+        sw = (df["Close"] - df["Low"].rolling(10).min() if side == "LONG" else df["High"].rolling(10).max() - df["Close"]) + 0.25 * atr
+        return sw.clip(lower=0.8 * atr, upper=3.5 * atr)
+    return k * atr
+
+
+def triple_barrier(df: pd.DataFrame, side: str, sld: pd.Series, rr: float, horizon: int) -> np.ndarray:
+    """1 nếu chạm TP trước SL trong `horizon` nến (cùng nến = thua, hết hạn = không thắng)."""
+    hi, lo, cl, d = df["High"].values, df["Low"].values, df["Close"].values, sld.values
+    n, y, big = len(df), np.full(len(df), np.nan), 10 ** 6
+    for i in range(n - horizon - 1):
+        if not np.isfinite(d[i]) or d[i] <= 0: continue
+        h, l = hi[i + 1:i + 1 + horizon], lo[i + 1:i + 1 + horizon]
+        if side == "LONG": a, b = l <= cl[i] - d[i], h >= cl[i] + d[i] * rr
+        else: a, b = h >= cl[i] + d[i], l <= cl[i] - d[i] * rr
+        t_sl, t_tp = (a.argmax() if a.any() else big), (b.argmax() if b.any() else big)
+        y[i] = 1.0 if t_tp < t_sl else 0.0
+    return y
+
+
+def wilson_lb(hit: float, n: int, horizon: int, z: float = 1.28) -> float:
+    """Cận dưới tin cậy của tỷ lệ thắng; n bị chiết khấu vì các lệnh chồng lấn nhau trong `horizon` nến."""
+    ne = max(n / max(horizon / 6.0, 1.0), 1e-9)
+    return float((hit + z * z / (2 * ne) - z * np.sqrt(hit * (1 - hit) / ne + z * z / (4 * ne * ne))) / (1 + z * z / ne)) if n else 0.0
+
+
+def _sig(z): return 1.0 / (1.0 + np.exp(-np.clip(z, -30, 30)))
+
+
+def fit_logit(X, y, l2=5.0, iters=400, lr=0.15):
+    m = float(np.clip(y.mean(), 0.02, 0.98))
+    w, b = np.zeros(X.shape[1]), float(np.log(m / (1 - m)))
+    for _ in range(iters):
+        g = _sig(X @ w + b) - y
+        w -= lr * (X.T @ g / len(y) + l2 * w / len(y))
+        b -= lr * g.mean()
+    return w, b
+
+
+@st.cache_data(ttl=120, show_spinner="🤖 AI ĐANG HUẤN LUYỆN & KIỂM CHỨNG...")
+def ai_predict(df, rr, k, mode, horizon, thr):
+    X, out = ai_features(df).values, {}
+    for side in ("LONG", "SHORT"):
+        sld = sl_distance(df, side, mode, k)
+        y = triple_barrier(df, side, sld, rr, horizon)
+        idx = np.where(np.isfinite(X).all(1) & np.isfinite(y))[0]
+        if len(idx) < 150:
+            out[side] = None
+            continue
+        cut = int(len(idx) * 0.7)
+        tr, te = idx[:max(cut - horizon, 60)], idx[cut:]  # chừa khoảng trống `horizon` nến để không rò rỉ nhãn
+        mu, sd = X[tr].mean(0), X[tr].std(0) + 1e-9
+        w, b = fit_logit((X[tr] - mu) / sd, y[tr])
+        pt, ye = _sig(((X[te] - mu) / sd) @ w + b), y[te]
+        sel = pt >= thr
+        n = int(sel.sum())
+        mu2, sd2 = X[idx].mean(0), X[idx].std(0) + 1e-9
+        w2, b2 = fit_logit((X[idx] - mu2) / sd2, y[idx])
+        p = float(_sig(((X[-1] - mu2) / sd2) @ w2 + b2)) if np.isfinite(X[-1]).all() else None
+        out[side] = dict(p=p, n=n, hit=float(ye[sel].mean()) if n else 0.0,
+                         ev=float((ye[sel] * rr - (1 - ye[sel])).mean()) if n else 0.0,
+                         base=float(ye.mean()), ntest=int(len(te)), sld=float(sld.iloc[-1]),
+                         lb=wilson_lb(float(ye[sel].mean()) if n else 0.0, n, horizon))
+    return out
+
+
+def ai_decide(res, df, mtf, rr, margin, ticker, now_vn, allow_off, split_tp):
+    be, cands = 1 / (1 + rr), {s: r for s, r in res.items() if r and r["p"] is not None}
+    if not cands: return None
+    thr = be + margin
+    side = max(cands, key=lambda s: cands[s]["p"])
+    r, last, sgn = cands[side], df.iloc[-1], (1 if side == "LONG" else -1)
+    want = "TĂNG" if side == "LONG" else "GIẢM"
+    agree = sum(1 for v in mtf.values() if v == want)
+    closed, sess = market_state(ticker, now_vn)
+    vol = ai_features(df.tail(150))["vol"].iloc[-1]
+    sess_ok = allow_off or (not closed and sess != ["Ngoài giờ"])
+    gates = [
+        (r["p"] >= thr, f"Xác suất thắng ước tính <b>{r['p'] * 100:.1f}%</b> (ngưỡng an toàn ≥ {thr * 100:.1f}%, hòa vốn {be * 100:.1f}%)."),
+        (r["n"] >= 8 and r["lb"] > be, f"Kiểm chứng ngoài mẫu: <b>{r['n']}</b> tín hiệu, thắng {r['hit'] * 100:.0f}%, cận dưới tin cậy <b>{r['lb'] * 100:.0f}%</b> (phải > hòa vốn {be * 100:.0f}%, loại bỏ may rủi)."),
+        (sess_ok, "Phiên: <b>" + ("THỊ TRƯỜNG ĐÓNG" if closed else "+".join(sess)) + "</b> (tránh vào lệnh ngoài giờ thanh khoản thấp)."),
+        (float(last["ADX"]) >= 18, f"ADX <b>{last['ADX']:.1f}</b> (cần ≥ 18 để tránh thị trường nhiễu đi ngang)."),
+        (agree >= 2, f"Đồng thuận đa khung: <b>{agree}/3</b> khung cùng {want}."),
+        (bool(vol == vol and vol <= 0.45), "Biến động không nằm trong nhóm 5% cao bất thường."),
+    ]
+    entry, sld = float(last["Close"]), r["sld"]
+    ok = all(g[0] for g in gates)
+    return dict(side=side, ok=ok, p=r["p"], thr=thr, be=be, ev_exp=r["p"] * rr - (1 - r["p"]), gates=gates, r=r,
+                grade=("A" if ok and r["p"] >= thr + 0.07 else "B") if ok else "—",
+                entry=entry, sl=entry - sgn * sld, tp1=entry + sgn * sld, tp2=entry + sgn * sld * rr, sld=sld, atr=float(last["ATR"]))
+
+
+@st.cache_data(ttl=3, show_spinner=False)
+def live_price(ticker: str):
+    try:
+        fi = yf.Ticker(ticker).fast_info
+        return float(fi["last_price"]), float(fi["previous_close"])
+    except Exception:
+        try:
+            d = yf.download(ticker, period="1d", interval="1m", progress=False, auto_adjust=True)
+            if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
+            return float(d["Close"].iloc[-1]), float(d["Open"].iloc[0])
+        except Exception:
+            return None
+
+
+@st.fragment(run_every="5s")
+def live_monitor(ticker, plan, lot, cv, atr):
+    lp = live_price(ticker)
+    if lp is None:
+        st.caption("⚠️ Chưa lấy được giá trực tiếp, đang thử lại...")
+        return
+    price, prev = lp
+    now = pd.Timestamp.utcnow().tz_localize(None) + timedelta(hours=7)
+    chg = (price - prev) / prev * 100 if prev else 0.0
+    closed, sess = market_state(ticker, now)
+    col = "#22d3a0" if chg >= 0 else "#ff5470"
+    state = "THỊ TRƯỜNG ĐÓNG" if closed else "PHIÊN " + "+".join(sess).upper()
+    extra = ""
+    if plan:
+        sgn = 1 if plan["side"] == "LONG" else -1
+        pnl, dist = (price - plan["entry"]) * sgn * lot * cv, (price - plan["entry"]) * sgn / max(atr, 1e-9)
+        if sgn * (price - plan["sl"]) <= 0: msg, mc = "⛔ GIÁ ĐÃ CHẠM SL, kế hoạch hết hiệu lực", "#ff5470"
+        elif sgn * (price - plan["tp2"]) >= 0: msg, mc = "🎯 GIÁ ĐÃ ĐẠT TP", "#22d3a0"
+        elif dist > 0.5: msg, mc = "⚠️ GIÁ ĐÃ CHẠY XA ENTRY, KHÔNG ĐUỔI, chờ hồi về vùng vào lệnh", "#fbbf24"
+        elif dist < -0.5: msg, mc = "🟠 Giá đang đi ngược hướng, chờ xác nhận lại", "#fbbf24"
+        else: msg, mc = "✅ Giá trong vùng vào lệnh", "#22d3a0"
+        extra = (f"<div class='row-item' style='margin-top:10px'><span style='color:{mc};font-weight:700'>{msg}</span>"
+                 f"<span class='val-data' style='color:{'#22d3a0' if pnl >= 0 else '#ff5470'}'>{pnl:+,.2f}$ ({lot:.2f} lot)</span></div>")
+    html(f"""
+        <div class='glass-card' style='padding:12px 18px; margin-bottom:12px'>
+            <div class='row-item'><span><b style='color:#ff5470'>● LIVE</b> &nbsp;<b style='color:#fff;font-size:20px'>{format_vn_price(price)}</b>
+            &nbsp;<span style='color:{col}'>{chg:+.2f}%</span></span>
+            <span style='color:#9a9ab5;font-size:12px'>{state} • {now:%H:%M:%S} (giờ VN)</span></div>{extra}
+        </div>
+    """)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def session_stats(ticker: str):
+    d = load_data(ticker, "60m")
+    if d is None or len(d) < 48: return None
+    hr = (d["Time"] - pd.Timedelta(hours=7)).dt.hour
+    rng = (d["High"] - d["Low"]) / d["Close"] * 100
+    return {n: float(rng[(hr >= a) & (hr < b)].mean()) for n, (a, b) in SESSIONS_UTC.items()}
+
+
+# ============================================================
 # 4. SIDEBAR
 # ============================================================
 with st.sidebar:
@@ -1231,10 +1434,12 @@ html(f"""
 # MENU NGANG (viên thuốc, vuốt ngang trên di động)
 menu_selection = st.radio(
     "Menu",
-    ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"],
+    ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"],
     horizontal=True, label_visibility="collapsed"
 )
 html("<div style='height:14px'></div>")
+if menu_selection != "🤖 AI Vào lệnh":
+    live_monitor(ticker, None, 0.0, 1.0, float(df["ATR"].iloc[-1]))
 
 # ------------------------------------------------------------
 # KHU VỰC 1: BIỂU ĐỒ (Bao gồm KPI)
@@ -1432,6 +1637,100 @@ elif menu_selection == "🎯 Kế hoạch giao dịch":
 # ------------------------------------------------------------
 # KHU VỰC 3: PHÂN TÍCH SMC
 # ------------------------------------------------------------
+elif menu_selection == "🤖 AI Vào lệnh":
+    st.subheader("AI Vào lệnh: chọn lọc, có kiểm chứng, an toàn vốn")
+    col_l, col_r = st.columns([1.5, 1], gap="large")
+    with col_r:
+        html("<div class='side-label'>Tùy biến SL / TP</div>")
+        sl_mode = st.selectbox("Kiểu SL", ["ATR (theo biến động)", "Cấu trúc (swing 10 nến)"], key="ai_slm")
+        k_sl = st.slider("Hệ số ATR cho SL", 0.8, 3.0, 1.5, 0.1, key="ai_k", disabled=sl_mode.startswith("Cấu trúc"))
+        rr_ai = st.slider("Tỷ lệ R:R (TP)", 1.0, 4.0, 2.0, 0.5, key="ai_rr")
+        split_tp = st.toggle("Chia 2 mục tiêu (TP1 = 1R, dời SL về hòa vốn)", value=True, key="ai_split")
+        safety = st.select_slider("Mức an toàn", ["Mạo hiểm", "Cân bằng", "Thận trọng"], value="Cân bằng", key="ai_safe")
+        allow_off = st.toggle("Cho phép vào lệnh ngoài giờ / đóng cửa", value=False, key="ai_off")
+        html("<div class='side-label' style='margin-top:10px'>Vốn & Lot</div>")
+        bal_ai = st.number_input("Số dư ($)", value=1000.0, step=100.0, key="ai_bal")
+        risk_ai = st.number_input("Rủi ro mỗi lệnh (%)", value=1.0, min_value=0.1, max_value=3.0, step=0.1, key="ai_risk")
+        lev_ai = st.number_input("Đòn bẩy tài khoản (1:x)", value=100, min_value=1, step=10, key="ai_lev")
+        lot_step = st.selectbox("Bước lot", [0.01, 0.1, 1.0], key="ai_step")
+        cv_auto = contract_value(ticker, float(last_close))
+        cv = st.number_input("USD / 1.0 giá / 1 lot (ghi đè nếu broker khác)", value=float(round(cv_auto, 4)), key=f"ai_cv_{ticker}")
+
+    iv_h = {"1m": 48, "5m": 48, "15m": 48, "60m": 24, "1d": 10, "1wk": 6}[interval]
+    margin = {"Mạo hiểm": 0.02, "Cân bằng": 0.05, "Thận trọng": 0.08}[safety]
+    dfa = df.iloc[:-1].reset_index(drop=True)  # chỉ dùng nến đã đóng
+    res = ai_predict(dfa, rr_ai, k_sl, sl_mode, iv_h, 1 / (1 + rr_ai) + margin)
+    mtf_ai = load_mtf_data(ticker)
+    now_vn = pd.Timestamp.utcnow().tz_localize(None) + timedelta(hours=7)
+    dec = ai_decide(res, dfa, mtf_ai, rr_ai, margin, ticker, now_vn, allow_off, split_tp)
+
+    with col_l:
+        if dec is None:
+            st.warning("Chưa đủ dữ liệu lịch sử để huấn luyện (cần ≥ 150 mẫu hợp lệ). Hãy chọn khung thời gian nhỏ hơn.")
+        else:
+            side_vn = "MUA (LONG)" if dec["side"] == "LONG" else "BÁN (SHORT)"
+            accent = ("#22d3a0" if dec["side"] == "LONG" else "#ff5470") if dec["ok"] else "#fbbf24"
+            title = f"Tín hiệu: {side_vn}" if dec["ok"] else f"ĐỨNG NGOÀI (nghiêng về {side_vn})"
+            off_ = 264 * (1 - min(dec["p"], 1.0))
+            reasons = "".join(f"<div class='reason-line' style='animation-delay:{0.1 + i * 0.07:.2f}s'>{'🟢' if ok else '⛔'} {t}</div>" for i, (ok, t) in enumerate(dec["gates"]))
+            html(f"""
+                <div class='signal-card' style='--accent: {accent};'>
+                    <div class='sig-head'>
+                        <div class='ring'><svg viewBox='0 0 100 100'>
+                            <defs><linearGradient id='rg2' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='#7c7cff'/><stop offset='100%' stop-color='#22d3a0'/></linearGradient></defs>
+                            <circle cx='50' cy='50' r='42' class='ring-bg'/><circle cx='50' cy='50' r='42' class='ring-fg' stroke='url(#rg2)' style='--off:{off_:.1f}'/></svg>
+                            <div class='ring-num'><span class='nt-count' data-v='{dec["p"] * 100:.1f}' data-d='1'>{dec["p"] * 100:.1f}</span><small>%</small></div></div>
+                        <div class='sig-info'><div class='sig-kicker'>XÁC SUẤT THẮNG (AI)</div>
+                            <h3 style='color: {accent} !important;'>{title}</h3>
+                            <div class='score-badge'>{'HẠNG ' + dec['grade'] if dec['ok'] else 'CHƯA ĐỦ ĐIỀU KIỆN AN TOÀN'}</div></div>
+                    </div>{reasons}
+                </div>
+            """)
+            lot_raw = (bal_ai * risk_ai / 100) / max(dec["sld"] * cv, 1e-12)
+            lot = max(np.floor(lot_raw / lot_step) * lot_step, lot_step)
+            real_risk = lot * dec["sld"] * cv
+            c1, c2, c3 = st.columns(3)
+            with c1: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(dec["entry"]), "NẾN ĐÃ ĐÓNG", is_positive=None, raw=dec["entry"])
+            with c2: quantum_metric("CẮT LỖ (SL)", format_vn_price(dec["sl"]), f"-{real_risk:,.2f}$", is_positive=False, raw=dec["sl"])
+            with c3: quantum_metric("CHỐT LỜI (TP)", format_vn_price(dec["tp2"]), f"+{real_risk * rr_ai:,.2f}$", is_positive=True, raw=dec["tp2"])
+            if split_tp:
+                html(f"<div class='math-box'><b style='color:#fff;'>Kế hoạch 2 mục tiêu:</b> chốt 50% tại TP1 <b style='color:#22d3a0'>{format_vn_price(dec['tp1'])}</b> (1R), dời SL về giá vào lệnh, phần còn lại chạy tới TP <b style='color:#22d3a0'>{format_vn_price(dec['tp2'])}</b>.</div>")
+            warn = "" if lot_raw >= lot_step else "<div class='row-item'><span style='color:#fbbf24'>⚠️ SL quá xa so với vốn: lot tối thiểu đã vượt mức rủi ro bạn đặt.</span></div>"
+            notional = lot * cv * dec["entry"]
+            html(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>🧮 Khối lượng (Lot) & Rủi ro</div>
+                    <div class='row-item'><span>Tiền rủi ro mục tiêu:</span><span class='val-data'>${bal_ai * risk_ai / 100:,.2f}</span></div>
+                    <div class='row-item'><span>Khoảng cách SL:</span><span class='val-data'>{format_vn_price(dec['sld'])}</span></div>
+                    <div class='row-item' style='margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.1);'><span style='color:#fff;font-weight:700'>Lot đề xuất:</span><span class='val-data val-up' style='font-size:22px'>{lot:.2f}</span></div>
+                    <div class='row-item'><span>Rủi ro thực tế sau làm tròn:</span><span class='val-data val-down'>${real_risk:,.2f} ({real_risk / max(bal_ai, 1e-9) * 100:.2f}%)</span></div>
+                    <div class='row-item'><span>Giá trị vị thế / Ký quỹ ước tính (1:{lev_ai}):</span><span class='val-data'>${notional:,.0f} / ${notional / lev_ai:,.2f}</span></div>{warn}
+                </div>
+            """)
+            r = dec["r"]
+            html(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>🔬 Kiểm chứng ngoài mẫu (30% dữ liệu mới nhất, mô hình chưa từng thấy)</div>
+                    <div class='row-item'><span>Tỷ lệ thắng nền (mọi nến):</span><span class='val-data'>{r['base'] * 100:.1f}%</span></div>
+                    <div class='row-item'><span>Khi AI chọn vào lệnh:</span><span class='val-data val-up'>{r['hit'] * 100:.1f}% ({r['n']} / {r['ntest']} nến)</span></div>
+                    <div class='row-item'><span>Kỳ vọng lịch sử / lệnh:</span><span class='val-data' style='color:{"#22d3a0" if r["ev"] > 0 else "#ff5470"}'>{r['ev']:+.2f}R</span></div>
+                </div>
+            """)
+            html("<div class='math-box'><b style='color:#fff;'>Lưu ý trung thực:</b> đây là xác suất ước lượng từ lịch sử, không phải lời đảm bảo. Không mô hình nào thắng chắc. Lợi thế đến từ việc <b>chỉ vào lệnh khi nhiều điều kiện cùng đúng</b>, SL đặt theo biến động và rủi ro cố định mỗi lệnh. Tránh vào lệnh quanh giờ công bố tin lớn.</div>")
+
+    st_s = session_stats(ticker)
+    html("<div style='height:6px'></div>")
+    s1, s2, s3 = st.columns(3)
+    _cl, _se = market_state(ticker, now_vn)
+    for cc, nm in zip((s1, s2, s3), ("Á", "Âu", "Mỹ")):
+        with cc:
+            quantum_metric(f"PHIÊN {nm} {SESSION_VN[nm]}".upper(), f"{st_s[nm]:.2f}%" if st_s else "N/A", "ĐANG MỞ" if (nm in _se and not _cl) else "ĐÓNG", is_positive=(nm in _se and not _cl) or None)
+    st.caption("Biên độ trung bình mỗi nến 1 giờ theo phiên (giờ VN, xấp xỉ, lệch ±1h khi đổi giờ mùa hè).")
+
+    if dec is not None:
+        plan = dict(side=dec["side"], entry=dec["entry"], sl=dec["sl"], tp2=dec["tp2"])
+        live_monitor(ticker, plan if dec["ok"] else None, float(lot), float(cv), float(dec["atr"]))
+
 elif menu_selection == "🧠 Phân tích SMC":
     st.subheader("Phân tích Cấu trúc Thị trường (SMC)")
     if not HAS_SMC:
