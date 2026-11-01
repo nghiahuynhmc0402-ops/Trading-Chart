@@ -726,6 +726,13 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 .sec-sep.pre { opacity: 0; transform: translateY(28px); }
 .sec-sep { transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
 
+/* ===================== V11: KHÓA BỐ CỤC MẶT SAU THẺ LẬT ===================== */
+.fb { overflow: hidden !important; overflow-y: hidden !important; justify-content: center !important; gap: 6px !important; padding: 12px 16px !important; touch-action: pan-y; overscroll-behavior: none; -webkit-user-select: none; user-select: none; text-align: left; }
+.fb b { margin: 0 !important; flex: 0 0 auto; }
+.fb span { margin: 0 !important; flex: 0 1 auto; font-size: 12px; line-height: 1.45; display: block; }
+.fb::before { pointer-events: none; }
+.ff { overflow: hidden; }
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
