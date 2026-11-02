@@ -733,6 +733,54 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 .fb::before { pointer-events: none; }
 .ff { overflow: hidden; }
 
+/* ===================== V12: BOT AI ĐÁNH GIÁ PHƯƠNG PHÁP ===================== */
+.mth-sum { --mc: rgba(255,84,112,.8); display: flex; gap: 16px; align-items: center; padding: 16px 18px; margin: 6px 0 6px; border-radius: 18px; background: linear-gradient(135deg, rgba(22,16,56,.94), rgba(12,10,34,.94)); border: 1.5px solid var(--mc); box-shadow: 0 0 26px -8px var(--mc), inset 0 1px 0 rgba(255,255,255,.05); }
+.mth-sum.g { --mc: rgba(34,211,160,.9); }
+.mth-sum-n { flex: 0 0 auto; text-align: center; line-height: 1; white-space: nowrap; }
+.mth-sum-n b { font-size: 46px; font-weight: 800; color: var(--mc); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.mth-sum-n span { font-size: 16px; color: #9a9ab5; font-weight: 700; }
+.mth-sum-t { min-width: 0; flex: 1 1 auto; }
+.mth-sum-t strong { display: block; color: #fff; font-size: 13.5px; line-height: 1.35; }
+.mth-sum-t em { display: block; font-style: normal; color: #dfe0f2; font-size: 12.5px; line-height: 1.45; margin-top: 4px; }
+.mth-strip { display: flex; gap: 3px; margin: 10px 0 6px; }
+.mth-strip i { flex: 1; height: 8px; border-radius: 3px; background: rgba(255,84,112,.5); }
+.mth-strip i.g { background: #22d3a0; box-shadow: 0 0 8px rgba(34,211,160,.7); }
+.mth-sum-c { font-size: 11.5px; color: #9a9ab5; line-height: 1.5; }
+.mth-grp { margin: 22px 2px 8px; color: #b9a8ff; font-weight: 800; font-size: 12px; letter-spacing: .8px; text-transform: uppercase; }
+.mth-list { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: start; }
+@media (min-width: 1100px) { .mth-list { grid-template-columns: 1fr 1fr; } }
+.mth { --bc: rgba(255,84,112,.72); border-radius: 14px; background: rgba(16,12,40,.8); border: 1.5px solid var(--bc); box-shadow: 0 0 14px -8px var(--bc); transition: box-shadow .25s, background .25s; }
+.mth.g { --bc: rgba(34,211,160,.92); box-shadow: 0 0 18px -5px rgba(34,211,160,.75); }
+.mth[open] { grid-column: 1 / -1; background: rgba(22,16,56,.92); }
+.mth > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 54px; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.mth > summary::-webkit-details-marker { display: none; }
+.mth > summary::after { content: "›"; flex: 0 0 12px; color: #9a9ab5; font-size: 22px; line-height: 1; transition: transform .25s; }
+.mth[open] > summary::after { transform: rotate(90deg); }
+.mth-ic { flex: 0 0 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; background: rgba(255,255,255,.06); }
+.mth-nm { flex: 1 1 auto; min-width: 0; }
+.mth-nm b { display: block; color: #fff; font-size: 13.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mth-nm em { display: block; font-style: normal; color: #9a9ab5; font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mth-tag { flex: 0 0 auto; font-size: 10.5px; font-weight: 800; letter-spacing: .5px; padding: 3px 8px; border-radius: 999px; }
+.mth-tag.buy { color: #22d3a0; background: rgba(34,211,160,.14); border: 1px solid rgba(34,211,160,.45); }
+.mth-tag.sell { color: #ff5470; background: rgba(255,84,112,.14); border: 1px solid rgba(255,84,112,.45); }
+.mth-tag.wait { color: #aab0c4; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16); }
+.mth-wr { flex: 0 0 40px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 700; color: #e8e9f6; }
+.mth-body { padding: 2px 14px 14px; border-top: 1px solid rgba(255,255,255,.07); }
+.mth-state { margin: 10px 0; font-size: 12.5px; font-weight: 700; line-height: 1.5; }
+.mth.g .mth-state { color: #22d3a0; }
+.mth.r .mth-state { color: #ff8da1; }
+.mth-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 8px; }
+@media (min-width: 700px) { .mth-grid { grid-template-columns: repeat(4, 1fr); } .mth-grid.s { grid-template-columns: repeat(3, 1fr); } }
+.mth-cell { padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); min-width: 0; }
+.mth-cell span { display: block; color: #8b90a0; font-size: 10.5px; letter-spacing: .4px; text-transform: uppercase; line-height: 1.3; }
+.mth-cell b { display: block; color: #fff; font-size: 14px; margin-top: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.mth-cell b.up { color: #22d3a0; }
+.mth-cell b.dn { color: #ff5470; }
+.mth-note { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.035); color: #cfd1e6; font-size: 12.5px; line-height: 1.6; text-align: left; }
+.mth-note b { display: block; color: #b9a8ff; font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 3px; }
+.mth-note.warn b { color: #fbbf24; }
+@media (max-width: 768px) { .mth-sum { gap: 12px; padding: 14px; } .mth-sum-n b { font-size: 38px; } }
+
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
 </style>
@@ -1118,7 +1166,7 @@ flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items()
 DB_FILE = "trading_journal.db"
 
 # Menu: icon đứng đầu tên mục (thanh dọc chỉ hiển thị icon, tên hiện ở tooltip)
-MENU_ITEMS = ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"]
+MENU_ITEMS = ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧪 Đánh giá phương pháp", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"]
 
 
 def init_db():
@@ -1674,6 +1722,521 @@ def session_stats(ticker: str):
 # ------------------------------------------------------------
 # Cấu hình AI (Vốn & Lot, SL/TP): mẫu nhanh + lưu/tải + tự khôi phục lần sau
 # ------------------------------------------------------------
+# ============================================================
+# 3c. BOT AI ĐÁNH GIÁ 20 PHƯƠNG PHÁP (quy tắc đơn giản hóa + backtest triple-barrier)
+# ============================================================
+TF_MIN = {"1m": 1, "5m": 5, "15m": 15, "60m": 60, "1d": 1440, "1wk": 10080}
+
+
+def _pivots(h, l, n=3):
+    """3 đỉnh / 3 đáy swing gần nhất đã được xác nhận tại mỗi nến (trễ n nến nên không nhìn trước tương lai)."""
+    N = len(h)
+    ph, pl = np.full((N, 3), -1), np.full((N, 3), -1)
+    ch, cl = [-1, -1, -1], [-1, -1, -1]
+    for t in range(N):
+        i = t - n
+        if i >= n:
+            wh, wl = h[i - n:i + n + 1], l[i - n:i + n + 1]
+            if h[i] == wh.max() and h[i - 1] != h[i]: ch = [i, ch[0], ch[1]]
+            if l[i] == wl.min() and l[i - 1] != l[i]: cl = [i, cl[0], cl[1]]
+        ph[t], pl[t] = ch, cl
+    return ph, pl
+
+
+def _mctx(df, iv):
+    c, o, h, l = (df[k].astype(float).reset_index(drop=True) for k in ("Close", "Open", "High", "Low"))
+    a = df["ATR"].astype(float).reset_index(drop=True).replace(0, np.nan).ffill().bfill()
+    x = dict(df=df.reset_index(drop=True), c=c, o=o, h=h, l=l, atr=a, n=len(df), iv=iv, tf=TF_MIN.get(iv, 60))
+    for k, col in (("e20", "EMA20"), ("e50", "EMA50"), ("rsi", "RSI"), ("adx", "ADX"), ("bbu", "BB_upper"), ("bbl", "BB_lower")):
+        x[k] = df[col].astype(float).reset_index(drop=True)
+    x["e200"] = c.ewm(span=200, adjust=False).mean()
+    v = df["Volume"].astype(float).reset_index(drop=True).fillna(0) if "Volume" in df else pd.Series(0.0, index=c.index)
+    x["has_vol"] = bool(v.sum() > 0)
+    x["vol"] = v if x["has_vol"] else (h - l)
+    x["ph"], x["pl"] = _pivots(h.values, l.values, 3)
+    x["bull"], x["bear"] = c > o, c < o
+    x["hr"] = x["df"]["Time"].dt.hour
+    return x
+
+
+def _b(s): return np.asarray(pd.Series(s).fillna(False).astype(bool))
+def _rm(s, n): return s.astype(float).rolling(n, min_periods=1).max() > 0
+
+
+def _ssl(x, side, n=8):
+    """SL theo cấu trúc: qua đáy/đỉnh n nến gần nhất + 0.25 ATR, kẹp 0.8–3.5 ATR."""
+    a = x["atr"]
+    s = (x["c"] - x["l"].rolling(n).min() if side == "LONG" else x["h"].rolling(n).max() - x["c"]) + 0.25 * a
+    return s.clip(lower=0.8 * a, upper=3.5 * a)
+
+
+def _sl2(x, n): return _ssl(x, "LONG", n), _ssl(x, "SHORT", n)
+
+
+def m_sweep(x):
+    c, h, l = x["c"], x["h"], x["l"]
+    lo20, hi20 = l.rolling(20).min().shift(1), h.rolling(20).max().shift(1)
+    swL, swS = (l < lo20) & (c > lo20), (h > hi20) & (c < hi20)          # quét thanh khoản rồi đóng cửa lại trong biên
+    mssL, mssS = c > h.rolling(3).max().shift(1), c < l.rolling(3).min().shift(1)  # MSS: phá đỉnh/đáy nhỏ gần nhất
+    return (_b(_rm(swL, 5) & mssL & ~swL), _b(_rm(swS, 5) & mssS & ~swS)) + _sl2(x, 6)
+
+
+def m_fvg_ob(x):
+    c, o, h, l, a = x["c"], x["o"], x["h"], x["l"], x["atr"]
+    bf = (l > h.shift(2)) & (c.shift(1) > o.shift(1)) & x["bear"].shift(2, fill_value=False)   # FVG tăng + nến đầu là OB cầu
+    sf = (h < l.shift(2)) & (c.shift(1) < o.shift(1)) & x["bull"].shift(2, fill_value=False)
+    ix = pd.Series(np.arange(x["n"]), index=c.index)
+    ageB, ageS = ix - ix.where(bf).ffill(), ix - ix.where(sf).ffill()
+    zhi, zlo = l.where(bf).ffill(), l.shift(2).where(bf).ffill()    # vùng = [đáy OB, đỉnh FVG]
+    shi, slo = h.shift(2).where(sf).ffill(), h.where(sf).ffill()
+    L = (ageB >= 1) & (ageB <= 30) & (l <= zhi) & (c > zlo) & x["bull"] & (x["e20"] > x["e50"])
+    S = (ageS >= 1) & (ageS <= 30) & (h >= slo) & (c < shi) & x["bear"] & (x["e20"] < x["e50"])
+    return (_b(L), _b(S)) + _sl2(x, 6)
+
+
+def m_breaker(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    e20, e50, N = x["e20"].values, x["e50"].values, x["n"]
+    L, S, zs = np.zeros(N, bool), np.zeros(N, bool), []
+    for t in range(2, N):
+        if c[t - 1] < o[t - 1] and c[t] > h[t - 1] and c[t] - o[t] > 0.8 * a[t]: zs.append([l[t - 1], h[t - 1], 1, 0, t])    # OB cầu
+        if c[t - 1] > o[t - 1] and c[t] < l[t - 1] and o[t] - c[t] > 0.8 * a[t]: zs.append([l[t - 1], h[t - 1], -1, 0, t])   # OB cung
+        keep = []
+        for z in zs:
+            lo, hi, d, st, b = z
+            if st == 0:
+                if t - b > 60: continue
+                if d == 1 and c[t] < lo: z[2], z[3], z[4] = -1, 1, t     # OB cầu bị phá -> breaker kháng cự
+                elif d == -1 and c[t] > hi: z[2], z[3], z[4] = 1, 1, t   # OB cung bị phá -> breaker hỗ trợ
+            else:
+                if t - b > 40: continue
+                if d == -1 and h[t] >= lo and c[t] < hi and c[t] < o[t] and e20[t] < e50[t]: S[t] = True; continue
+                if d == 1 and l[t] <= hi and c[t] > lo and c[t] > o[t] and e20[t] > e50[t]: L[t] = True; continue
+            keep.append(z)
+        zs = keep[-30:]
+    return (L, S) + _sl2(x, 6)
+
+
+def m_killzone(x):
+    c, h, l, N = x["c"], x["h"], x["l"], x["n"]
+    if x["tf"] > 60: return np.zeros(N, bool), np.zeros(N, bool), None, None   # chỉ áp dụng khung ≤ 1 giờ
+    kz = x["hr"].isin([14, 15, 20, 21])    # London 14–16h, New York 20–22h (giờ VN)
+    L = kz & (x["e20"] > x["e50"]) & x["bull"] & (c > h.rolling(3).max().shift(1))
+    S = kz & (x["e20"] < x["e50"]) & x["bear"] & (c < l.rolling(3).min().shift(1))
+    return (_b(L), _b(S)) + _sl2(x, 6)
+
+
+def m_mitig(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    for t in range(N):
+        a1, a2, b1, b2 = ph[t, 0], ph[t, 1], pl[t, 0], pl[t, 1]
+        if min(a1, a2, b1, b2) < 0: continue
+        if h[a1] < h[a2] and b1 < a1 and t - a1 <= 40 and c[a1:t + 1].min() < l[b1]:     # đỉnh thấp hơn rồi phá đáy
+            if h[t] >= min(o[a1], c[a1]) and c[t] < h[a1] and c[t] < o[t]: S[t] = True
+        if l[b1] > l[b2] and a1 < b1 and t - b1 <= 40 and c[b1:t + 1].max() > h[a1]:     # đáy cao hơn rồi phá đỉnh
+            if l[t] <= max(o[b1], c[b1]) and c[t] > l[b1] and c[t] > o[t]: L[t] = True
+    return (L, S) + _sl2(x, 6)
+
+
+def m_keylevel(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    body, rng = np.abs(c - o), np.maximum(h - l, 1e-9)
+    lw, uw = np.minimum(o, c) - l, h - np.maximum(o, c)
+    pinL, pinS = (lw > 2 * body) & (lw > 0.6 * rng), (uw > 2 * body) & (uw > 0.6 * rng)
+    po, pc = np.roll(o, 1), np.roll(c, 1)
+    engL, engS = (c > o) & (pc < po) & (c >= po) & (o <= pc), (c < o) & (pc > po) & (c <= po) & (o >= pc)
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    for k in range(3):
+        s = np.where(pl[:, k] >= 0, l[np.maximum(pl[:, k], 0)], np.nan)
+        r = np.where(ph[:, k] >= 0, h[np.maximum(ph[:, k], 0)], np.nan)
+        L |= (l <= s + 0.3 * a) & (l >= s - 1.0 * a) & (c > s)
+        S |= (h >= r - 0.3 * a) & (h <= r + 1.0 * a) & (c < r)
+    return (L & (pinL | engL) & (c > o), S & (pinS | engS) & (c < o)) + _sl2(x, 5)
+
+
+def m_rsi_div(x):
+    c, o, h, l, a, rsi = (x[k].values for k in ("c", "o", "h", "l", "atr", "rsi"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    t = np.arange(N)
+    up, dn = (x["e20"] > x["e50"]).values, (x["e20"] < x["e50"]).values
+    p1, p2, q1, q2 = pl[:, 0], pl[:, 1], ph[:, 0], ph[:, 1]
+    i1, i2, j1, j2 = (np.maximum(v, 0) for v in (p1, p2, q1, q2))
+    okL, okS = (p1 >= 0) & (p2 >= 0), (q1 >= 0) & (q2 >= 0)
+    near_lo = l <= pd.Series(l).rolling(50, min_periods=10).min().values + 1.0 * a
+    near_hi = h >= pd.Series(h).rolling(50, min_periods=10).max().values - 1.0 * a
+    regL = okL & (l[i1] < l[i2]) & (rsi[i1] > rsi[i2]) & (rsi[i1] < 45) & near_lo        # phân kỳ thường tăng
+    hidL = okL & (l[i1] > l[i2]) & (rsi[i1] < rsi[i2]) & (rsi[i1] < 55) & up              # phân kỳ ẩn tăng (theo xu hướng)
+    regS = okS & (h[j1] > h[j2]) & (rsi[j1] < rsi[j2]) & (rsi[j1] > 55) & near_hi
+    hidS = okS & (h[j1] < h[j2]) & (rsi[j1] > rsi[j2]) & (rsi[j1] > 45) & dn
+    freshL, freshS = (t - p1 >= 3) & (t - p1 <= 6), (t - q1 >= 3) & (t - q1 <= 6)
+    return ((regL | hidL) & freshL & (c > o), (regS | hidS) & freshS & (c < o)) + _sl2(x, 8)
+
+
+def m_bb_squeeze(x):
+    c, bu, bl, rsi = x["c"], x["bbu"], x["bbl"], x["rsi"]
+    w = (bu - bl) / ((bu + bl) / 2)
+    sq = _rm(w.rolling(120, min_periods=30).rank(pct=True) <= 0.25, 25)     # từng có giai đoạn thu hẹp
+    S = sq & (c.shift(1) > bu.shift(1)) & (c < bu) & x["bear"] & (rsi.shift(1) > 62)
+    L = sq & (c.shift(1) < bl.shift(1)) & (c > bl) & x["bull"] & (rsi.shift(1) < 38)
+    return (_b(L), _b(S)) + _sl2(x, 4)
+
+
+def m_double(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    slL, slS = np.full(N, np.nan), np.full(N, np.nan)
+    for t in range(N):
+        b1, b2, a1, a2 = pl[t, 0], pl[t, 1], ph[t, 0], ph[t, 1]
+        if b1 >= 0 and b2 >= 0 and b1 - b2 >= 6 and t - b1 <= 25 and abs(l[b1] - l[b2]) <= 0.6 * a[t]:   # đáy đôi
+            neck = h[b2:b1 + 1].max()
+            if t > b1 + 1 and c[b1 + 1:t].max() > neck and l[t] <= neck + 0.25 * a[t] and c[t] > neck and c[t] > o[t]:
+                L[t], slL[t] = True, min(max(c[t] - min(l[b1], l[b2]) + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+        if a1 >= 0 and a2 >= 0 and a1 - a2 >= 6 and t - a1 <= 25 and abs(h[a1] - h[a2]) <= 0.6 * a[t]:   # đỉnh đôi
+            neck = l[a2:a1 + 1].min()
+            if t > a1 + 1 and c[a1 + 1:t].min() < neck and h[t] >= neck - 0.25 * a[t] and c[t] < neck and c[t] < o[t]:
+                S[t], slS[t] = True, min(max(max(h[a1], h[a2]) - c[t] + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+    return L, S, pd.Series(slL), pd.Series(slS)
+
+
+def m_qm(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    slL, slS = np.full(N, np.nan), np.full(N, np.nan)
+    for t in range(N):
+        A, C = pl[t, 1], pl[t, 0]                      # QM tăng: vai trái A -> đầu C thấp hơn -> phá đỉnh B -> hồi về A
+        if A >= 0 and C >= 0 and l[C] < l[A] and t - C <= 40 and C - A >= 4:
+            B = next((i for i in (ph[t, 0], ph[t, 1]) if i >= 0 and A < i < C), -1)
+            if B >= 0 and t > C + 1 and c[C + 1:t].max() > h[B] and l[t] <= l[A] + 0.3 * a[t] and c[t] > l[A] and c[t] > o[t]:
+                L[t], slL[t] = True, min(max(c[t] - l[C] + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+        A, C = ph[t, 1], ph[t, 0]                      # QM giảm (đối xứng)
+        if A >= 0 and C >= 0 and h[C] > h[A] and t - C <= 40 and C - A >= 4:
+            B = next((i for i in (pl[t, 0], pl[t, 1]) if i >= 0 and A < i < C), -1)
+            if B >= 0 and t > C + 1 and c[C + 1:t].min() < l[B] and h[t] >= h[A] - 0.3 * a[t] and c[t] < h[A] and c[t] < o[t]:
+                S[t], slS[t] = True, min(max(h[C] - c[t] + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+    return L, S, pd.Series(slL), pd.Series(slS)
+
+
+def m_ema_pb(x):
+    c, l, h, e20, e50 = x["c"], x["l"], x["h"], x["e20"], x["e50"]
+    strong = x["adx"] >= 20
+    L = strong & (e20 > e50) & (e50 > e50.shift(5)) & (l <= e20) & (c > e20) & x["bull"]
+    S = strong & (e20 < e50) & (e50 < e50.shift(5)) & (h >= e20) & (c < e20) & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 8)
+
+
+def m_donchian(x):
+    c, h, l, a = x["c"], x["h"], x["l"], x["atr"]
+    hi20, lo20 = h.rolling(20).max().shift(1), l.rolling(20).min().shift(1)
+    vf = x["vol"] > 1.2 * x["vol"].rolling(20).mean()
+    bL, bS = (c > hi20) & vf, (c < lo20) & vf                 # phá kênh kèm khối lượng
+    ix = pd.Series(np.arange(x["n"]), index=c.index)
+    aL, aS = ix - ix.where(bL).ffill(), ix - ix.where(bS).ffill()
+    vL, vS = hi20.where(bL).ffill(), lo20.where(bS).ffill()
+    L = (aL >= 2) & (aL <= 10) & (l <= vL + 0.25 * a) & (c > vL) & x["bull"]       # retest biên kênh thành công
+    S = (aS >= 2) & (aS <= 10) & (h >= vS - 0.25 * a) & (c < vS) & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 8)
+
+
+def _supertrend(h, l, c, a, m=3.0):
+    N = len(c)
+    hl2 = (h + l) / 2
+    ub, lb = hl2 + m * a, hl2 - m * a
+    fu, fl, d = ub.copy(), lb.copy(), np.ones(N)
+    for i in range(1, N):
+        fu[i] = ub[i] if (ub[i] < fu[i - 1] or c[i - 1] > fu[i - 1]) else fu[i - 1]
+        fl[i] = lb[i] if (lb[i] > fl[i - 1] or c[i - 1] < fl[i - 1]) else fl[i - 1]
+        d[i] = 1 if c[i] > fu[i - 1] else (-1 if c[i] < fl[i - 1] else d[i - 1])
+    return d, fl, fu
+
+
+def m_supertrend(x):
+    c, h, l, a = (x[k].values for k in ("c", "h", "l", "atr"))
+    d, fl, fu = _supertrend(h, l, c, a, 3.0)
+    h4, l4 = pd.Series(h).rolling(4, min_periods=1).max().values, pd.Series(l).rolling(4, min_periods=1).min().values
+    dh, _, _ = _supertrend(h4, l4, c, a * 2, 3.0)             # khung lớn ≈ gộp 4 nến
+    ds = pd.Series(d)
+    flipL, flipS = _rm((ds == 1) & (ds.shift(1) == -1), 4), _rm((ds == -1) & (ds.shift(1) == 1), 4)
+    L, S = _b(flipL & (ds == 1) & (dh == 1)), _b(flipS & (ds == -1) & (dh == -1))
+    aa = x["atr"]
+    slL = (x["c"] - pd.Series(fl)).clip(lower=0.8 * aa, upper=3.5 * aa)
+    slS = (pd.Series(fu) - x["c"]).clip(lower=0.8 * aa, upper=3.5 * aa)
+    return L, S, slL, slS
+
+
+def m_ichimoku(x):
+    c, h, l, a = x["c"], x["h"], x["l"], x["atr"]
+    ten = (h.rolling(9).max() + l.rolling(9).min()) / 2
+    kij = (h.rolling(26).max() + l.rolling(26).min()) / 2
+    sa, sb = ((ten + kij) / 2).shift(26), ((h.rolling(52).max() + l.rolling(52).min()) / 2).shift(26)
+    top, bot = pd.concat([sa, sb], axis=1).max(axis=1, skipna=False), pd.concat([sa, sb], axis=1).min(axis=1, skipna=False)
+    bL, bS = (c > top) & (c.shift(1) <= top.shift(1)), (c < bot) & (c.shift(1) >= bot.shift(1))
+    L = _rm(bL, 4) & (c > top) & (c > h.shift(26))              # Chikou nằm thoáng trên đường giá 26 nến trước
+    S = _rm(bS, 4) & (c < bot) & (c < l.shift(26))
+    slL = (c - bot + 0.25 * a).clip(lower=0.8 * a, upper=3.5 * a)
+    slS = (top - c + 0.25 * a).clip(lower=0.8 * a, upper=3.5 * a)
+    return _b(L), _b(S), slL, slS
+
+
+def m_trendline(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    t = np.arange(N)
+    up, dn = (x["e20"] > x["e50"]).values, (x["e20"] < x["e50"]).values
+    p1, p2, q1, q2 = pl[:, 0], pl[:, 1], ph[:, 0], ph[:, 1]
+    i1, i2, j1, j2 = (np.maximum(v, 0) for v in (p1, p2, q1, q2))
+    sL, sS = (l[i1] - l[i2]) / np.maximum(p1 - p2, 1), (h[j1] - h[j2]) / np.maximum(q1 - q2, 1)
+    lnL, lnS = l[i1] + sL * (t - p1), h[j1] + sS * (t - q1)    # đường xu hướng qua 2 điểm, điểm chạm thứ 3 là tín hiệu
+    okL = (p1 >= 0) & (p2 >= 0) & (p1 - p2 >= 5) & (sL > 0) & (t - p1 >= 4) & (t - p1 <= 60) & up
+    okS = (q1 >= 0) & (q2 >= 0) & (q1 - q2 >= 5) & (sS < 0) & (t - q1 >= 4) & (t - q1 <= 60) & dn
+    pc = np.roll(c, 1)
+    L = okL & (l <= lnL + 0.3 * a) & (l >= lnL - 0.8 * a) & (c > lnL) & (pc > lnL) & (c > o)
+    S = okS & (h >= lnS - 0.3 * a) & (h <= lnS + 0.8 * a) & (c < lnS) & (pc < lnS) & (c < o)
+    return (L, S) + _sl2(x, 6)
+
+
+def m_poc(x):
+    c, h, l, a, N = x["c"].values, x["h"].values, x["l"].values, x["atr"].values, x["n"]
+    w, tp = x["vol"].values, (x["h"] + x["l"] + x["c"]).values / 3
+    poc, W, step = np.full(N, np.nan), 100, 5
+    for t in range(W, N, step):                                 # POC tính từ 100 nến TRƯỚC đó, cập nhật mỗi 5 nến
+        hh, ll = h[t - W:t].max(), l[t - W:t].min()
+        if hh <= ll: continue
+        hist, ed = np.histogram(tp[t - W:t], bins=np.linspace(ll, hh, 25), weights=w[t - W:t])
+        if hist.sum() > 0:
+            k = int(hist.argmax())
+            poc[t:t + step] = (ed[k] + ed[k + 1]) / 2
+    pc3 = np.roll(c, 3)
+    L = (l <= poc + 0.2 * a) & (c > poc) & (pc3 > poc) & (c > x["o"].values)      # POC làm hỗ trợ (giá từ trên về)
+    S = (h >= poc - 0.2 * a) & (c < poc) & (pc3 < poc) & (c < x["o"].values)      # POC làm kháng cự (giá từ dưới lên)
+    return (L, S) + _sl2(x, 5)
+
+
+def m_vwap(x):
+    c, tp = x["c"], (x["h"] + x["l"] + x["c"]) / 3
+    w = x["vol"].where(x["vol"] > 0, 1.0)
+    if x["tf"] < 1440:
+        day = x["df"]["Time"].dt.date
+        vw = (tp * w).groupby(day).cumsum() / w.groupby(day).cumsum()      # VWAP theo phiên (reset mỗi ngày)
+    else:
+        vw = (tp * w).rolling(20).sum() / w.rolling(20).sum()              # khung ngày/tuần: VWAP trượt 20 nến
+    dev = c - vw
+    sd = dev.rolling(50, min_periods=20).std()
+    L = (dev.shift(1) < -2 * sd.shift(1)) & (dev > dev.shift(1)) & x["bull"]
+    S = (dev.shift(1) > 2 * sd.shift(1)) & (dev < dev.shift(1)) & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 4)
+
+
+def m_zscore(x):
+    c = x["c"]
+    z = (c - c.rolling(20).mean()) / c.rolling(20).std()
+    rng = x["adx"] < 25                                          # chỉ hồi quy khi thị trường không có xu hướng mạnh
+    L = (z.shift(1) < -2) & (z > z.shift(1)) & rng & x["bull"]
+    S = (z.shift(1) > 2) & (z < z.shift(1)) & rng & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 4)
+
+
+def m_inside(x):
+    c, o, h, l, a = x["c"], x["o"], x["h"], x["l"], x["atr"]
+    ib = (h.shift(1) < h.shift(2)) & (l.shift(1) > l.shift(2))     # nến t-1 nằm gọn trong nến mẹ t-2
+    L = ib & (x["e20"] > x["e50"]) & (x["adx"] > 20) & (c > h.shift(2)) & (c > o)
+    S = ib & (x["e20"] < x["e50"]) & (x["adx"] > 20) & (c < l.shift(2)) & (c < o)
+    slL = (c - l.shift(2)).clip(lower=0.8 * a, upper=3.5 * a)      # SL ở đầu kia của nến mẹ
+    slS = (h.shift(2) - c).clip(lower=0.8 * a, upper=3.5 * a)
+    return _b(L), _b(S), slL, slS
+
+
+def m_atrtrail(x):
+    c, a, N = x["c"].values, x["atr"].values, x["n"]
+    tr, d = np.zeros(N), np.ones(N)
+    tr[0] = c[0] - 3 * a[0]
+    for i in range(1, N):
+        if d[i - 1] == 1:
+            if c[i] < tr[i - 1]: d[i], tr[i] = -1, c[i] + 3 * a[i]
+            else: d[i], tr[i] = 1, max(tr[i - 1], c[i] - 3 * a[i])
+        else:
+            if c[i] > tr[i - 1]: d[i], tr[i] = 1, c[i] - 3 * a[i]
+            else: d[i], tr[i] = -1, min(tr[i - 1], c[i] + 3 * a[i])
+    ds, ok = pd.Series(d), (x["adx"] >= 18)
+    L = _b(_rm((ds == 1) & (ds.shift(1) == -1), 3) & (ds == 1) & ok)     # đường trailing vừa đảo lên
+    S = _b(_rm((ds == -1) & (ds.shift(1) == 1), 3) & (ds == -1) & ok)
+    aa = x["atr"]
+    return L, S, (x["c"] - pd.Series(tr)).clip(lower=0.8 * aa, upper=3.5 * aa), (pd.Series(tr) - x["c"]).clip(lower=0.8 * aa, upper=3.5 * aa)
+
+
+MTH_GROUPS = ["Nhóm 1 · Smart Money & Thanh khoản", "Nhóm 2 · Đảo chiều tại vùng cản & Phân kỳ",
+              "Nhóm 3 · Theo xu hướng", "Nhóm 4 · Định lượng, Biến động & Khối lượng"]
+# key, nhóm, icon, tên, mô tả ngắn, mô tả đầy đủ, lưu ý, hệ số kéo dài thời gian kiểm chứng
+MTH_META = [
+    ("sweep", 0, "💧", "Liquidity Sweep + MSS", "Quét thanh khoản rồi đảo cấu trúc",
+     "Chờ giá quét sạch thanh khoản tại đỉnh/đáy cũ (Asian Range hoặc Daily High/Low), sau đó xuất hiện tín hiệu đảo chiều cấu trúc (MSS/ChoCH) rồi mới vào lệnh theo chiều ngược lại.",
+     "Bot nhận diện: nến đâm thủng đáy/đỉnh 20 nến nhưng đóng cửa lại trong biên, sau đó phá đỉnh/đáy nhỏ 3 nến trong vòng 5 nến. Dễ bị quét lần hai nếu tin tức mạnh.", 1),
+    ("fvgob", 0, "🧱", "FVG Retest + Order Block", "Giá hồi về FVG trùng vùng OB",
+     "Chỉ vào lệnh khi giá quay về lấp khoảng trống giá (FVG) nằm trùng lặp hoặc ngay sát vùng Order Block (OB) của khung lớn.",
+     "Bot nhận diện FVG ba nến có nến đầu là OB ngược màu, hiệu lực 30 nến, kèm EMA20/50 cùng chiều. Bot dùng khung đang chọn làm xấp xỉ khung lớn, nên hãy tự đối chiếu khung H4/D1.", 1),
+    ("breaker", 0, "🔁", "Breaker Block Reversal", "OB bị phá thành hỗ trợ/kháng cự",
+     "Sử dụng các vùng Order Block bị phá vỡ (biến thành Breaker Block) làm vùng hỗ trợ/kháng cự cực mạnh để đánh tiếp diễn xu hướng.",
+     "Chỉ vào lệnh khi giá retest breaker theo đúng chiều EMA20/50. Vùng hết hiệu lực sau 40 nến hoặc sau lần chạm đầu tiên.", 1),
+    ("killzone", 0, "⏰", "Kill Zone London / New York", "Giao dịch 1–2 giờ đầu phiên Âu/Mỹ",
+     "Chỉ thực hiện giao dịch trong 1-2 tiếng đầu mở cửa phiên London hoặc phiên Mỹ khi khối lượng giao dịch và hướng đi của dòng tiền đạt độ xác thực cao nhất.",
+     "Bot dùng 14–16h và 20–22h giờ VN (lệch ±1h theo giờ mùa hè). Chỉ áp dụng khung ≤ 1 giờ; khung ngày/tuần sẽ báo không áp dụng. Tránh vào lệnh ngay trước tin lớn.", 1),
+    ("mitig", 0, "🩹", "Mitigation Block Test", "Smart Money quay lại đóng lệnh lỗ",
+     "Vào lệnh tại các vùng giá mà các tổ chức lớn (Smart Money) quay lại để đóng các vị thế lỗ trước đó của họ.",
+     "Bot nhận diện: đỉnh thấp hơn (hoặc đáy cao hơn) rồi phá cấu trúc, vùng mitigation là thân nến đỉnh/đáy đó. Đây là khái niệm chủ quan nhất trong nhóm, nên kết quả chỉ mang tính tham khảo.", 1),
+    ("keylevel", 1, "🎯", "Key Level + Nến đảo chiều", "Hỗ trợ/kháng cự cứng + Pinbar/Engulfing",
+     "Giao dịch tại các mốc hỗ trợ/kháng cự quan trọng trên khung D1/H4 kết hợp mẫu hình nến đảo chiều mạnh (Pinbar, Engulfing).",
+     "Bot lấy 3 đỉnh/đáy swing gần nhất làm mốc, giá chạm trong 0.3 ATR kèm Pinbar hoặc Engulfing. Mốc càng cũ và được test nhiều lần càng mạnh.", 1),
+    ("rsidiv", 1, "📉", "RSI Divergence", "Phân kỳ RSI thường/ẩn tại vùng cản",
+     "Tìm phân kỳ (thường hoặc ẩn) của RSI trên khung H1/H4 tại các vùng cản cứng để bắt sóng đảo chiều an toàn.",
+     "Phân kỳ thường chỉ tính khi giá gần đáy/đỉnh 50 nến; phân kỳ ẩn cần xu hướng EMA cùng chiều. Trong xu hướng rất mạnh phân kỳ có thể kéo dài nhiều lần mà giá vẫn đi tiếp.", 1),
+    ("bbsq", 1, "🎈", "Bollinger Squeeze + Outer Band", "Thu hẹp rồi đảo chiều ở dải ngoài",
+     "Đợi dải Bollinger Bands thu hẹp tích lũy, sau đó đánh đảo chiều khi giá đẩy mạnh ra ngoài dải biên (Outer Band) và chạm vùng cản.",
+     "Bot yêu cầu từng có thu hẹp (25% thấp nhất của 120 nến), giá đóng ngoài dải rồi quay vào, RSI quá mua/bán. Nếu squeeze phá vỡ thật sự, đảo chiều sẽ thua, nên cần SL chặt.", 1),
+    ("double", 1, "⛰️", "Double Top / Bottom", "Hai đỉnh/đáy, phá cổ rồi retest",
+     "Mô hình 2 đỉnh / 2 đáy truyền thống nhưng chỉ vào lệnh sau khi giá đã phá vỡ đường viền cổ (Neckline) và quay lại retest.",
+     "Hai đỉnh/đáy lệch nhau tối đa 0.6 ATR, cách nhau ≥ 6 nến; vào lệnh khi retest neckline và đóng cửa đúng hướng. Mẫu hình hiếm, cần nhiều dữ liệu mới kiểm chứng được.", 1),
+    ("qm", 1, "🔄", "Quasimodo (QM)", "Biến thể nâng cao của Vai-Đầu-Vai",
+     "Đánh theo mô hình Quasimodo, biến thể nâng cao của Vai Đầu Vai giúp tối ưu tỷ lệ R:R và bù rủi ro cực tốt.",
+     "Bot nhận diện: vai trái, đầu tạo đỉnh/đáy mới, phá cấu trúc ngược lại, rồi hồi về mức vai trái. SL đặt ngoài đầu nên R:R thường đẹp nhưng số mẫu rất ít.", 1),
+    ("emapb", 2, "📈", "EMA Cross + Pullback", "Xu hướng EMA20/50, chờ giá hồi về EMA",
+     "Sử dụng cặp đường trung bình (ví dụ EMA 20/50 hoặc EMA 50/200), chờ xu hướng rõ ràng và chỉ vào lệnh khi giá quay lại chạm đường EMA.",
+     "Cần ADX ≥ 20 và EMA50 dốc cùng hướng; nến xác nhận đóng cửa ngoài EMA20. Mất hiệu quả trong thị trường đi ngang.", 2),
+    ("donch", 2, "🚪", "Donchian / Keltner Retest", "Phá kênh có khối lượng, vào ở retest",
+     "Phá vỡ kênh giá đi kèm khối lượng lớn, chỉ mở vị thế khi giá quay về retest biên kênh thành công.",
+     "Bot dùng kênh 20 nến, khối lượng breakout ≥ 1.2 lần trung bình; retest trong 2–10 nến. Với Forex không có khối lượng thật, bot dùng biên độ nến thay thế.", 2),
+    ("supertrend", 2, "🟢", "Supertrend đa khung", "Supertrend khung nhỏ đồng pha khung lớn",
+     "Tín hiệu vào lệnh đạt tỷ lệ thắng cao nhất khi chỉ số Supertrend của khung nhỏ (M15/H1) đồng pha hoàn toàn với Supertrend của khung lớn (H4/D1).",
+     "Khung lớn được xấp xỉ bằng cách gộp 4 nến. Tín hiệu là lúc Supertrend khung nhỏ vừa đảo trong 4 nến gần nhất và đồng pha khung lớn.", 2),
+    ("ichimoku", 2, "☁️", "Ichimoku Kumo + Chikou", "Bứt phá mây có Chikou xác nhận",
+     "Giao dịch theo mây Ichimoku khi giá bùng nổ khỏi mây Kumo và được xác nhận bởi đường trễ Chikou Span nằm thoáng khỏi đường giá.",
+     "Cần ít nhất 78 nến dữ liệu. Mây dày nghĩa là vùng cản mạnh, SL được đặt ở mép mây bên kia. Hiệu quả thấp khi giá đi ngang quanh mây.", 2),
+    ("trendline", 2, "〰️", "Trendline Bounce", "Điểm chạm thứ 3 của đường xu hướng",
+     "Kẻ đường xu hướng (Trendline) qua 3 điểm chạm, đánh tiếp diễn ở điểm chạm thứ 3 trở đi khi có xác nhận nến.",
+     "Bot kẻ đường qua 2 đáy/đỉnh swing gần nhất (dốc cùng xu hướng), vào lệnh khi giá chạm lần 3 và nến đóng cửa xác nhận. Đường vẽ tay của bạn có thể khác đường của bot.", 2),
+    ("poc", 3, "📊", "Volume Profile POC", "POC làm hỗ trợ/kháng cự bật nảy",
+     "Sử dụng mốc giá có khối lượng giao dịch lớn nhất (POC) làm vùng cản cứng để giao dịch bật nảy.",
+     "POC tính trên 100 nến trước đó, chia 24 mức giá. Với tài sản không có khối lượng thật (Forex), bot dùng biên độ nến thay thế, độ tin cậy thấp hơn.", 1),
+    ("vwap", 3, "⚖️", "VWAP Deviation Reversal", "Đảo chiều khi lệch xa VWAP",
+     "Đánh đảo chiều khi giá lệch quá xa dải độ lệch chuẩn của đường giá trung bình theo khối lượng (VWAP) trong ngày.",
+     "Khung trong ngày dùng VWAP reset mỗi ngày; khung ngày/tuần dùng VWAP trượt 20 nến. Chờ nến đảo chiều xác nhận, không bắt dao rơi khi có tin tức.", 1),
+    ("zscore", 3, "🧲", "Mean Reversion Z-Score", "Hồi quy về trung bình khi |Z| > 2",
+     "Giao dịch hồi quy về mức trung bình dựa trên chỉ số thống kê Z-Score khi giá vượt quá xa biên độ dao động tiêu chuẩn.",
+     "Chỉ vào khi ADX < 25 (thị trường đi ngang) và Z-Score quay đầu. Trong xu hướng mạnh, Z-Score có thể ở mức cực đoan rất lâu.", 1),
+    ("inside", 3, "📦", "Inside Bar Breakout", "Nến mẹ + nến nằm trong, ăn theo phá vỡ",
+     "Đợi nến nén Inside Bar hình thành trong một xu hướng mạnh, đặt lệnh chờ (Stop order) ăn theo hướng phá vỡ của nến mẹ.",
+     "Cần EMA20/50 cùng chiều và ADX > 20. Bot kiểm chứng ở giá đóng cửa của nến phá vỡ; SL đặt ở đầu kia của nến mẹ.", 1),
+    ("atrtrail", 3, "🛡️", "ATR Trailing Stop", "Đường trailing 3 ATR đảo chiều",
+     "Chiến lược quản trị vị thế dựa trên biên độ ATR, giúp gặt hái lợi nhuận tối đa trong các đợt sóng dài mà không lo bị quét lệnh sớm.",
+     "Thực chất là công cụ quản lý lệnh nên bot dùng lúc đường trailing 3 ATR vừa đảo chiều làm điểm vào (kèm ADX ≥ 18). Backtest dùng TP cố định, nên sức mạnh thật khi trượt SL theo xu hướng chưa được tính hết.", 2),
+]
+MTH_FUNCS = dict(sweep=m_sweep, fvgob=m_fvg_ob, breaker=m_breaker, killzone=m_killzone, mitig=m_mitig, keylevel=m_keylevel,
+                 rsidiv=m_rsi_div, bbsq=m_bb_squeeze, double=m_double, qm=m_qm, emapb=m_ema_pb, donch=m_donchian,
+                 supertrend=m_supertrend, ichimoku=m_ichimoku, trendline=m_trendline, poc=m_poc, vwap=m_vwap,
+                 zscore=m_zscore, inside=m_inside, atrtrail=m_atrtrail)
+
+
+def _sld_of(sl, x):
+    d = 1.5 * x["atr"]
+    if sl is None: return d
+    s = pd.Series(np.asarray(sl, dtype=float), index=d.index)
+    return s.where(np.isfinite(s) & (s > 0), d)
+
+
+@st.cache_data(ttl=120, show_spinner="🧪 BOT ĐANG ĐÁNH GIÁ 20 PHƯƠNG PHÁP...")
+def evaluate_methods(df, rr, horizon, iv):
+    """Mỗi phương pháp: tín hiệu quá khứ -> triple-barrier (TP/SL theo R:R) -> thống kê; cộng với tín hiệu trên nến đã đóng gần nhất."""
+    x = _mctx(df, iv)
+    d0, N, be, out = x["df"], x["n"], 1.0 / (1.0 + rr), []
+    for key, grp, ic, name, short, desc, tip, hz in MTH_META:
+        r = dict(key=key, grp=grp, ic=ic, name=name, short=short, desc=desc, tip=tip, err=None,
+                 n=0, hit=0.0, ev=0.0, lb=0.0, per100=0.0, be=be, active=False, side=None, na=False)
+        try:
+            L, S, slL, slS = MTH_FUNCS[key](x)
+            if key == "killzone" and x["tf"] > 60: r["na"] = True
+            ys, sig, sld = [], {}, {}
+            for side, sg, sl in (("LONG", L, slL), ("SHORT", S, slS)):
+                sg = np.asarray(sg, dtype=bool)
+                sig[side], sld[side] = sg, _sld_of(sl, x)
+                first = sg & ~np.concatenate([[False], sg[:-1]])                 # chỉ tính nến đầu của chuỗi tín hiệu liên tiếp
+                y = triple_barrier(d0, side, sld[side], rr, max(int(horizon * hz), 3))
+                ys.append(y[np.where(first & np.isfinite(y))[0]])
+            y = np.concatenate(ys)
+            n = int(len(y))
+            if n:
+                hit = float(y.mean())
+                r.update(n=n, hit=hit, ev=hit * rr - (1 - hit), lb=wilson_lb(hit, n, max(int(horizon * hz), 3)))
+            r["per100"] = n / max(N, 1) * 100
+            t = N - 1
+            for side in ("LONG", "SHORT"):                                       # tín hiệu ở nến đã đóng gần nhất hoặc nến liền trước
+                for age in (0, 1):
+                    if t - age >= 0 and sig[side][t - age] and not r["active"]:
+                        sgn = 1 if side == "LONG" else -1
+                        d = float(sld[side].iloc[t - age])
+                        if np.isfinite(d) and d > 0:
+                            e = float(x["c"].iloc[t])
+                            r.update(active=True, side=side, age=age, entry=e, sl=e - sgn * d, tp1=e + sgn * d, tp2=e + sgn * d * rr, sld=d)
+        except Exception as ex:
+            r["err"] = f"{type(ex).__name__}: {ex}"
+        r["edge"] = bool(r["n"] >= 10 and r["ev"] > 0 and r["lb"] > be and not r["na"])
+        r["go"] = bool(r["edge"] and r["active"])
+        out.append(r)
+    return out
+
+
+def _mth_card(r):
+    side_txt = {"LONG": "MUA", "SHORT": "BÁN"}.get(r["side"], "")
+    if r["na"]: state, tag, tcls = "Không áp dụng cho khung thời gian đang chọn (chỉ dùng khung ≤ 1 giờ).", "N/A", "wait"
+    elif r["go"]: state, tag, tcls = f"✅ CÓ LỢI THẾ: đang có tín hiệu {side_txt} và thống kê backtest dương. Có thể xem xét vào vị thế.", side_txt, "buy" if r["side"] == "LONG" else "sell"
+    elif r["active"]:
+        why = f"mẫu kiểm chứng quá ít (n = {r['n']})" if r["n"] < 10 else "tỷ lệ thắng chưa vượt mức hòa vốn một cách đáng tin"
+        state, tag, tcls = f"⛔ CHƯA CÓ LỢI THẾ: có tín hiệu {side_txt} nhưng {why}. Không nên vào chỉ vì phương pháp này.", side_txt, "wait"
+    elif r["edge"]: state, tag, tcls = "⏳ Thống kê dương nhưng hiện chưa có tín hiệu. Chờ setup hình thành rồi mới vào.", "CHỜ", "wait"
+    else:
+        why = f"mẫu kiểm chứng quá ít (n = {r['n']})" if r["n"] < 10 else "thống kê backtest chưa chứng minh lợi thế"
+        state, tag, tcls = f"⛔ CHƯA CÓ LỢI THẾ: chưa có tín hiệu, {why}.", "CHỜ", "wait"
+    if r["active"] and not r["na"]:
+        cells = [("Entry", format_vn_price(r["entry"]), ""), ("Stop Loss", format_vn_price(r["sl"]), "dn"),
+                 ("TP1 (1R)", format_vn_price(r["tp1"]), "up"), (f"TP2 ({r['rr']:g}R)", format_vn_price(r["tp2"]), "up")]
+    else:
+        cells = [("Entry", "—", ""), ("Stop Loss", "—", ""), ("TP1 (1R)", "—", ""), (f"TP2 ({r['rr']:g}R)", "—", "")]
+    g1 = "".join(f"<div class='mth-cell'><span>{a}</span><b class='{c}'>{b}</b></div>" for a, b, c in cells)
+    evc = "up" if r["ev"] > 0 else "dn"
+    st_cells = [("Tỷ lệ thắng", f"{r['hit'] * 100:.0f}%", "up" if r["hit"] > r["be"] else "dn"), ("Hòa vốn", f"{r['be'] * 100:.0f}%", ""),
+                ("Kỳ vọng / lệnh", f"{r['ev']:+.2f}R", evc), ("Số lệnh kiểm chứng", f"{r['n']}", ""),
+                ("Tần suất", f"{r['per100']:.1f} / 100 nến", ""), ("Cận dưới tin cậy 90%", f"{r['lb'] * 100:.0f}%", "up" if r["lb"] > r["be"] else "dn")]
+    g2 = "".join(f"<div class='mth-cell'><span>{a}</span><b class='{c}'>{b}</b></div>" for a, b, c in st_cells)
+    err = f"<div class='mth-note warn'><b>Lỗi tính toán</b>{r['err']}</div>" if r["err"] else ""
+    return (f"<details class='mth {'g' if r['go'] else 'r'}'><summary><span class='mth-ic'>{r['ic']}</span>"
+            f"<span class='mth-nm'><b>{r['name']}</b><em>{r['short']}</em></span><span class='mth-tag {tcls}'>{tag}</span>"
+            f"<span class='mth-wr'>{r['hit'] * 100:.0f}%</span></summary><div class='mth-body'>"
+            f"<div class='mth-state'>{state}</div><div class='mth-grid'>{g1}</div><div class='mth-grid s'>{g2}</div>"
+            f"<div class='mth-note'><b>Phương pháp</b>{r['desc']}</div><div class='mth-note warn'><b>Lưu ý khi dùng</b>{r['tip']}</div>{err}</div></details>")
+
+
+def render_methods(res, rr):
+    go = [r for r in res if r["go"]]
+    nL, nS = sum(r["side"] == "LONG" for r in go), sum(r["side"] == "SHORT" for r in go)
+    n_edge, n_act, n_all = sum(r["edge"] for r in res), sum(r["active"] for r in res), len(res)
+    if not go: verdict = "Chưa phương pháp nào đủ lợi thế. Nên đứng ngoài, chờ setup tốt hơn."
+    elif nL and nS: verdict = f"⚠️ Các phương pháp mâu thuẫn ({nL} MUA / {nS} BÁN). Không nên vào lệnh."
+    else:
+        d = "MUA" if nL else "BÁN"
+        lvl = "đồng thuận mạnh" if len(go) >= 5 else ("đồng thuận khá" if len(go) >= 3 else "đồng thuận yếu, chỉ vào khi có thêm xác nhận")
+        verdict = f"{'🟢' if nL else '🔴'} Thiên về {d}: {lvl}."
+    strip = "".join(f"<i class='{'g' if r['go'] else ''}' title='{r['name']}'></i>" for r in res)
+    html(f"""<div class='mth-sum {'g' if go else ''}'><div class='mth-sum-n'><b>{len(go)}</b><span>/{n_all}</span></div>
+        <div class='mth-sum-t'><strong>phương pháp đang có lợi thế để vào vị thế</strong><em>{verdict}</em>
+        <div class='mth-strip'>{strip}</div>
+        <div class='mth-sum-c'>🟢 MUA {nL} · 🔴 BÁN {nS} · Thống kê dương {n_edge} · Đang có tín hiệu {n_act} · R:R 1:{rr:g}</div></div></div>""")
+    for gi, gname in enumerate(MTH_GROUPS):
+        cards = "".join(_mth_card(dict(r, rr=rr)) for r in res if r["grp"] == gi)
+        html(f"<div class='mth-grp'>{gname}</div><div class='mth-list'>{cards}</div>")
+
+
 AI_SLM = ["ATR (theo biến động)", "Cấu trúc (swing 10 nến)"]
 AI_SAFE = ["Mạo hiểm", "Cân bằng", "Thận trọng"]
 AI_RMODES = ["% vốn", "Số tiền $", "Lot cố định"]
@@ -2267,6 +2830,17 @@ if feed or menu_selection == "🤖 AI Vào lệnh":
     if dec is not None:
         plan = dict(side=dec["side"], entry=dec["entry"], sl=dec["sl"], tp2=dec["tp2"])
         live_monitor(ticker, plan if dec["ok"] else None, float(lot), float(cv), float(dec["atr"]))
+
+if feed or menu_selection == "🧪 Đánh giá phương pháp":
+    if feed: html("<div class='sec-anchor' data-sec='🧪 Đánh giá phương pháp'></div><div class='sec-sep'>🧪 Đánh giá phương pháp</div>")
+    st.subheader("Bot AI đánh giá 20 phương pháp giao dịch")
+    if "mth_rr" not in st.session_state: st.session_state["mth_rr"] = 2.0
+    st.segmented_control("Tỷ lệ R:R dùng để kiểm chứng", [1.5, 2.0, 3.0], format_func=lambda v: f"1 : {v:g}", key="mth_rr")
+    _mrr = float(st.session_state.get("mth_rr") or 2.0)
+    _mhz = {"1m": 48, "5m": 48, "15m": 48, "60m": 24, "1d": 10, "1wk": 6}[interval]
+    render_methods(evaluate_methods(df.iloc[:-1].reset_index(drop=True), _mrr, _mhz, interval), _mrr)
+    st.caption("Cách đánh giá: bot dò tín hiệu của từng phương pháp trên toàn bộ lịch sử của tài sản và khung đang chọn, rồi mô phỏng TP/SL theo R:R. Hết hạn mà chưa chạm TP tính là thua. "
+               "Quy tắc nhận diện đã được đơn giản hóa để máy chạy được, không thay thế việc tự xem biểu đồ. Không phải lời khuyên đầu tư.")
 
 if feed or menu_selection == "🧠 Phân tích SMC":
     if feed: html("<div class='sec-anchor' data-sec='🧠 Phân tích SMC'></div><div class='sec-sep'>🧠 Phân tích SMC</div>")
