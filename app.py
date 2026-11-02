@@ -776,6 +776,9 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 .mth-cell b { display: block; color: #fff; font-size: 14px; margin-top: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .mth-cell b.up { color: #22d3a0; }
 .mth-cell b.dn { color: #ff5470; }
+.mth-cv { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.mth-cv b { min-width: 0; overflow-wrap: anywhere; }
+.mth-cell .nt-copy { width: 28px; height: 28px; margin: 3px 0 0 auto; border-radius: 8px; }
 .mth-note { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.035); color: #cfd1e6; font-size: 12.5px; line-height: 1.6; text-align: left; }
 .mth-note b { display: block; color: #b9a8ff; font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 3px; }
 .mth-note.warn b { color: #fbbf24; }
@@ -1685,7 +1688,7 @@ def live_monitor(ticker, plan, lot, cv, atr):
         st.caption("⚠️ Chưa lấy được giá trực tiếp, đang thử lại...")
         return
     price, prev = lp
-    now = pd.Timestamp.utcnow().tz_localize(None) + timedelta(hours=7)
+    now = pd.Timestamp.now("UTC").tz_localize(None) + timedelta(hours=7)
     chg = (price - prev) / prev * 100 if prev else 0.0
     closed, sess = market_state(ticker, now)
     col = "#22d3a0" if chg >= 0 else "#ff5470"
@@ -2187,6 +2190,34 @@ def evaluate_methods(df, rr, horizon, iv):
     return out
 
 
+_COPY_SVG = ("<svg class='i-copy' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'></rect><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'></path></svg>"
+             "<svg class='i-ok' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4'><polyline points='20 6 9 17 4 12'></polyline></svg>")
+
+
+def _pdec(v) -> int:
+    """Số chữ số thập phân theo độ lớn giá: vàng/BTC/chỉ số 2, JPY & cổ phiếu 3, Forex 5."""
+    v = abs(float(v))
+    return 2 if v >= 1000 else (3 if v >= 100 else 5)
+
+
+def _px(v) -> str:
+    """Hiển thị giá kiểu Việt Nam (1.234,56) với số lẻ đủ để Entry/SL/TP không bị trùng nhau ở Forex."""
+    return f"{float(v):,.{_pdec(v)}f}".replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+
+
+def _cp(v) -> str:
+    """Số thô dán được thẳng vào sàn (dấu chấm thập phân, không có dấu phân cách hàng nghìn)."""
+    return f"{float(v):.{_pdec(v)}f}"
+
+
+def _mth_cell(label, v, cls):
+    """Ô giá có nút sao chép; chưa có tín hiệu (v=None) thì hiện gạch và không có nút."""
+    if v is None:
+        return f"<div class='mth-cell'><span>{label}</span><b>—</b></div>"
+    return (f"<div class='mth-cell'><span>{label}</span><div class='mth-cv'><b class='{cls}'>{_px(v)}</b>"
+            f"<i class='nt-copy' role='button' tabindex='0' title='Sao chép {label}' aria-label='Sao chép {label}' data-copy='{_cp(v)}'>{_COPY_SVG}</i></div></div>")
+
+
 def _mth_card(r):
     side_txt = {"LONG": "MUA", "SHORT": "BÁN"}.get(r["side"], "")
     if r["na"]: state, tag, tcls = "Không áp dụng cho khung thời gian đang chọn (chỉ dùng khung ≤ 1 giờ).", "N/A", "wait"
@@ -2198,12 +2229,9 @@ def _mth_card(r):
     else:
         why = f"mẫu kiểm chứng quá ít (n = {r['n']})" if r["n"] < 10 else "thống kê backtest chưa chứng minh lợi thế"
         state, tag, tcls = f"⛔ CHƯA CÓ LỢI THẾ: chưa có tín hiệu, {why}.", "CHỜ", "wait"
-    if r["active"] and not r["na"]:
-        cells = [("Entry", format_vn_price(r["entry"]), ""), ("Stop Loss", format_vn_price(r["sl"]), "dn"),
-                 ("TP1 (1R)", format_vn_price(r["tp1"]), "up"), (f"TP2 ({r['rr']:g}R)", format_vn_price(r["tp2"]), "up")]
-    else:
-        cells = [("Entry", "—", ""), ("Stop Loss", "—", ""), ("TP1 (1R)", "—", ""), (f"TP2 ({r['rr']:g}R)", "—", "")]
-    g1 = "".join(f"<div class='mth-cell'><span>{a}</span><b class='{c}'>{b}</b></div>" for a, b, c in cells)
+    on = r["active"] and not r["na"]
+    g1 = "".join(_mth_cell(a, (r[k] if on else None), c) for a, k, c in
+                 (("Entry", "entry", ""), ("Stop Loss", "sl", "dn"), ("TP1 (1R)", "tp1", "up"), (f"TP2 ({r['rr']:g}R)", "tp2", "up")))
     evc = "up" if r["ev"] > 0 else "dn"
     st_cells = [("Tỷ lệ thắng", f"{r['hit'] * 100:.0f}%", "up" if r["hit"] > r["be"] else "dn"), ("Hòa vốn", f"{r['be'] * 100:.0f}%", ""),
                 ("Kỳ vọng / lệnh", f"{r['ev']:+.2f}R", evc), ("Số lệnh kiểm chứng", f"{r['n']}", ""),
@@ -2741,7 +2769,7 @@ if feed or menu_selection == "🤖 AI Vào lệnh":
     dfa = df.iloc[:-1].reset_index(drop=True)  # chỉ dùng nến đã đóng
     res = ai_predict(dfa, rr_ai, k_sl, sl_mode, iv_h, 1 / (1 + rr_ai) + margin)
     mtf_ai = load_mtf_data(ticker)
-    now_vn = pd.Timestamp.utcnow().tz_localize(None) + timedelta(hours=7)
+    now_vn = pd.Timestamp.now("UTC").tz_localize(None) + timedelta(hours=7)
     dec = ai_decide(res, dfa, mtf_ai, rr_ai, margin, ticker, now_vn, allow_off, split_tp)
 
     with col_l:
