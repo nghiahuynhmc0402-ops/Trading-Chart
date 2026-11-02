@@ -2726,9 +2726,9 @@ if feed or menu_selection == "🤖 AI Vào lệnh":
             _names = ai_cfg_list()
             if _names:
                 st.selectbox("Cấu hình đã lưu", _names, key="ai_cfgsel")
-                _a, _b = st.columns(2)
-                _a.button("📂 Tải", on_click=cb_load, width="stretch", key="ai_btn_load")
-                _b.button("🗑️ Xóa", on_click=cb_del, width="stretch", key="ai_btn_del")
+                _col_load, _col_del = st.columns(2)   # không đặt tên _a/_b: _b là hàm trợ giúp của bộ đánh giá phương pháp
+                _col_load.button("📂 Tải", on_click=cb_load, width="stretch", key="ai_btn_load")
+                _col_del.button("🗑️ Xóa", on_click=cb_del, width="stretch", key="ai_btn_del")
             _m = st.session_state.pop("_ai_msg", None)
             st.caption(_m or "Mọi lựa chọn được tự động lưu và khôi phục ở lần mở sau.")
         _snap = ai_snapshot()
