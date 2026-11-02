@@ -786,6 +786,41 @@ input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
 
 footer {visibility: hidden;}
 #MainMenu {visibility: hidden;}
+
+/* ===================== V12: NHÃN MUA/BÁN/CHỜ NỔI BẬT + CHỐNG RUNG LẮC KHI CHẠM/LƯỚT ===================== */
+.mth-tag { min-width: 54px; text-align: center; font-size: 11.5px !important; padding: 5px 11px !important; letter-spacing: .8px !important; }
+.mth-tag.buy { color: #052e22 !important; background: linear-gradient(135deg, #2de2a6, #22d3a0) !important; border: 1px solid #5cf0c4 !important; box-shadow: 0 0 12px -2px rgba(34,211,160,.8) !important; }
+.mth-tag.sell { color: #fff !important; background: linear-gradient(135deg, #ff5470, #e0284b) !important; border: 1px solid #ff8da1 !important; box-shadow: 0 0 12px -2px rgba(255,84,112,.8) !important; }
+.mth-tag.wait { color: #b4b9cc !important; background: rgba(255,255,255,.07) !important; border: 1px solid rgba(255,255,255,.2) !important; box-shadow: none !important; }
+
+/* Màn hình cảm ứng: bỏ nghiêng 3D / nâng thẻ khi hover (hover giả khi chạm làm thẻ giật), bỏ blur nặng */
+@media (hover: none), (pointer: coarse) {
+  html { scroll-behavior: auto !important; }
+  .glass-card, .glass-card:hover, .glass-card:active, .qm, .qm:hover, .qm:active, .signal-card:hover, .flip:hover,
+  [data-testid="stMetric"]:hover, .hero-stats > div:hover, .stButton>button:hover, .stDownloadButton>button:hover,
+  .stSelectbox div[data-baseweb="select"] > div:hover, .stTextInput input:hover, .stNumberInput input:hover {
+    transform: none !important; will-change: auto !important;
+  }
+  .glass-card { --rx: 0deg !important; --ry: 0deg !important; --ty: 0px !important; }
+  .qm::after { display: none !important; }
+  *, *::before, *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  /* Không chạy lại hiệu ứng "warp/fade" cho từng khối mỗi lần render hay cuộn tới */
+  .block-container [data-testid="stVerticalBlock"] > div[data-testid="element-container"],
+  .block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
+  [data-testid="stHorizontalBlock"] > div, .reason-line, .page-header { animation: none !important; }
+  /* Lớp nền cố định: đẩy lên GPU, ngừng trôi liên tục */
+  .stApp::before, .stApp::after, [data-testid="stAppViewContainer"]::before, [data-testid="stAppViewContainer"]::after {
+    animation: none !important; will-change: auto !important; transform: translateZ(0);
+  }
+  .glass-card::before, .glass-card::after { animation: none !important; }
+}
+
+/* Thẻ phương pháp: cách ly layout để mở/đóng và cuộn không kéo cả trang reflow */
+.mth { contain: layout paint style; transform: translateZ(0); transition: border-color .2s, background .2s !important; }
+.mth > summary { touch-action: manipulation; }
+.mth > summary::after { transition: none !important; }
+.mth-list { overflow-anchor: none; }
+html, body, .stApp, [data-testid="stMain"] { overscroll-behavior-y: none; }
 </style>
 """
 def _stars(n, seed):
@@ -2229,6 +2264,8 @@ def _mth_card(r):
     else:
         why = f"mẫu kiểm chứng quá ít (n = {r['n']})" if r["n"] < 10 else "thống kê backtest chưa chứng minh lợi thế"
         state, tag, tcls = f"⛔ CHƯA CÓ LỢI THẾ: chưa có tín hiệu, {why}.", "CHỜ", "wait"
+    # Nhãn luôn theo màu hướng lệnh: MUA = xanh, BÁN = đỏ, CHỜ / N/A = xám
+    tcls = {"MUA": "buy", "BÁN": "sell"}.get(tag, "wait")
     on = r["active"] and not r["na"]
     g1 = "".join(_mth_cell(a, (r[k] if on else None), c) for a, k, c in
                  (("Entry", "entry", ""), ("Stop Loss", "sl", "dn"), ("TP1 (1R)", "tp1", "up"), (f"TP2 ({r['rr']:g}R)", "tp2", "up")))
