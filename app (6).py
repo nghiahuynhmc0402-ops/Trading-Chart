@@ -1,0 +1,3145 @@
+import json
+import random as _random
+import warnings
+warnings.filterwarnings("ignore", module="yfinance")
+import streamlit as st
+import streamlit.components.v1 as components
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import feedparser
+import sqlite3
+from datetime import datetime, timedelta
+
+# Thư viện chỉ báo kỹ thuật
+from ta.trend import EMAIndicator, MACD, ADXIndicator
+from ta.momentum import RSIIndicator
+from ta.volatility import BollingerBands, AverageTrueRange
+
+try:
+    import pyvsmc as smc
+    HAS_SMC = True
+except ImportError:
+    HAS_SMC = False
+
+# ============================================================
+# 1. CẤU HÌNH GIAO DIỆN & CSS  (AURORA GLASS - NGHIA_TRADING)
+# ============================================================
+st.set_page_config(
+    page_title="Nghia_Trading | Terminal",
+    page_icon="⚡",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+APP_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+:root {
+    --bg: #05060a;
+    --surface: rgba(255,255,255,0.035);
+    --surface-hi: rgba(255,255,255,0.06);
+    --line: rgba(255,255,255,0.07);
+    --line-hi: rgba(255,255,255,0.16);
+    --txt: #eef0f6;
+    --muted: #8b90a0;
+    --dim: #5b6070;
+    --brand: #7c7cff;
+    --brand2: #b06cff;
+    --up: #22d3a0;
+    --down: #ff5470;
+    --warn: #fbbf24;
+    --ease: cubic-bezier(.22,1,.36,1);
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+
+/* ---------- Nền Aurora động ---------- */
+.stApp {
+    background: var(--bg);
+    color: var(--txt) !important;
+    font-family: 'Inter', sans-serif;
+}
+.stApp::before, .stApp::after {
+    content: ""; position: fixed; z-index: 0; pointer-events: none;
+    width: 55vw; height: 55vw; border-radius: 50%; filter: blur(90px); opacity: .55;
+}
+.stApp::before {
+    top: -20vw; left: -10vw;
+    background: radial-gradient(circle, rgba(124,124,255,.32), transparent 65%);
+    animation: drift1 22s ease-in-out infinite alternate;
+}
+.stApp::after {
+    bottom: -25vw; right: -15vw;
+    background: radial-gradient(circle, rgba(34,211,160,.20), transparent 65%);
+    animation: drift2 26s ease-in-out infinite alternate;
+}
+@keyframes drift1 { to { transform: translate(18vw, 14vh) scale(1.15); } }
+@keyframes drift2 { to { transform: translate(-16vw, -12vh) scale(1.2); } }
+
+[data-testid="stHeader"] { background: transparent !important; }
+.block-container { padding-top: 2.2rem !important; max-width: 1500px; position: relative; z-index: 1; }
+
+/* ---------- Animation vào trang ---------- */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(34,211,160,.6); } 70% { box-shadow: 0 0 0 10px rgba(34,211,160,0); } 100% { box-shadow: 0 0 0 0 rgba(34,211,160,0); } }
+@keyframes gradShift { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
+@keyframes sweep { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="element-container"] {
+    animation: fadeUp .65s var(--ease) both;
+}
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(1) { animation-delay: .00s; }
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(2) { animation-delay: .06s; }
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(3) { animation-delay: .12s; }
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(4) { animation-delay: .18s; }
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(5) { animation-delay: .24s; }
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(6) { animation-delay: .30s; }
+.block-container [data-testid="stVerticalBlock"] > div:nth-child(n+7) { animation-delay: .36s; }
+[data-testid="stHorizontalBlock"] > div { animation: fadeUp .6s var(--ease) both; }
+[data-testid="stHorizontalBlock"] > div:nth-child(2) { animation-delay: .08s; }
+[data-testid="stHorizontalBlock"] > div:nth-child(3) { animation-delay: .16s; }
+[data-testid="stHorizontalBlock"] > div:nth-child(4) { animation-delay: .24s; }
+
+.stPlotlyChart {
+    touch-action: pan-y pinch-zoom !important;
+    border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* ---------- Sidebar ---------- */
+[data-testid="stSidebar"] {
+    background: rgba(8,9,14,.72) !important;
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    border-right: 1px solid var(--line);
+}
+[data-testid="stSidebar"] > div:first-child { animation: fadeIn .8s ease both; }
+
+.sidebar-header { padding: 6px 0 20px 0; border-bottom: 1px solid var(--line); margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+.sidebar-logo {
+    width: 42px; height: 42px; border-radius: 13px; display: flex; justify-content: center; align-items: center; color: #fff;
+    background: linear-gradient(135deg, var(--brand), var(--brand2), #4ee3c1, var(--brand));
+    background-size: 300% 300%; animation: gradShift 6s linear infinite, floaty 4s ease-in-out infinite;
+    box-shadow: 0 8px 24px rgba(124,124,255,.45);
+}
+.sidebar-title { font-size: 18px; font-weight: 800; color: #fff; margin: 0; letter-spacing: -.3px; }
+.sidebar-subtitle { font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 1.6px; margin-top: 2px; }
+.side-label { color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; margin: 4px 0 6px 2px; }
+
+.pro-card {
+    position: relative; overflow: hidden; border-radius: 16px; padding: 16px; margin-top: 22px;
+    background: linear-gradient(135deg, rgba(124,124,255,.14), rgba(176,108,255,.10));
+    border: 1px solid rgba(124,124,255,.25);
+}
+.pro-card::after {
+    content: ""; position: absolute; inset: 0; width: 40%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.12), transparent);
+    animation: sweep 4.5s ease-in-out infinite;
+}
+.pro-card h4 { margin: 0 0 5px 0; font-size: 14px; color: #fff; font-weight: 700; }
+.pro-card p { margin: 0; font-size: 12px; color: #a8adbd; line-height: 1.5; }
+.copyright { text-align: center; color: var(--dim); font-size: 11px; margin-top: 26px; padding-top: 14px; border-top: 1px dashed var(--line); }
+
+/* ---------- Menu điều hướng dạng viên thuốc ---------- */
+div[data-testid="stRadio"] > div[role="radiogroup"] {
+    display: flex; flex-wrap: nowrap; gap: 6px !important; overflow-x: auto; scrollbar-width: none;
+    padding: 6px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line);
+    backdrop-filter: blur(16px); -webkit-overflow-scrolling: touch;
+}
+div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar { display: none; }
+div[data-testid="stRadio"] > div[role="radiogroup"] > label {
+    position: relative; overflow: hidden; flex: 0 0 auto; padding: 10px 18px !important; border-radius: 11px !important;
+    cursor: pointer !important; background: transparent !important; border: 1px solid transparent;
+    color: var(--muted) !important; transition: all .3s var(--ease); margin: 0 !important;
+}
+div[data-testid="stRadio"] > div[role="radiogroup"] > label:hover { background: var(--surface-hi) !important; color: var(--txt) !important; transform: translateY(-1px); }
+div[data-testid="stRadio"] > div[role="radiogroup"] > label:active { transform: scale(.94); }
+div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"],
+div[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(124,124,255,.28), rgba(176,108,255,.18)) !important;
+    border: 1px solid rgba(124,124,255,.4);
+    box-shadow: 0 6px 20px -6px rgba(124,124,255,.55), inset 0 1px 0 rgba(255,255,255,.1);
+    color: #fff !important;
+}
+div[data-testid="stRadio"] > div[role="radiogroup"] > label > div:first-child { display: none !important; }
+div[data-testid="stRadio"] > div[role="radiogroup"] > label div[data-testid="stMarkdownContainer"] p { font-size: 13.5px !important; font-weight: 600 !important; white-space: nowrap; }
+div[data-testid="stRadio"] > div[role="radiogroup"] > label[data-checked="true"] div[data-testid="stMarkdownContainer"] p,
+div[data-testid="stRadio"] > div[role="radiogroup"] > label:has(input:checked) div[data-testid="stMarkdownContainer"] p { color: #fff !important; }
+
+/* ---------- Inputs ---------- */
+.stSelectbox div[data-baseweb="select"] > div, .stTextInput input, .stNumberInput input, .stTextArea textarea, .stDateInput input {
+    background-color: var(--surface) !important; border: 1px solid var(--line) !important;
+    border-radius: 12px !important; color: var(--txt) !important; font-family: 'Inter', sans-serif !important;
+    transition: all .25s var(--ease);
+}
+.stSelectbox div[data-baseweb="select"] > div:hover, .stTextInput input:hover, .stNumberInput input:hover { border-color: var(--line-hi) !important; transform: translateY(-1px); }
+.stSelectbox div[data-baseweb="select"] > div:focus-within, .stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus {
+    border-color: var(--brand) !important; box-shadow: 0 0 0 3px rgba(124,124,255,.22) !important;
+}
+[data-testid="stSlider"] [role="slider"] { background: var(--brand) !important; box-shadow: 0 0 0 5px rgba(124,124,255,.25); transition: box-shadow .2s; }
+[data-testid="stSlider"] [role="slider"]:active { box-shadow: 0 0 0 9px rgba(124,124,255,.25); }
+
+/* ---------- Buttons ---------- */
+.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button {
+    position: relative; overflow: hidden; width: 100%; border-radius: 12px !important; border: 1px solid rgba(255,255,255,.12) !important;
+    background: linear-gradient(135deg, var(--brand), var(--brand2)) !important; color: #fff !important;
+    font-family: 'Inter', sans-serif !important; font-weight: 600; padding: 10px 14px;
+    transition: transform .25s var(--ease), box-shadow .25s var(--ease), filter .25s;
+    box-shadow: 0 6px 20px -6px rgba(124,124,255,.6);
+}
+.stButton>button:hover, .stDownloadButton>button:hover, [data-testid="stFormSubmitButton"]>button:hover {
+    transform: translateY(-2px); box-shadow: 0 12px 28px -8px rgba(124,124,255,.75); filter: brightness(1.08);
+}
+.stButton>button:active, .stDownloadButton>button:active, [data-testid="stFormSubmitButton"]>button:active { transform: scale(.95); }
+.ripple-dot { position: absolute; border-radius: 50%; background: rgba(255,255,255,.5); transform: scale(0); animation: ripple .65s ease-out; pointer-events: none; }
+
+/* ---------- Dataframe / Metric Streamlit ---------- */
+[data-testid="stDataFrame"] { border-radius: 16px !important; border: 1px solid var(--line) !important; overflow: hidden; background: var(--surface) !important; }
+[data-testid="stMetric"] {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px;
+    transition: transform .3s var(--ease), border-color .3s, box-shadow .3s;
+}
+[data-testid="stMetric"]:hover { transform: translateY(-3px); border-color: var(--line-hi); box-shadow: 0 14px 30px -12px rgba(0,0,0,.6); }
+[data-testid="stMetricLabel"] p { color: var(--muted) !important; font-size: 12px !important; text-transform: uppercase; letter-spacing: .6px; }
+[data-testid="stMetricValue"] { font-family: 'JetBrains Mono', monospace !important; font-weight: 700 !important; }
+[data-testid="stAlert"] { border-radius: 14px !important; border: 1px solid var(--line) !important; backdrop-filter: blur(10px); }
+[data-testid="stForm"] { border: none !important; padding: 0 !important; }
+
+/* ---------- Titles ---------- */
+h1, h2, h3 { color: #fff !important; font-family: 'Inter', sans-serif !important; font-weight: 800 !important; letter-spacing: -.5px; }
+h3 { position: relative; padding-left: 14px; }
+.stMarkdown h3::before, [data-testid="stSubheader"]::before { content: none; }
+[data-testid="stCaptionContainer"] { color: var(--dim) !important; }
+
+/* ---------- Cards ---------- */
+.glass-card {
+    position: relative; overflow: hidden; background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015));
+    border: 1px solid var(--line); border-radius: 18px; padding: 20px; margin-bottom: 14px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 12px 30px -16px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06);
+    transition: transform .4s var(--ease), box-shadow .4s var(--ease), border-color .3s;
+    --mx: 50%; --my: 0%;
+}
+.glass-card::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .35s;
+    background: radial-gradient(380px circle at var(--mx) var(--my), rgba(124,124,255,.16), transparent 60%);
+}
+.glass-card:hover { transform: translateY(-4px); border-color: var(--line-hi); box-shadow: 0 24px 48px -18px rgba(0,0,0,.8), 0 0 0 1px rgba(124,124,255,.12); }
+.glass-card:hover::before { opacity: 1; }
+.glass-card:active { transform: translateY(-1px) scale(.992); }
+.card-title { color: #fff; font-weight: 700; font-size: 15px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.row-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; color: var(--muted); }
+.val-data { color: var(--txt); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+.val-up { color: var(--up) !important; }
+.val-down { color: var(--down) !important; }
+
+.signal-card {
+    position: relative; overflow: hidden; border-radius: 18px; padding: 22px; margin-bottom: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); border: 1px solid var(--line);
+    transition: transform .4s var(--ease), box-shadow .4s var(--ease);
+}
+.signal-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent, var(--brand)); box-shadow: 0 0 20px var(--accent, var(--brand)); }
+.signal-card:hover { transform: translateY(-3px); box-shadow: 0 20px 40px -18px rgba(0,0,0,.8); }
+.score-badge { background: linear-gradient(135deg, rgba(124,124,255,.25), rgba(176,108,255,.2)); border: 1px solid rgba(124,124,255,.35); color: #d6c6ff; padding: 6px 14px; border-radius: 99px; font-weight: 700; font-size: 13px; }
+.score-bar { height: 6px; border-radius: 99px; background: rgba(255,255,255,.06); overflow: hidden; margin: 4px 0 16px 0; }
+.score-bar > div { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--brand), var(--up)); animation: grow 1.2s var(--ease) both; }
+@keyframes grow { from { width: 0 !important; } }
+.reason-line { padding: 7px 0; font-size: 13px; color: #b4b9c8; line-height: 1.55; animation: fadeUp .5s var(--ease) both; }
+
+.bot-active { border-radius: 16px; padding: 16px 18px; margin-bottom: 18px; background: rgba(124,124,255,.10); border: 1px solid rgba(124,124,255,.35); animation: glowPulse 2.8s ease-in-out infinite; }
+@keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(124,124,255,0); } 50% { box-shadow: 0 0 26px 0 rgba(124,124,255,.28); } }
+
+.news-card { cursor: pointer; padding: 16px 18px; margin-bottom: 12px; }
+.news-card:hover .news-title { color: #fff; transform: translateX(4px); }
+.news-title { color: #a9a9ff; font-weight: 600; font-size: 15px; margin-bottom: 8px; transition: all .3s var(--ease); line-height: 1.45; }
+
+.mtf-card { text-align: center; }
+.mtf-icon { font-size: 42px; margin: 6px 0 10px 0; display: inline-block; animation: floaty 3.5s ease-in-out infinite; }
+
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; animation: fadeUp .6s var(--ease) both; }
+.page-header h1 { margin: 0; font-size: 28px; background: linear-gradient(90deg, #fff, #b9b9ff 60%, #fff); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: gradShift 8s linear infinite; }
+.page-header p { margin: 2px 0 0 0; color: var(--muted); font-size: 13px; font-weight: 500; }
+.live-pill { background: rgba(34,211,160,.10); border: 1px solid rgba(34,211,160,.28); padding: 6px 13px; border-radius: 99px; display: flex; align-items: center; gap: 8px; }
+.live-pill i { width: 7px; height: 7px; background: var(--up); border-radius: 50%; animation: pulseDot 1.8s infinite; }
+.live-pill span { color: var(--up); font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+
+.math-box { background: var(--surface); border: 1px dashed var(--line-hi); border-radius: 14px; padding: 15px 17px; margin-top: 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(124,124,255,.5); }
+
+@media (max-width: 768px) {
+    .block-container { padding: 1.2rem .8rem !important; }
+    .page-header h1 { font-size: 22px; }
+    .glass-card, .signal-card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+
+/* ===================== V2: FIX + WOW ===================== */
+@property --ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes spin { to { --ang: 360deg; } }
+@keyframes ringfill { from { stroke-dashoffset: 264; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes gridmove { to { background-position: 0 56px, 56px 0; } }
+
+/* --- Sửa menu: bỏ vòng tròn radio, không vỡ chữ --- */
+div[data-testid="stRadio"] { width: 100%; }
+div[data-testid="stRadio"] > div[role="radiogroup"] { flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important; }
+div[data-testid="stRadio"] label {
+    width: auto !important; min-width: max-content !important; flex: 0 0 auto !important;
+    display: flex !important; align-items: center !important; margin: 0 !important;
+}
+div[data-testid="stRadio"] label > input,
+div[data-testid="stRadio"] label > div:not(:has([data-testid="stMarkdownContainer"])) { display: none !important; }
+div[data-testid="stRadio"] label > div { width: auto !important; min-width: max-content !important; margin: 0 !important; }
+div[data-testid="stRadio"] label [data-testid="stMarkdownContainer"] { width: max-content !important; }
+div[data-testid="stRadio"] label p {
+    white-space: nowrap !important; word-break: keep-all !important; overflow-wrap: normal !important; margin: 0 !important;
+}
+
+/* --- Lưới nền chuyển động --- */
+[data-testid="stAppViewContainer"]::before {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 15%, #000 0%, transparent 72%);
+    mask-image: radial-gradient(ellipse at 50% 15%, #000 0%, transparent 72%);
+    animation: gridmove 7s linear infinite;
+}
+
+/* --- Thẻ nghiêng 3D + đèn rọi --- */
+.glass-card {
+    transform: perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(var(--ty,0px));
+    transition: transform .25s ease-out, box-shadow .4s var(--ease), border-color .3s; will-change: transform;
+}
+.glass-card:hover { --ty: -4px; transform: perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-4px); }
+.glass-card:active { transform: perspective(900px) scale(.985); }
+
+/* --- Hero giá --- */
+.hero {
+    position: relative; border-radius: 24px; padding: 1.5px; margin-bottom: 18px;
+    background: conic-gradient(from var(--ang), rgba(255,255,255,.07) 0%, rgba(255,255,255,.07) 55%, var(--c) 78%, #7c7cff 90%, rgba(255,255,255,.07) 100%);
+    animation: spin 7s linear infinite, fadeUp .7s var(--ease) both;
+    box-shadow: 0 30px 70px -34px var(--c);
+}
+.hero-in {
+    position: relative; overflow: hidden; border-radius: 23px; padding: 22px 24px;
+    background: linear-gradient(160deg, rgba(14,15,24,.97), rgba(8,9,14,.98));
+}
+.hero-in::before {
+    content: ""; position: absolute; right: -90px; top: -90px; width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, var(--c), transparent 70%); opacity: .17; filter: blur(12px);
+}
+.hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; position: relative; }
+.hero-name { font-size: clamp(22px, 4.4vw, 30px); font-weight: 800; letter-spacing: -.6px; color: #fff; }
+.hero-sub { color: var(--muted); font-size: 13px; font-weight: 500; margin-top: 2px; }
+.hero-mid { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); align-items: end; gap: 18px; margin-top: 16px; position: relative; }
+.hero-price {
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: clamp(30px, 7vw, 46px);
+    line-height: 1.05; color: #fff; letter-spacing: -1px; text-shadow: 0 0 34px var(--c);
+}
+.chg {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 5px 12px; border-radius: 99px;
+    font-weight: 700; font-size: 13px; font-family: 'JetBrains Mono', monospace;
+    color: var(--c); background: var(--cbg); border: 1px solid var(--cbd);
+}
+.spark { width: 100%; height: auto; overflow: visible; }
+.spark .ln {
+    fill: none; stroke: var(--c); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.9s var(--ease) .2s forwards; filter: drop-shadow(0 0 6px var(--c));
+}
+.spark .ar { opacity: 0; animation: fadeIn 1.1s ease 1.1s forwards; }
+.hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 18px; position: relative; }
+.hero-stats > div {
+    padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); border: 1px solid var(--line);
+    transition: transform .3s var(--ease), border-color .3s, background .3s;
+}
+.hero-stats > div:hover { transform: translateY(-3px); border-color: var(--line-hi); background: rgba(255,255,255,.07); }
+.hero-stats > div:active { transform: scale(.96); }
+.hero-stats span { display: block; font-size: 10.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3px; }
+.hero-stats b { font-family: 'JetBrains Mono', monospace; font-size: 13.5px; color: #fff; word-break: break-all; }
+@media (max-width: 640px) {
+    .hero-mid { grid-template-columns: 1fr; gap: 10px; }
+    .hero-in { padding: 18px; }
+    .hero-stats b { font-size: 12px; }
+}
+
+/* --- Vòng tròn điểm chất lượng --- */
+.sig-head { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; flex-wrap: wrap; }
+.ring { position: relative; width: 108px; height: 108px; flex: 0 0 auto; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 0 10px rgba(124,124,255,.5)); }
+.ring circle { fill: none; stroke-width: 8; }
+.ring-bg { stroke: rgba(255,255,255,.07); }
+.ring-fg { stroke-linecap: round; stroke-dasharray: 264; stroke-dashoffset: var(--off); animation: ringfill 1.6s var(--ease) .2s both; }
+.ring-num {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 28px; color: #fff; line-height: 1;
+}
+.ring-num small { font-size: 11px; color: var(--muted); margin-top: 3px; font-weight: 500; }
+.sig-kicker { font-size: 11px; letter-spacing: 1.6px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.sig-info h3 { margin: 0 0 8px 0 !important; padding: 0 !important; font-size: 22px !important; }
+
+/* ===================== V3: VŨ TRỤ ===================== */
+:root {
+    --bg: #02030a; --brand: #8b7bff; --brand2: #ff5ecb; --cyan: #38e1ff;
+    --up: #2de2a6; --down: #ff4d7d;
+    --line: rgba(180,170,255,.11); --line-hi: rgba(180,170,255,.30);
+}
+@keyframes twinkle { 0% { opacity: .35; } 50% { opacity: 1; } 100% { opacity: .55; } }
+@keyframes spin2 { to { transform: rotate(360deg); } }
+@keyframes floatPlanet { 0%,100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-16px) rotate(4deg); } }
+@keyframes ringPulse { 0%,100% { opacity: .55; transform: scale(1); } 50% { opacity: .95; transform: scale(1.035); } }
+@keyframes shimmerText { to { background-position: 200% center; } }
+
+html, body { background: #02030a !important; }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stHeader"], [data-testid="stBottom"] { background: transparent !important; }
+
+/* Tinh vân */
+.stApp::before {
+    top: -20vh; left: -20vw; width: 140vw; height: 140vh; border-radius: 0; filter: blur(60px); opacity: .95;
+    background:
+        radial-gradient(40% 35% at 20% 25%, rgba(120,90,255,.30), transparent 70%),
+        radial-gradient(35% 30% at 80% 18%, rgba(56,225,255,.17), transparent 70%),
+        radial-gradient(45% 40% at 72% 85%, rgba(255,94,203,.17), transparent 70%),
+        radial-gradient(30% 30% at 10% 90%, rgba(45,226,166,.10), transparent 70%);
+    animation: drift1 34s ease-in-out infinite alternate;
+}
+/* Sao CSS (dự phòng, ẩn khi canvas chạy) */
+.stApp::after {
+    top: 0; left: 0; bottom: auto; right: auto; width: 1px; height: 1px; border-radius: 0; filter: none; opacity: 1; background: transparent;
+    box-shadow: __STARS__;
+    animation: twinkle 5s ease-in-out infinite alternate;
+}
+html.nt-canvas .stApp::after { display: none; }
+
+/* Quỹ đạo khổng lồ + hành tinh */
+[data-testid="stAppViewContainer"]::before {
+    inset: auto; right: -34vmax; top: -34vmax; width: 86vmax; height: 86vmax; border-radius: 50%;
+    background-image: repeating-radial-gradient(circle at center, transparent 0 7vmax, rgba(150,140,255,.08) calc(7vmax + 1px) calc(7vmax + 2px)) !important;
+    background-size: auto !important;
+    -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 68%); mask-image: radial-gradient(circle, #000 0%, transparent 68%);
+    animation: ringPulse 10s ease-in-out infinite;
+}
+[data-testid="stAppViewContainer"]::after {
+    content: ""; position: fixed; left: -9vmax; bottom: 5vh; width: 22vmax; height: 22vmax; border-radius: 50%;
+    z-index: 0; pointer-events: none; opacity: .5;
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.28), rgba(139,123,255,.55) 18%, rgba(60,40,150,.85) 45%, rgba(8,6,30,.96) 72%);
+    box-shadow: inset -2vmax -2vmax 4vmax rgba(0,0,0,.65), 0 0 6vmax rgba(139,123,255,.28);
+    animation: floatPlanet 14s ease-in-out infinite;
+}
+@media (max-width: 768px) {
+    [data-testid="stAppViewContainer"]::after { width: 34vmax; height: 34vmax; left: -16vmax; bottom: 2vh; opacity: .4; }
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, rgba(12,9,32,.80), rgba(3,4,14,.90)) !important;
+    border-right: 1px solid var(--line-hi); position: relative; z-index: 2;
+}
+.sidebar-logo {
+    position: relative; border-radius: 50% !important;
+    background: radial-gradient(circle at 30% 30%, #fff 0, #c3b6ff 12%, #6a4cff 45%, #1b1250 100%) !important;
+    animation: floaty 4s ease-in-out infinite !important;
+    box-shadow: 0 0 24px rgba(139,123,255,.75), inset -6px -6px 12px rgba(0,0,0,.5) !important;
+}
+.sidebar-logo svg { position: relative; z-index: 1; }
+.sidebar-logo::after {
+    content: ""; position: absolute; left: -11px; right: -11px; top: 50%; height: 15px; margin-top: -7px;
+    border: 1.5px solid rgba(56,225,255,.75); border-radius: 50%; transform: rotate(-24deg); box-shadow: 0 0 9px rgba(56,225,255,.5);
+}
+.sidebar-title { background: linear-gradient(90deg, #fff, #b9a8ff, #38e1ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+
+/* Nút bấm vũ trụ */
+.stButton>button, .stDownloadButton>button, [data-testid="stFormSubmitButton"]>button {
+    background: linear-gradient(120deg, #6a4cff, #b24cff, #ff5ecb, #6a4cff) !important; background-size: 250% 100% !important;
+    animation: gradShift 6s linear infinite; box-shadow: 0 8px 26px -8px rgba(178,76,255,.7);
+}
+.stButton>button:hover, .stDownloadButton>button:hover, [data-testid="stFormSubmitButton"]>button:hover { box-shadow: 0 14px 34px -8px rgba(255,94,203,.75); }
+
+/* Menu */
+div[data-testid="stRadio"] > div[role="radiogroup"] { background: rgba(10,8,30,.55); border-color: var(--line-hi); }
+div[data-testid="stRadio"] label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(139,123,255,.34), rgba(255,94,203,.22)) !important;
+    border: 1px solid rgba(160,140,255,.55) !important; box-shadow: 0 6px 22px -6px rgba(139,123,255,.7), inset 0 1px 0 rgba(255,255,255,.12) !important;
+}
+
+/* Hero vũ trụ */
+.hero { background: conic-gradient(from var(--ang), rgba(255,255,255,.07) 0%, rgba(255,255,255,.07) 48%, var(--cyan) 68%, var(--c) 80%, var(--brand2) 92%, rgba(255,255,255,.07) 100%); }
+.hero-in { background: linear-gradient(160deg, rgba(14,10,38,.94), rgba(4,5,16,.97)); }
+.hero-name { background: linear-gradient(90deg, #fff, #b9a8ff, #38e1ff, #ff5ecb, #fff); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shimmerText 7s linear infinite; }
+.hero-top, .hero-mid, .hero-stats { z-index: 1; }
+.orbit { position: absolute; right: -34px; top: -34px; width: 240px; height: 240px; pointer-events: none; opacity: .9; }
+.orbit i { position: absolute; border: 1px solid rgba(139,123,255,.30); border-radius: 50%; animation: spin2 var(--t, 18s) linear infinite; }
+.orbit i:nth-child(1) { inset: 0; --t: 24s; }
+.orbit i:nth-child(2) { inset: 30px; --t: 15s; animation-direction: reverse; }
+.orbit i:nth-child(3) { inset: 60px; --t: 9s; }
+.orbit i::after { content: ""; position: absolute; top: -4px; left: 50%; margin-left: -4px; width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 12px 2px var(--c); }
+.orbit i:nth-child(2)::after { background: var(--cyan); box-shadow: 0 0 12px 2px var(--cyan); width: 6px; height: 6px; margin-left: -3px; top: -3px; }
+.orbit i:nth-child(3)::after { background: var(--brand2); box-shadow: 0 0 12px 2px var(--brand2); }
+
+/* Thẻ chỉ số (không còn iframe) */
+.qm {
+    position: relative; overflow: hidden; box-sizing: border-box; min-height: 112px; padding: 16px 18px; border-radius: 16px;
+    display: flex; flex-direction: column; justify-content: center; margin-bottom: 6px;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); border: 1px solid var(--bc);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 26px -14px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.07);
+    transition: transform .35s var(--ease), box-shadow .35s var(--ease);
+}
+.qm::before { content: ""; position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: var(--bar); }
+.qm::after { content: ""; position: absolute; top: 0; bottom: 0; width: 35%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.09), transparent); transform: translateX(-130%); pointer-events: none; }
+.qm:hover { transform: translateY(-4px); box-shadow: 0 20px 34px -16px rgba(0,0,0,.9), 0 0 0 1px rgba(139,123,255,.25); }
+.qm:hover::after { animation: sweep 1.1s ease; }
+.qm:active { transform: scale(.97); }
+.qm-lbl { color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; }
+.qm-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.qm-val { color: var(--tc); font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; line-height: 1; text-shadow: 0 0 14px var(--gl); white-space: nowrap; }
+.qm-delta { font-size: 12.5px; font-weight: 600; margin-top: 9px; letter-spacing: .2px; }
+.nt-copy {
+    position: relative; width: 32px; height: 32px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 9px; cursor: pointer; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: #8b90a0; transition: all .25s;
+}
+.nt-copy:hover { background: rgba(139,123,255,.28); border-color: rgba(139,123,255,.55); transform: scale(1.08); color: #fff; }
+.nt-copy:active { transform: scale(.88); }
+.nt-copy .i-ok { display: none; color: #2de2a6; }
+.nt-copy.ok .i-ok { display: inline; }
+.nt-copy.ok .i-copy { display: none; }
+@media (max-width: 640px) { .qm-val { font-size: 20px; } }
+
+a.news-card { display: block; text-decoration: none; color: inherit; }
+
+/* ===================== V4: WARP / LẬT / XOAY ===================== */
+@keyframes warpIn { from { opacity: 0; transform: perspective(1200px) translateZ(-280px) rotateX(16deg) scale(.93); } }
+@keyframes coin { to { transform: rotateY(360deg); } }
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="element-container"] { animation: warpIn .85s var(--ease) both; }
+[data-testid="stHorizontalBlock"] > div { animation: warpIn .8s var(--ease) both; }
+html.nt-warping .block-container { animation: none; }
+
+/* Hero: kéo / chạm để xoay, nảy lò xo khi thả */
+.hero {
+    transform: perspective(1100px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+    transition: transform .65s cubic-bezier(.2,1.5,.4,1), box-shadow .4s;
+    cursor: grab; touch-action: pan-y; user-select: none; -webkit-user-select: none; will-change: transform;
+    animation: spin 7s linear infinite, warpIn .9s var(--ease) both;
+}
+.hero.drag { transition: transform .08s linear; cursor: grabbing; box-shadow: 0 40px 90px -30px var(--c), 0 0 0 1px rgba(255,255,255,.12); }
+.orbit { transition: transform .9s var(--ease); }
+.hero.drag .orbit { transform: scale(1.18) rotate(40deg); }
+.hint { color: var(--dim); font-size: 11px; margin-left: 8px; }
+
+/* Thẻ lật 3D */
+.flip { position: relative; perspective: 1100px; cursor: pointer; margin-bottom: 14px; transition: transform .35s var(--ease); }
+.flip:hover { transform: translateY(-4px); }
+.flip-in { position: relative; transform-style: preserve-3d; transition: transform .95s cubic-bezier(.34,1.45,.5,1); }
+.flip.flipped .flip-in { transform: rotateY(180deg); }
+.ff, .fb { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.ff { position: relative; }
+.ff::after { content: "⟳"; position: absolute; right: 11px; bottom: 6px; font-size: 13px; color: var(--dim); pointer-events: none; }
+.flip .glass-card, .flip .qm { margin-bottom: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.flip .qm:hover { transform: none; }
+.fb {
+    position: absolute; inset: 0; transform: rotateY(180deg); border-radius: 17px; padding: 14px 18px; box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: center; gap: 6px; overflow: hidden;
+    background: radial-gradient(120% 120% at 20% 0%, rgba(139,123,255,.38), rgba(10,8,30,.97) 62%), #0a0820;
+    border: 1px solid rgba(160,140,255,.5); box-shadow: 0 0 30px -6px rgba(139,123,255,.65), inset 0 0 34px rgba(56,225,255,.09);
+}
+.fb::before { content: ""; position: absolute; inset: -60%; background: conic-gradient(from 0deg, transparent 0 70%, rgba(56,225,255,.22), transparent); animation: spin2 5s linear infinite; pointer-events: none; }
+.fb b, .fb span { position: relative; }
+.fb b { color: #fff; font-size: 12px; letter-spacing: .8px; }
+.fb span { color: #cfd1e6; font-size: 12.5px; line-height: 1.5; }
+.mtf-icon { animation: coin 5s cubic-bezier(.6,0,.4,1) infinite; }
+
+/* ===================== V5: KHÓA KHUNG HÌNH + MOBILE-FIRST ===================== */
+html, body { overflow-x: hidden !important; max-width: 100%; overscroll-behavior-x: none; -webkit-text-size-adjust: 100%; touch-action: pan-y pinch-zoom; }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] { overflow-x: hidden !important; max-width: 100vw; touch-action: pan-y pinch-zoom; -webkit-tap-highlight-color: transparent; }
+[data-testid="stVerticalBlock"], [data-testid="stHorizontalBlock"] > div, [data-testid="stElementContainer"], [data-testid="stMarkdownContainer"], [data-testid="stRadio"] { min-width: 0; max-width: 100%; }
+.hero-in { overflow: hidden; }
+input, textarea, select, [data-baseweb] input { font-size: 16px !important; }
+.stButton > button:active, .flip:active { transform: scale(.97); }
+.block-container [data-testid="stVerticalBlock"] > div.st-key-nt_menu[data-testid="stElementContainer"],
+.block-container [data-testid="stVerticalBlock"] > div.st-key-nt_menu[data-testid="element-container"] { animation: none !important; }
+.st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"] { max-width: 100%; overflow-x: auto; flex-wrap: nowrap !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+.st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar { display: none; }
+@media (max-width: 768px) {
+  .block-container { padding: 3.2rem .75rem calc(104px + env(safe-area-inset-bottom, 0px)) !important; }
+  .st-key-nt_menu { position: fixed !important; left: 0; right: 0; bottom: 0; z-index: 999; padding: 18px 10px calc(8px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(180deg, rgba(8,6,24,0), rgba(8,6,24,.94) 45%); pointer-events: none; }
+  .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"] { pointer-events: auto; border-radius: 22px; padding: 6px; gap: 4px !important; background: rgba(16,12,40,.96); border: 1px solid rgba(160,140,255,.35); box-shadow: 0 10px 40px -8px rgba(0,0,0,.85); }
+  .st-key-nt_menu div[data-testid="stRadio"] label { min-height: 46px; padding: 0 15px !important; border-radius: 16px !important; display: flex; align-items: center; font-size: 13px; }
+  .st-key-nt_menu div[data-testid="stRadio"] label > div:first-child { display: none; }
+  .st-key-nt_menu div[data-testid="stRadio"] label:has(input:checked) { background: linear-gradient(135deg, rgba(124,124,255,.6), rgba(56,225,255,.32)) !important; box-shadow: 0 0 18px -4px rgba(139,123,255,.85); }
+  .hero-in { padding: 16px !important; }
+  .orbit { width: 150px !important; height: 150px !important; right: -24px !important; top: -24px !important; }
+  .hero-price { font-size: clamp(30px, 9vw, 42px) !important; }
+  [data-testid="stHorizontalBlock"] { gap: .6rem !important; }
+}
+
+/* ===================== V6: CHỮ, CANH LỀ, THẺ TRÊN MOBILE ===================== */
+.stApp, .stApp button, .stApp input, .stApp textarea, .stApp select { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, system-ui, sans-serif; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+.qm-val, .val-data, .hero-price, .hero-stats b, .ring-num, [data-testid="stMetricValue"], .chg { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace !important; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+[data-testid="stHeader"] { background: rgba(8,6,24,.82) !important; border-bottom: 1px solid rgba(255,255,255,.06); }
+.st-key-nt_menu [data-testid="stWidgetLabel"] { display: none !important; }
+.qm { min-width: 0; }
+.qm-lbl { font-size: 11px; letter-spacing: .5px; line-height: 1.3; overflow-wrap: normal; word-break: keep-all; }
+.reason-line { padding-left: 1.75em !important; text-indent: -1.75em; overflow-wrap: anywhere; text-align: left; }
+.math-box, .card-title, .row-item { text-align: left; }
+.row-item { gap: 12px; }
+.row-item > span:last-child { text-align: right; }
+.flip-in { min-height: 124px; }
+.fb { justify-content: flex-start; padding: 12px 14px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.fb b { margin-top: auto; }
+.fb span { margin-bottom: auto; font-size: 12px; line-height: 1.45; }
+@media (max-width: 768px) {
+  [data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
+  [data-testid="stHorizontalBlock"] > [data-testid="stColumn"], [data-testid="stHorizontalBlock"] > div { flex: 1 1 100% !important; min-width: 100% !important; }
+  [data-testid="stHorizontalBlock"]:has(.flip):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.flip):not(:has([data-testid="stHorizontalBlock"])) > div { flex: 1 1 calc(50% - .4rem) !important; min-width: calc(50% - .4rem) !important; }
+  [data-testid="stHorizontalBlock"]:has(.nt-copy):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.nt-copy):not(:has([data-testid="stHorizontalBlock"])) > div { flex: 1 1 100% !important; min-width: 100% !important; }
+  .glass-card, .signal-card, .math-box { padding: 16px !important; }
+  .card-title { font-size: 14px; }
+  .row-item { flex-wrap: wrap; row-gap: 4px; }
+  .row-item > span:last-child { margin-left: auto; }
+  .qm-val { font-size: 19px; }
+  .qm { padding: 14px 14px; }
+  .modebar-container { display: none !important; }
+}
+
+/* ===================== V7: TINH CHỈNH ===================== */
+[data-testid="stHeader"] { background: rgba(8,6,24,.97) !important; }
+.qm-row { min-width: 0; }
+.qm-val { min-width: 0; flex: 1 1 auto; font-size: clamp(18px, 5.4vw, 24px); overflow: hidden; text-overflow: clip; }
+.nt-copy { flex: 0 0 auto; margin-left: auto; }
+[data-testid="stWidgetLabel"] p { font-size: 12.5px !important; font-weight: 600; color: var(--muted); letter-spacing: .2px; }
+[data-testid="stButtonGroup"] { flex-wrap: wrap !important; overflow: visible !important; -webkit-mask-image: none !important; mask-image: none !important; gap: 6px; }
+[data-testid="stButtonGroup"] button { min-height: 38px; padding: 6px 13px; font-size: 13px; }
+[data-testid="stBaseButton-pills"], [data-testid="stBaseButton-segmented_control"] { background: rgba(255,255,255,.04) !important; border: 1px solid rgba(255,255,255,.12) !important; color: #c9cbe0 !important; }
+[data-testid="stBaseButton-pillsActive"], [data-testid="stBaseButton-segmented_controlActive"] { background: linear-gradient(135deg, rgba(124,124,255,.55), rgba(56,225,255,.28)) !important; border-color: rgba(160,140,255,.75) !important; color: #fff !important; box-shadow: 0 0 16px -4px rgba(139,123,255,.8); }
+.reason-line.rl { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0 !important; text-indent: 0; }
+.dot { flex: 0 0 18px; height: 18px; margin-top: 2px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 800; font-style: normal; text-indent: 0; }
+.dot.ok { background: rgba(34,211,160,.14); color: #22d3a0; border: 1px solid rgba(34,211,160,.45); }
+.dot.no { background: rgba(255,84,112,.14); color: #ff5470; border: 1px solid rgba(255,84,112,.45); }
+.dot.mid { background: rgba(255,255,255,.07); color: #aab0c4; border: 1px solid rgba(255,255,255,.2); }
+@media (max-width: 768px) {
+  [data-testid="stToolbarActions"] { display: none !important; }
+  .st-key-nt_menu { bottom: var(--nt-lift, 52px) !important; }
+  .block-container { padding-bottom: calc(170px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* ===================== V8: CUỘN TỚI MỤC + CUỘN LIÊN TỤC ===================== */
+.block-container, section.main { max-width: 100vw; }
+@supports (overflow: clip) { .block-container, section.main { overflow-x: clip; } }
+@supports not (overflow: clip) { .block-container, section.main { overflow-x: hidden; } }
+.sec-anchor { display: block; height: 0; scroll-margin-top: 78px; }
+.sec-sep { display: flex; align-items: center; gap: 12px; margin: 36px 0 6px; color: #fff; font-weight: 800; font-size: 15px; letter-spacing: .3px; }
+.sec-sep::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(160,140,255,.55), transparent); }
+.nt-nav { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding: 6px; border-radius: 16px; background: rgba(16,12,40,.94); border: 1px solid rgba(160,140,255,.28); box-shadow: 0 8px 30px -10px rgba(0,0,0,.8); }
+.nt-nav::-webkit-scrollbar { display: none; }
+.nt-navlink { flex: 0 0 auto; white-space: nowrap; padding: 10px 16px; border-radius: 12px; font-size: 13.5px; font-weight: 600; color: #c9cbe0; cursor: pointer; -webkit-user-select: none; user-select: none; transition: background .2s, color .2s; }
+.nt-navlink:hover { background: rgba(255,255,255,.06); }
+.nt-navlink.act { color: #fff; background: linear-gradient(135deg, rgba(124,124,255,.6), rgba(56,225,255,.3)); box-shadow: 0 0 18px -4px rgba(139,123,255,.85); }
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.nt-nav) { position: sticky; top: 58px; z-index: 60; animation: none !important; }
+@media (max-width: 768px) {
+  .block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.nt-nav) { position: static; }
+  .nt-nav { position: fixed; left: 10px; right: 10px; bottom: calc(var(--nt-lift, 52px) + env(safe-area-inset-bottom, 0px)); z-index: 999; border-radius: 22px; background: rgba(16,12,40,.96); box-shadow: 0 10px 40px -8px rgba(0,0,0,.85); }
+  .nt-navlink { min-height: 46px; display: flex; align-items: center; padding: 0 15px; font-size: 13px; }
+}
+
+/* ===================== V9: THANH ICON DỌC BÊN TRÁI (TỪ DƯỚI LÊN) ===================== */
+.stApp .st-key-nt_menu {
+    position: fixed !important; left: calc(var(--nt-left, 0px) + 10px) !important; right: auto !important; top: auto !important;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important; width: auto !important; max-width: none !important;
+    padding: 0 !important; background: none !important; z-index: 999; pointer-events: none;
+}
+.stApp .st-key-nt_menu div[data-testid="stRadio"] { width: auto !important; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"],
+.stApp .nt-nav {
+    pointer-events: auto; display: flex; flex-direction: column-reverse !important; flex-wrap: nowrap !important; align-items: center;
+    gap: 4px !important; padding: 6px; width: auto; max-width: none; max-height: calc(100vh - 130px);
+    overflow-x: hidden !important; overflow-y: auto; touch-action: pan-y; scrollbar-width: none;
+    border-radius: 22px; background: rgba(16,12,40,.92); border: 1px solid rgba(160,140,255,.32);
+    box-shadow: 0 10px 40px -8px rgba(0,0,0,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"]::-webkit-scrollbar,
+.stApp .nt-nav::-webkit-scrollbar { display: none; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"],
+.stApp .nt-navlink {
+    width: 44px !important; min-width: 44px !important; height: 44px; min-height: 44px; padding: 0 !important; margin: 0 !important;
+    display: flex !important; align-items: center; justify-content: center !important; border-radius: 14px !important;
+    font-size: 21px; line-height: 1; flex: 0 0 auto !important;
+}
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"] [data-testid="stMarkdownContainer"] { width: auto !important; min-width: 0 !important; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"] p { font-size: 21px !important; line-height: 1 !important; text-align: center; }
+.stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"]:hover,
+.stApp .nt-navlink:hover { transform: scale(1.08); }
+.stApp .nt-nav {
+    position: fixed !important; left: calc(var(--nt-left, 0px) + 10px); right: auto; top: auto;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 999;
+}
+.block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"]:has(.nt-nav) { position: static !important; }
+.stApp .block-container { padding-bottom: 40vh !important; }
+@media (max-width: 1100px) { .stApp .block-container { padding-left: 66px !important; } }
+@media (max-width: 768px) {
+  .stApp .st-key-nt_menu, .stApp .nt-nav { left: calc(var(--nt-left, 0px) + 4px) !important; bottom: calc(var(--nt-lift, 52px) + env(safe-area-inset-bottom, 0px)) !important; }
+  .stApp .st-key-nt_menu div[data-testid="stRadio"] > div[role="radiogroup"], .stApp .nt-nav { padding: 4px; border-radius: 20px; max-height: calc(100vh - 190px); }
+  .stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"], .stApp .nt-navlink { width: 40px !important; min-width: 40px !important; height: 40px; min-height: 40px; }
+  .stApp .block-container { padding-left: 54px !important; padding-right: .75rem !important; padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px)) !important; }
+}
+
+/* V9b: gỡ nhãn "Menu", chấm radio và mọi thứ thừa; chỉ giữ icon */
+.stApp .st-key-nt_menu [data-testid="stWidgetLabel"], .stApp .st-key-nt_menu > div > label:not([data-baseweb="radio"]) { display: none !important; }
+.stApp .st-key-nt_menu label[data-baseweb="radio"] input { display: none !important; }
+.stApp .st-key-nt_menu label[data-baseweb="radio"] div:not(:has([data-testid="stMarkdownContainer"])):not([data-testid="stMarkdownContainer"]):not([data-testid="stMarkdownContainer"] *) { display: none !important; }
+.stApp .st-key-nt_menu label[data-baseweb="radio"]:has(input:checked) { background: linear-gradient(135deg, rgba(124,124,255,.65), rgba(56,225,255,.35)) !important; box-shadow: 0 0 18px -4px rgba(139,123,255,.9); }
+/* V9c: cuộn liên tục "peak" hơn */
+.sec-sep { font-size: clamp(18px, 4.6vw, 24px); margin: 54px 0 10px; letter-spacing: .2px; background: linear-gradient(90deg, #fff, #b9a8ff 55%, #38e1ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none; filter: drop-shadow(0 0 14px rgba(139,123,255,.45)); }
+.sec-sep::after { height: 2px; background: linear-gradient(90deg, rgba(56,225,255,.7), rgba(139,123,255,.5), transparent); }
+.nt-progress { position: fixed; left: 0; top: 0; height: 3px; width: 100%; transform: scaleX(0); transform-origin: 0 50%; will-change: transform; z-index: 100000; pointer-events: none; background: linear-gradient(90deg, #8b7bff, #38e1ff, #ff5ecb); }
+.stApp .nt-navlink.act { position: relative; }
+.stApp .nt-navlink.act::after { content: ""; position: absolute; right: -7px; top: 50%; width: 3px; height: 18px; margin-top: -9px; border-radius: 3px; background: #38e1ff; box-shadow: 0 0 10px #38e1ff; }
+@keyframes secIn { from { opacity: 0; transform: translateY(26px) scale(.985); } to { opacity: 1; transform: none; } }
+.sec-sep ~ * { }
+/* ===================== V10: RADIO ẨN + THANH ICON NHỎ GỌN ===================== */
+.stApp .st-key-nt_menu { position: fixed !important; left: -9999px !important; top: 0 !important; bottom: auto !important; width: 1px !important; height: 1px !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important; padding: 0 !important; margin: 0 !important; }
+.stApp .nt-nav { gap: 3px !important; padding: 4px !important; border-radius: 18px !important; }
+.stApp .nt-navlink { width: 36px !important; min-width: 36px !important; height: 36px !important; min-height: 36px !important; font-size: 17px !important; border-radius: 12px !important; }
+.stApp .nt-navlink.act { background: linear-gradient(135deg, rgba(124,124,255,.65), rgba(56,225,255,.35)); box-shadow: 0 0 16px -4px rgba(139,123,255,.9); }
+@media (max-width: 768px) {
+  .stApp .nt-navlink { width: 34px !important; min-width: 34px !important; height: 34px !important; min-height: 34px !important; font-size: 16px !important; }
+  .stApp .block-container { padding-left: 46px !important; }
+}
+@media (min-width: 769px) and (max-width: 1100px) { .stApp .block-container { padding-left: 56px !important; } }
+.nt-top { position: fixed; right: 14px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); width: 40px; height: 40px; border-radius: 50%; z-index: 999; display: grid; place-items: center; cursor: pointer; color: #fff; font-size: 18px; background: linear-gradient(135deg, #6a4cff, #ff5ecb); box-shadow: 0 8px 24px -6px rgba(178,76,255,.8); opacity: 0; transform: translateY(14px) scale(.8); pointer-events: none; transition: opacity .3s, transform .3s; }
+.nt-top.show { opacity: 1; transform: none; pointer-events: auto; }
+.nt-top:active { transform: scale(.9); }
+.sec-sep.pre { opacity: 0; transform: translateY(28px); }
+.sec-sep { transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+
+/* ===================== V11: KHÓA BỐ CỤC MẶT SAU THẺ LẬT ===================== */
+.fb { overflow: hidden !important; overflow-y: hidden !important; justify-content: center !important; gap: 6px !important; padding: 12px 16px !important; touch-action: pan-y; overscroll-behavior: none; -webkit-user-select: none; user-select: none; text-align: left; }
+.fb b { margin: 0 !important; flex: 0 0 auto; }
+.fb span { margin: 0 !important; flex: 0 1 auto; font-size: 12px; line-height: 1.45; display: block; }
+.fb::before { pointer-events: none; }
+.ff { overflow: hidden; }
+
+/* ===================== V12: BOT AI ĐÁNH GIÁ PHƯƠNG PHÁP ===================== */
+.mth-sum { --mc: rgba(255,84,112,.8); display: flex; gap: 16px; align-items: center; padding: 16px 18px; margin: 6px 0 6px; border-radius: 18px; background: linear-gradient(135deg, rgba(22,16,56,.94), rgba(12,10,34,.94)); border: 1.5px solid var(--mc); box-shadow: 0 0 26px -8px var(--mc), inset 0 1px 0 rgba(255,255,255,.05); }
+.mth-sum.g { --mc: rgba(34,211,160,.9); }
+.mth-sum-n { flex: 0 0 auto; text-align: center; line-height: 1; white-space: nowrap; }
+.mth-sum-n b { font-size: 46px; font-weight: 800; color: var(--mc); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.mth-sum-n span { font-size: 16px; color: #9a9ab5; font-weight: 700; }
+.mth-sum-t { min-width: 0; flex: 1 1 auto; }
+.mth-sum-t strong { display: block; color: #fff; font-size: 13.5px; line-height: 1.35; }
+.mth-sum-t em { display: block; font-style: normal; color: #dfe0f2; font-size: 12.5px; line-height: 1.45; margin-top: 4px; }
+.mth-strip { display: flex; gap: 3px; margin: 10px 0 6px; }
+.mth-strip i { flex: 1; height: 8px; border-radius: 3px; background: rgba(255,84,112,.5); }
+.mth-strip i.g { background: #22d3a0; box-shadow: 0 0 8px rgba(34,211,160,.7); }
+.mth-sum-c { font-size: 11.5px; color: #9a9ab5; line-height: 1.5; }
+.mth-grp { margin: 22px 2px 8px; color: #b9a8ff; font-weight: 800; font-size: 12px; letter-spacing: .8px; text-transform: uppercase; }
+.mth-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: start; }
+@media (min-width: 1100px) { .mth-list { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.mth { min-width: 0; max-width: 100%; overflow: hidden; --bc: rgba(255,84,112,.72); border-radius: 14px; background: rgba(16,12,40,.8); border: 1.5px solid var(--bc); box-shadow: 0 0 14px -8px var(--bc); transition: box-shadow .25s, background .25s; }
+.mth.g { --bc: rgba(34,211,160,.92); box-shadow: 0 0 18px -5px rgba(34,211,160,.75); }
+.mth[open] { grid-column: 1 / -1; background: rgba(22,16,56,.92); }
+.mth > summary { min-width: 0; list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 54px; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.mth > summary::-webkit-details-marker { display: none; }
+.mth > summary::after { content: "›"; flex: 0 0 12px; color: #9a9ab5; font-size: 22px; line-height: 1; transition: transform .25s; }
+.mth[open] > summary::after { transform: rotate(90deg); }
+.mth-ic { flex: 0 0 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 17px; background: rgba(255,255,255,.06); }
+.mth-nm { flex: 1 1 auto; min-width: 0; }
+.mth-nm b { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; color: #fff; font-size: 13.5px; line-height: 1.3; overflow: hidden; overflow-wrap: anywhere; }
+.mth-nm em { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; font-style: normal; color: #9a9ab5; font-size: 11.5px; line-height: 1.3; margin-top: 2px; overflow: hidden; overflow-wrap: anywhere; }
+.mth-tag { flex: 0 0 auto; font-size: 10.5px; font-weight: 800; letter-spacing: .5px; padding: 3px 8px; border-radius: 999px; }
+.mth-tag.buy { color: #22d3a0; background: rgba(34,211,160,.14); border: 1px solid rgba(34,211,160,.45); }
+.mth-tag.sell { color: #ff5470; background: rgba(255,84,112,.14); border: 1px solid rgba(255,84,112,.45); }
+.mth-tag.wait { color: #aab0c4; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.16); }
+.mth-wr { flex: 0 0 40px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 700; color: #e8e9f6; }
+.mth-body { min-width: 0; overflow-wrap: anywhere; padding: 2px 14px 14px; border-top: 1px solid rgba(255,255,255,.07); }
+.mth-state { margin: 10px 0; font-size: 12.5px; font-weight: 700; line-height: 1.5; }
+.mth.g .mth-state { color: #22d3a0; }
+.mth.r .mth-state { color: #ff8da1; }
+.mth-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+@media (min-width: 700px) { .mth-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .mth-grid.s { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.mth-cell { padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); min-width: 0; }
+.mth-cell span { display: block; color: #8b90a0; font-size: 10.5px; letter-spacing: .4px; text-transform: uppercase; line-height: 1.3; }
+.mth-cell b { display: block; color: #fff; font-size: 14px; margin-top: 3px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.mth-cell b.up { color: #22d3a0; }
+.mth-cell b.dn { color: #ff5470; }
+.mth-cv { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
+.mth-cv b { min-width: 0; overflow-wrap: anywhere; }
+.mth-cell .nt-copy { width: 28px; height: 28px; margin: 3px 0 0 auto; border-radius: 8px; }
+.mth-note { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.035); color: #cfd1e6; font-size: 12.5px; line-height: 1.6; text-align: left; }
+.mth-note b { display: block; color: #b9a8ff; font-size: 10.5px; letter-spacing: .6px; text-transform: uppercase; margin-bottom: 3px; }
+.mth-note.warn b { color: #fbbf24; }
+@media (max-width: 768px) { .mth-sum { gap: 12px; padding: 14px; } .mth-sum-n b { font-size: 38px; } }
+
+footer {visibility: hidden;}
+#MainMenu {visibility: hidden;}
+
+/* ===================== V12: NHÃN MUA/BÁN/CHỜ NỔI BẬT + CHỐNG RUNG LẮC KHI CHẠM/LƯỚT ===================== */
+.mth-tag { min-width: 54px; text-align: center; font-size: 11.5px !important; padding: 5px 11px !important; letter-spacing: .8px !important; }
+.mth-tag.buy { color: #052e22 !important; background: linear-gradient(135deg, #2de2a6, #22d3a0) !important; border: 1px solid #5cf0c4 !important; box-shadow: 0 0 12px -2px rgba(34,211,160,.8) !important; }
+.mth-tag.sell { color: #fff !important; background: linear-gradient(135deg, #ff5470, #e0284b) !important; border: 1px solid #ff8da1 !important; box-shadow: 0 0 12px -2px rgba(255,84,112,.8) !important; }
+.mth-tag.wait { color: #b4b9cc !important; background: rgba(255,255,255,.07) !important; border: 1px solid rgba(255,255,255,.2) !important; box-shadow: none !important; }
+
+/* Màn hình cảm ứng: bỏ nghiêng 3D / nâng thẻ khi hover (hover giả khi chạm làm thẻ giật), bỏ blur nặng */
+@media (hover: none), (pointer: coarse) {
+  html { scroll-behavior: auto !important; }
+  .glass-card, .glass-card:hover, .glass-card:active, .qm, .qm:hover, .qm:active, .signal-card:hover, .flip:hover,
+  [data-testid="stMetric"]:hover, .hero-stats > div:hover, .stButton>button:hover, .stDownloadButton>button:hover,
+  .stSelectbox div[data-baseweb="select"] > div:hover, .stTextInput input:hover, .stNumberInput input:hover {
+    transform: none !important; will-change: auto !important;
+  }
+  .glass-card { --rx: 0deg !important; --ry: 0deg !important; --ty: 0px !important; }
+  .qm::after { display: none !important; }
+  *, *::before, *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  /* Không chạy lại hiệu ứng "warp/fade" cho từng khối mỗi lần render hay cuộn tới */
+  .block-container [data-testid="stVerticalBlock"] > div[data-testid="element-container"],
+  .block-container [data-testid="stVerticalBlock"] > div[data-testid="stElementContainer"],
+  [data-testid="stHorizontalBlock"] > div, .reason-line, .page-header { animation: none !important; }
+  /* Lớp nền cố định: đẩy lên GPU, ngừng trôi liên tục */
+  .stApp::before, .stApp::after, [data-testid="stAppViewContainer"]::before, [data-testid="stAppViewContainer"]::after {
+    animation: none !important; will-change: auto !important; transform: translateZ(0);
+  }
+  .glass-card::before, .glass-card::after { animation: none !important; }
+}
+
+/* Thẻ phương pháp: cách ly layout để mở/đóng và cuộn không kéo cả trang reflow */
+.mth { contain: layout paint style; transition: border-color .2s, background .2s !important; }
+.mth > summary { touch-action: manipulation; }
+.mth > summary::after { transition: none !important; }
+.mth-list { overflow-anchor: none; }
+
+/* ===================== V13: CHỐNG RUNG KHI LƯỚT / BẤM MENU ===================== */
+/* Rerun của Streamlit làm cả trang mờ rồi sáng lại (gây nháy) */
+[data-stale="true"], .stale-element { opacity: 1 !important; transition: none !important; }
+@media (hover: none), (pointer: coarse) {
+  html, body, .stApp { scroll-behavior: auto !important; }
+  /* Lớp tinh vân khổng lồ: bỏ blur 60px (gradient đã mềm sẵn), không cho vẽ lại khi cuộn */
+  .stApp::before { filter: none !important; animation: none !important; will-change: auto !important; opacity: .8 !important; }
+  .stApp::after { animation: none !important; }
+  [data-testid="stAppViewContainer"]::before { animation: none !important; -webkit-mask-image: none !important; mask-image: none !important; opacity: .5; }
+  [data-testid="stAppViewContainer"]::after { animation: none !important; box-shadow: none !important; }
+  /* Thanh menu: không hover dính, không chuyển động khi chạm */
+  .stApp .nt-navlink, .stApp .nt-navlink:hover, .stApp .nt-navlink:active,
+  .stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"], .stApp .st-key-nt_menu div[data-testid="stRadio"] label[data-baseweb="radio"]:hover {
+    transform: none !important; transition: none !important;
+  }
+  .stApp .nt-nav, .stApp .st-key-nt_menu { transform: translateZ(0); will-change: transform; }
+  .sec-sep, .sec-sep.pre { transition: none !important; opacity: 1 !important; transform: none !important; }
+  .nt-top { transition: opacity .2s !important; }
+  #nt-cosmos, #nt-warp { display: none !important; }
+}
+</style>
+"""
+def _stars(n, seed):
+    r = _random.Random(seed)
+    cols = ["255,255,255", "190,215,255", "255,205,235"]
+    return ",".join(
+        f"{r.randint(0, 100)}vw {r.randint(0, 100)}vh 0 {r.choice([0, 0, 0, 1])}px rgba({r.choice(cols)},{r.choice([.5, .7, .9])})"
+        for _ in range(n)
+    )
+
+
+APP_CSS = APP_CSS.replace("__STARS__", _stars(150, 7))
+st.markdown(APP_CSS, unsafe_allow_html=True)
+
+# ---------- Hiệu ứng vũ trụ + chạm (JS được chèn 1 lần vào trang cha) ----------
+FX_JS = r"""
+(function(){
+  if (window.__ntFx3) return; window.__ntFx3 = true;
+  var D = document;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var _lt = false, _lt_t = 0;
+  var TOUCH = !!(window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
+  function lite(){ if (TOUCH) return true; var n = performance.now(); if (n - _lt_t > 700) { _lt_t = n; _lt = getComputedStyle(D.documentElement).getPropertyValue('--nt-lite').trim() === '1'; } return _lt; }
+
+  /* ---- Đèn rọi + nghiêng 3D ---- */
+  var _pm = null, _raf = 0;
+  function _apply(){
+    _raf = 0; var m = _pm; if (!m) return;
+    var r = m.c.getBoundingClientRect();
+    m.c.style.setProperty('--mx', (m.x - r.left) + 'px'); m.c.style.setProperty('--my', (m.y - r.top) + 'px');
+    if (m.t === 'mouse') {
+      m.c.style.setProperty('--rx', (-((m.y - r.top) / r.height - .5) * 7).toFixed(2) + 'deg');
+      m.c.style.setProperty('--ry', (((m.x - r.left) / r.width - .5) * 7).toFixed(2) + 'deg');
+    }
+  }
+  D.addEventListener('pointermove', function(e){
+    if (lite()) return;
+    var c = e.target.closest && e.target.closest('.glass-card'); if (!c) return;
+    _pm = {c: c, x: e.clientX, y: e.clientY, t: e.pointerType};
+    if (!_raf) _raf = requestAnimationFrame(_apply);
+  }, {passive:true});
+  D.addEventListener('pointerout', function(e){
+    var c = e.target.closest && e.target.closest('.glass-card');
+    if (c && !(e.relatedTarget && c.contains(e.relatedTarget))) { c.style.setProperty('--rx','0deg'); c.style.setProperty('--ry','0deg'); }
+  }, {passive:true});
+
+  /* ---- Nút copy ---- */
+  function fallbackCopy(txt){
+    var t = D.createElement('textarea'); t.value = txt; D.body.appendChild(t); t.select();
+    try { D.execCommand('copy'); } catch(err) {}
+    t.remove();
+  }
+  D.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.nt-copy'); if (!b) return;
+    var txt = b.getAttribute('data-copy') || 'x';
+    try { navigator.clipboard.writeText(txt).catch(function(){ fallbackCopy(txt); }); } catch(err) { fallbackCopy(txt); }
+    b.classList.add('ok'); setTimeout(function(){ b.classList.remove('ok'); }, 1600);
+  });
+
+  /* ---- Số chạy (count-up) ---- */
+  var fmt = function(v, d){ return v.toLocaleString('de-DE', {minimumFractionDigits: d, maximumFractionDigits: d}); };
+  var run = function(){
+    D.querySelectorAll('.nt-count:not([data-done])').forEach(function(el){
+      el.setAttribute('data-done', '1');
+      var to = parseFloat(el.getAttribute('data-v')), d = parseInt(el.getAttribute('data-d') || '0', 10);
+      var plain = el.getAttribute('data-vn') === '0';
+      if (isNaN(to)) return;
+      var orig = el.textContent, t0 = performance.now(), dur = lite() ? 400 : 1200;
+      var step = function(now){
+        var p = Math.min(1, (now - t0) / dur), k = 1 - Math.pow(1 - p, 4);
+        el.textContent = plain ? (to * k).toFixed(d) : fmt(to * k, d);
+        if (p < 1) requestAnimationFrame(step); else el.textContent = orig;
+      };
+      requestAnimationFrame(step);
+    });
+  };
+  run();
+  var _mt = 0;
+  new MutationObserver(function(ms){
+    if (_mt) return;
+    var real = ms.some(function(m){ var t = m.target.nodeType === 1 ? m.target : m.target.parentElement; return !(t && t.closest && t.closest('.nt-count')); });
+    if (real) _mt = setTimeout(function(){ _mt = 0; run(); }, 150);
+  }).observe(D.body, {childList: true, subtree: true});
+
+  if (reduce || TOUCH) return;
+
+  /* ---- Vũ trụ: sao lấp lánh, thị sai, sao băng, bụi sao khi chạm ---- */
+  var cv = D.createElement('canvas');
+  cv.id = 'nt-cosmos'; cv.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:0;pointer-events:none';
+  D.body.appendChild(cv);
+  D.documentElement.classList.add('nt-canvas');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2), w = 0, h = 0;
+  var a = cv.getContext('2d');
+  function size(){
+    w = window.innerWidth; h = window.innerHeight;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    a.setTransform(dpr,0,0,dpr,0,0);
+  }
+  size(); window.addEventListener('resize', size);
+
+  var N = window.innerWidth < 700 ? 60 : 110, stars = [], shoot = [], pl = null;
+  var cols = ['255,255,255', '190,215,255', '255,205,235', '170,255,240'];
+  for (var i = 0; i < N; i++) {
+    var z = Math.random() * .9 + .1;
+    stars.push({x: Math.random(), y: Math.random(), z: z, r: .35 + z * 1.15, tw: Math.random() * 6.28, sp: .5 + Math.random() * 2, c: cols[Math.floor(Math.random() * cols.length)]});
+  }
+  var tx = 0, ty = 0, px = 0, py = 0, sy = 0, lastTrail = 0;
+  var pal = ['139,123,255', '56,225,255', '255,94,203', '255,255,255', '45,226,166'];
+
+  D.addEventListener('pointermove', function(e){
+    if (lite()) return;
+    tx = e.clientX / w - .5; ty = e.clientY / h - .5;
+  }, {passive:true});
+  D.addEventListener('scroll', function(e){ if (lite()) return; var t = e.target; if (t && typeof t.scrollTop === 'number') sy = t.scrollTop; }, true);
+
+  var last = 0;
+  function frame(t){
+    requestAnimationFrame(frame);
+    var L = lite();
+    if (D.hidden || t - last < (L ? 250 : 30)) return;
+    if (L !== pl) { pl = L; dpr = L ? 1 : Math.min(window.devicePixelRatio || 1, 2); size(); }
+    var dt = Math.min((t - last) / 16.7, 3); last = t;
+    px += (tx - px) * .04; py += (ty - py) * .04;
+    a.clearRect(0, 0, w, h);
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var x = ((s.x * w - px * 40 * s.z) % w + w) % w;
+      var y = ((s.y * h - py * 40 * s.z - sy * .04 * s.z) % h + h) % h;
+      var al = .3 + .7 * (.5 + .5 * Math.sin(t * .0012 * s.sp + s.tw));
+      a.fillStyle = 'rgba(' + s.c + ',' + al.toFixed(3) + ')';
+      a.beginPath(); a.arc(x, y, s.r, 0, 6.283); a.fill();
+      if (s.r > 1.1 && !L) { a.fillStyle = 'rgba(' + s.c + ',' + (al * .16).toFixed(3) + ')'; a.beginPath(); a.arc(x, y, s.r * 3.4, 0, 6.283); a.fill(); }
+    }
+    if (!L && shoot.length < 2 && Math.random() < .005) {
+      shoot.push({x: Math.random() * w * .9, y: Math.random() * h * .35, vx: 7 + Math.random() * 5, vy: 3 + Math.random() * 3, l: 1});
+    }
+    for (var k = shoot.length - 1; k >= 0; k--) {
+      var m = shoot[k];
+      m.x += m.vx * dt; m.y += m.vy * dt; m.l -= .016 * dt;
+      var g = a.createLinearGradient(m.x, m.y, m.x - m.vx * 10, m.y - m.vy * 10);
+      g.addColorStop(0, 'rgba(255,255,255,' + Math.max(m.l, 0).toFixed(3) + ')'); g.addColorStop(1, 'rgba(139,123,255,0)');
+      a.strokeStyle = g; a.lineWidth = 1.6; a.beginPath(); a.moveTo(m.x, m.y); a.lineTo(m.x - m.vx * 10, m.y - m.vy * 10); a.stroke();
+      if (m.l <= 0 || m.x > w + 50 || m.y > h + 50) shoot.splice(k, 1);
+    }
+  }
+  requestAnimationFrame(frame);
+})();
+"""
+
+
+FX_JS2 = r"""
+(function(){
+  if (window.__ntFx4) return; window.__ntFx4 = true;
+  var D = document, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var q = function(e, s){ return e.target.closest && e.target.closest(s); };
+  var _lt = false, _lt_t = 0;
+  var TOUCH = !!(window.matchMedia && window.matchMedia('(hover: none), (pointer: coarse)').matches);
+  function lite(){ if (TOUCH) return true; var n = performance.now(); if (n - _lt_t > 700) { _lt_t = n; _lt = getComputedStyle(D.documentElement).getPropertyValue('--nt-lite').trim() === '1'; } return _lt; }
+
+  /* ---- Khóa khung hình: không cho kéo lệch ngang ---- */
+  var vm = D.querySelector('meta[name="viewport"]');
+  if (vm && vm.content.indexOf('viewport-fit') < 0) vm.content += ', viewport-fit=cover';
+
+  /* ---- Chọn mục: tự kéo lên đầu mục; cuộn liên tục: nhảy tới mục + sáng theo mục đang xem ---- */
+  var MENU = __MENU__;
+  var pend = null, pendT = 0, raf2 = 0;
+  function trimT(t){ return (t || '').replace(/\s+/g, ' ').trim(); }
+  function key(s){ return trimT(s).split(' ')[0]; }   /* icon đứng đầu tên mục */
+  function goSec(name){
+    var k = key(name), a = D.querySelectorAll('.sec-anchor');
+    for (var i = 0; i < a.length; i++) if (key(a[i].getAttribute('data-sec')) === k) { a[i].scrollIntoView({behavior: TOUCH ? 'auto' : 'smooth', block: 'start'}); return true; }
+    return false;
+  }
+  /* Tooltip cho nút chỉ có icon + đặt thanh icon ngay sau sidebar (nếu đang mở) */
+  function tip(){ return;
+    D.querySelectorAll('.st-key-nt_menu label').forEach(function(l){
+      if (l.title) return;
+      var k = key(l.textContent);
+      for (var i = 0; i < MENU.length; i++) if (key(MENU[i]) === k) { l.title = trimT(MENU[i]).slice(k.length + 1); l.setAttribute('aria-label', l.title); break; }
+    });
+  }
+  function side(){
+    var sb = D.querySelector('[data-testid="stSidebar"]'), x = 0;
+    if (sb) { var r = sb.getBoundingClientRect(); if (r.width > 0 && r.right > 0 && window.innerWidth > 768) x = Math.round(r.right); }
+    if (side._x !== x) { side._x = x; D.documentElement.style.setProperty('--nt-left', x + 'px'); }
+  }
+  window.addEventListener('resize', side); side();
+  function chk(){
+    if (!pend) return;
+    if (performance.now() - pendT > 8000) { pend = null; return; }
+    if (goSec(pend)) { pend = null; return; }
+    setTimeout(chk, 200);
+  }
+  D.addEventListener('click', function(e){
+    var n = q(e, '.nt-navlink');
+    if (n) {
+      var nav = n.closest('.nt-nav');
+      if (nav && nav.getAttribute('data-mode') === 'single') {
+        var kk = key(n.getAttribute('data-sec')), ls = D.querySelectorAll('.st-key-nt_menu label');
+        for (var j = 0; j < ls.length; j++) if (key(ls[j].textContent) === kk) { pend = kk; pendT = performance.now(); ls[j].click(); setTimeout(chk, 250); break; }
+        D.querySelectorAll('.nt-navlink').forEach(function(a){ a.classList.toggle('act', a === n); });
+      } else goSec(n.getAttribute('data-sec'));
+      return;
+    }
+  });
+  function mark(){
+    raf2 = 0;
+    if (D.querySelector('.nt-nav[data-mode="single"]')) return;
+    var as = D.querySelectorAll('.sec-anchor'), nm = as.length ? as[0].getAttribute('data-sec') : null;
+    for (var i = 0; i < as.length; i++) if (as[i].getBoundingClientRect().top <= 140) nm = as[i].getAttribute('data-sec');
+    D.querySelectorAll('.nt-navlink').forEach(function(a){
+      var on = a.getAttribute('data-sec') === nm;
+      if (on !== a.classList.contains('act')) { a.classList.toggle('act', on); }
+    });
+  }
+  setInterval(function(){ if (D.hidden || window.__ntScrolling) return; side(); if (!TOUCH && D.querySelector('.nt-navlink')) mark(); reveal(); }, 2000);
+  /* ---- Mục trượt vào khi cuộn tới ---- */
+  var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function(es){ es.forEach(function(x){ if (x.isIntersecting) { x.target.classList.remove('pre'); io.unobserve(x.target); } }); }, {threshold: .15}) : null;
+  function reveal(){
+    if (!io) return;
+    D.querySelectorAll('.sec-sep:not([data-ro])').forEach(function(el){
+      el.setAttribute('data-ro', '1');
+      if (el.getBoundingClientRect().top > window.innerHeight) { el.classList.add('pre'); io.observe(el); }
+    });
+  }
+  /* ---- Nút lên đầu trang ---- */
+  var tp = D.createElement('div'); tp.className = 'nt-top'; tp.textContent = '\u2191'; tp.title = 'Lên đầu trang'; D.body.appendChild(tp);
+  var topEl = null;
+  tp.addEventListener('click', function(){ if (topEl) topEl.scrollTo({top: 0, behavior: TOUCH ? 'auto' : 'smooth'}); });
+
+  /* ---- Thanh tiến độ đọc ---- */
+  var pg = D.createElement('div'); pg.className = 'nt-progress'; D.body.appendChild(pg);
+  var _st = null, _sraf = 0, _shown = null, _sc = 0;
+  function _scrollWork(){
+    _sraf = 0; var t = _st; if (!t) return;
+    var t2 = t === D ? D.scrollingElement : t;
+    if (!t2 || typeof t2.scrollTop !== 'number') return;
+    if (t2.scrollLeft && (t2 === D.scrollingElement || (t2.matches && t2.matches('[data-testid="stMain"],[data-testid="stAppViewContainer"],.stApp,body')))) t2.scrollLeft = 0;
+    var H = t2.scrollHeight - t2.clientHeight;
+    if (H > 200) {
+      topEl = t2;
+      var sh = t2.scrollTop > 600; if (sh !== _shown) { _shown = sh; tp.classList.toggle('show', sh); }
+      pg.style.transform = 'scaleX(' + Math.min(1, t2.scrollTop / H).toFixed(3) + ')';
+    }
+    if (!raf2 && !TOUCH) raf2 = requestAnimationFrame(mark);
+  }
+  D.addEventListener('scroll', function(e){
+    _st = e.target; window.__ntScrolling = true; clearTimeout(_sc); _sc = setTimeout(function(){ window.__ntScrolling = false; }, 180);
+    if (!_sraf) _sraf = requestAnimationFrame(_scrollWork);
+  }, {capture: true, passive: true});
+
+  /* ---- Lật thẻ khi chạm ---- */
+  D.addEventListener('click', function(e){
+    var f = q(e, '.flip'); if (!f || q(e, '.nt-copy') || q(e, 'a')) return;
+    f.classList.toggle('flipped');
+  });
+  if (reduce || TOUCH) return;
+
+  /* ---- Canvas warp (chuyển cảnh) + sóng chạm ---- */
+  var cv = D.createElement('canvas');
+  cv.id = 'nt-warp'; cv.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;z-index:99998;pointer-events:none';
+  D.body.appendChild(cv);
+  var c = cv.getContext('2d'), w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  function size(){ w = window.innerWidth; h = window.innerHeight; cv.width = w * dpr; cv.height = h * dpr; c.setTransform(dpr,0,0,dpr,0,0); }
+  size(); window.addEventListener('resize', size);
+  var pal = ['139,123,255', '56,225,255', '255,94,203', '255,255,255'];
+  var st = [], rings = [], t0 = 0, on = false, running = false, last = 0, DUR = 1000;
+
+  function go(){ if (!running) { running = true; last = performance.now(); requestAnimationFrame(tick); } }
+  function warp(){
+    if (lite()) return;
+    t0 = performance.now(); on = true; st = [];
+    for (var i = 0, n = w < 700 ? 80 : 150; i < n; i++) st.push({a: Math.random() * 6.283, r: Math.random() * .12, v: .5 + Math.random(), c: pal[i % 4]});
+    D.documentElement.classList.add('nt-warping'); go();
+  }
+  function ring(x, y){ rings.push({x: x, y: y, r: 4, l: 1}, {x: x, y: y, r: -10, l: .7}); go(); }
+  function roll(){
+    if (lite()) return;
+    var el = D.querySelector('.hero'); if (!el || !el.animate) return;
+    el.animate([{transform: 'perspective(1100px) rotateY(0deg)'}, {transform: 'perspective(1100px) rotateY(360deg) scale(1.03)'}, {transform: 'perspective(1100px) rotateY(360deg)'}], {duration: 1100, easing: 'cubic-bezier(.3,.9,.3,1)'});
+  }
+
+  function tick(t){
+    var dt = Math.min((t - last) / 16.7, 3); last = t;
+    c.clearRect(0, 0, w, h);
+    var cx = w / 2, cy = h * .42, dg = Math.hypot(w, h) / 2;
+    if (on) {
+      var p = (t - t0) / DUR;
+      if (p >= 1) { on = false; D.documentElement.classList.remove('nt-warping'); }
+      else {
+        var k = Math.sin(p * Math.PI), g = c.createRadialGradient(cx, cy, 0, cx, cy, dg * .9);
+        g.addColorStop(0, 'rgba(190,170,255,' + (.3 * k * k).toFixed(3) + ')');
+        g.addColorStop(.5, 'rgba(90,60,220,' + (.1 * k).toFixed(3) + ')');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = g; c.fillRect(0, 0, w, h); c.lineCap = 'round';
+        for (var i = 0; i < st.length; i++) {
+          var s = st[i]; s.r += s.v * (.003 + .045 * k * k) * dt; if (s.r > 1.05) s.r = Math.random() * .06;
+          var r1 = s.r * dg * 1.1, r0 = Math.max(r1 - (6 + 240 * k * k) * s.v, 0), co = Math.cos(s.a), si = Math.sin(s.a);
+          c.strokeStyle = 'rgba(' + s.c + ',' + Math.min(1, .15 + k * 1.1).toFixed(3) + ')'; c.lineWidth = .6 + s.r * 1.8;
+          c.beginPath(); c.moveTo(cx + co * r0, cy + si * r0); c.lineTo(cx + co * r1, cy + si * r1); c.stroke();
+        }
+      }
+    }
+    for (var j = rings.length - 1; j >= 0; j--) {
+      var o = rings[j]; o.r += (7 + o.r * .06) * dt; o.l -= .025 * dt;
+      if (o.l <= 0) { rings.splice(j, 1); continue; }
+      if (o.r <= 0) continue;
+      c.strokeStyle = 'rgba(' + (j % 2 ? '56,225,255' : '139,123,255') + ',' + o.l.toFixed(3) + ')'; c.lineWidth = 2.2 * o.l + .4;
+      c.beginPath(); c.arc(o.x, o.y, o.r, 0, 6.283); c.stroke();
+    }
+    if (on || rings.length) requestAnimationFrame(tick); else { running = false; c.clearRect(0, 0, w, h); }
+  }
+
+  /* Chạm: sóng xung kích; đổi tab / tài sản / làm mới: warp + hero xoay 360° */
+  D.addEventListener('pointerdown', function(e){
+    if (q(e, 'div[data-testid="stRadio"] label')) { warp(); roll(); }
+    else if (q(e, 'li[role="option"]') || q(e, '.stButton>button')) warp();
+  }, {passive: true});
+
+  /* ---- Hero: kéo để xoay (chuột + cảm ứng), rê chuột nghiêng nhẹ, con quay hồi chuyển ---- */
+  var drag = null;
+  function tilt(el, e, amp){
+    if (lite()) return;
+    var r = el.getBoundingClientRect();
+    el.style.setProperty('--ry', (((e.clientX - r.left) / r.width - .5) * amp).toFixed(1) + 'deg');
+    el.style.setProperty('--rx', (-((e.clientY - r.top) / r.height - .5) * amp).toFixed(1) + 'deg');
+  }
+  function reset(el){ el.style.setProperty('--rx', '0deg'); el.style.setProperty('--ry', '0deg'); }
+  D.addEventListener('pointerdown', function(e){ var el = q(e, '.hero'); if (!el) return; drag = el; el.classList.add('drag'); tilt(el, e, 30); }, {passive: true});
+  D.addEventListener('pointermove', function(e){
+    if (drag) return tilt(drag, e, 30);
+    var el = e.pointerType === 'mouse' && q(e, '.hero'); if (el) tilt(el, e, 10);
+  }, {passive: true});
+  D.addEventListener('pointerout', function(e){
+    var el = q(e, '.hero'); if (el && !drag && !(e.relatedTarget && el.contains(e.relatedTarget))) reset(el);
+  }, {passive: true});
+  function end(){ if (!drag) return; drag.classList.remove('drag'); reset(drag); drag = null; }
+  D.addEventListener('pointerup', end); D.addEventListener('pointercancel', end);
+  window.addEventListener('deviceorientation', function(e){
+    if (lite()) return; var el = D.querySelector('.hero'); if (!el || drag || e.gamma == null) return;
+    el.style.setProperty('--ry', Math.max(-12, Math.min(12, e.gamma / 3)).toFixed(1) + 'deg');
+    el.style.setProperty('--rx', Math.max(-12, Math.min(12, ((e.beta || 45) - 45) / 4)).toFixed(1) + 'deg');
+  }, {passive: true});
+})();
+"""
+
+
+LITE_CSS = r"""
+:root{--nt-lite:1}
+*,*::before,*::after{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.stApp::before,.stApp::after{animation:none!important;filter:none!important}
+[data-testid="stAppViewContainer"]::before,[data-testid="stAppViewContainer"]::after{animation:none!important}
+.sidebar-logo,.pro-card::after,.reason-line,.mtf-card,.mtf-icon,.page-header,.hero,.hero-in,.orbit i,.fb::before,.stButton>button,.stDownloadButton>button,[data-testid^="stBaseButton"]{animation:none!important}
+.orbit{transition:none!important}
+.hero{will-change:auto!important;transform:none!important;cursor:default!important}
+.block-container [data-testid="stVerticalBlock"]>div[data-testid="stElementContainer"],.block-container [data-testid="stVerticalBlock"]>div[data-testid="element-container"],[data-testid="stHorizontalBlock"]>div{animation:fadeIn .2s ease both!important;animation-delay:0s!important}
+.glass-card:hover{transform:none!important}
+"""
+
+
+def inject_js(code: str):
+    """Chèn script vào trang cha 1 lần (chạy bền vững, không phụ thuộc vòng đời iframe)."""
+    loader = ("<script>(function(){try{var P=window.parent,D=P.document;"
+              "if(D.getElementById('nt-fx-v4'))return;"
+              "var s=D.createElement('script');s.id='nt-fx-v4';s.textContent=" + json.dumps(code) + ";"
+              "D.head.appendChild(s);}catch(e){}})();</" + "script>")
+    try:
+        components.html(loader, height=0)
+    except Exception:
+        try:
+            st.iframe(loader, height=1)
+        except Exception:
+            pass
+
+
+# ============================================================
+# 2. KHAI BÁO BIẾN & DATABASE
+# ============================================================
+POPULAR_ASSETS = {
+    "🔥 Hàng Hóa": {"Vàng (XAUUSD)": "GC=F", "Bạc (XAGUSD)": "SI=F", "Dầu WTI": "CL=F"},
+    "₿ Crypto": {"Bitcoin (BTC)": "BTC-USD", "Ethereum (ETH)": "ETH-USD", "Solana (SOL)": "SOL-USD"},
+    "💵 Forex": {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X"},
+    "🏦 Chỉ Số & CK Mỹ": {"S&P 500": "^GSPC", "Nasdaq 100": "^IXIC", "Apple (AAPL)": "AAPL", "Tesla (TSLA)": "TSLA"}
+}
+flat_assets = {f"{cat} - {name}": tick for cat, assets in POPULAR_ASSETS.items() for name, tick in assets.items()}
+
+DB_FILE = "trading_journal.db"
+
+# Menu: icon đứng đầu tên mục (thanh dọc chỉ hiển thị icon, tên hiện ở tooltip)
+MENU_ITEMS = ["📊 Biểu đồ", "🎯 Kế hoạch giao dịch", "🤖 AI Vào lệnh", "🧪 Đánh giá phương pháp", "🧠 Phân tích SMC", "🌐 Đa Khung Thời Gian", "📏 Fibonacci", "📰 Tin tức", "📓 Nhật ký"]
+
+
+def init_db():
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS journal (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, asset TEXT, direction TEXT, result TEXT, reason TEXT, pnl REAL)''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS bot_journal (id INTEGER PRIMARY KEY AUTOINCREMENT, open_time TEXT, close_time TEXT, asset TEXT, direction TEXT, entry_price REAL, exit_price REAL, sl REAL, tp REAL, status TEXT, reason TEXT)''')
+
+
+init_db()
+
+
+def add_trade(date, asset, direction, result, reason, pnl):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("INSERT INTO journal (date, asset, direction, result, reason, pnl) VALUES (?, ?, ?, ?, ?, ?)", (date, asset, direction, result, reason, pnl))
+
+
+def get_trades():
+    with sqlite3.connect(DB_FILE) as conn:
+        return pd.read_sql_query("SELECT * FROM journal ORDER BY date DESC", conn)
+
+
+def get_active_bot_trade(asset):
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query("SELECT * FROM bot_journal WHERE asset=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1", conn, params=(asset,))
+    return df.iloc[0] if not df.empty else None
+
+
+def get_last_closed_bot_trade(asset):
+    with sqlite3.connect(DB_FILE) as conn:
+        df = pd.read_sql_query("SELECT * FROM bot_journal WHERE asset=? AND status!='ACTIVE' ORDER BY id DESC LIMIT 1", conn, params=(asset,))
+    return df.iloc[0] if not df.empty else None
+
+
+def add_bot_trade(open_time, asset, direction, entry, sl, tp):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("INSERT INTO bot_journal (open_time, asset, direction, entry_price, sl, tp, status) VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')", (open_time, asset, direction, entry, sl, tp))
+
+
+def close_bot_trade(trade_id, close_time, exit_price, status, reason):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("UPDATE bot_journal SET close_time=?, exit_price=?, status=?, reason=? WHERE id=?", (close_time, exit_price, status, reason, int(trade_id)))
+
+
+def get_bot_history(asset):
+    with sqlite3.connect(DB_FILE) as conn:
+        return pd.read_sql_query("SELECT * FROM bot_journal WHERE asset=? ORDER BY id DESC", conn, params=(asset,))
+
+
+def to_vn_naive(x):
+    """Chuẩn hoá mọi mốc thời gian về giờ Việt Nam, không múi giờ (tránh lỗi tz-naive vs tz-aware)."""
+    if x is None:
+        return pd.NaT
+    try:
+        ts = pd.Timestamp(x)
+    except Exception:
+        return pd.NaT
+    if pd.isna(ts):
+        return pd.NaT
+    if ts.tzinfo is not None:
+        ts = ts.tz_convert("Asia/Ho_Chi_Minh").tz_localize(None)
+    return ts
+
+
+# ============================================================
+# 3. UI COMPONENTS & LOGIC
+# ============================================================
+import re as _re
+_RL = _re.compile(r"(<div class='reason-line'[^>]*>)(.*?)(</div>)", _re.S)
+_DOT = {"🟢": ("ok", "✓"), "⛔": ("no", "✕"), "🔴": ("no", "✕"), "❌": ("no", "✕"), "⚪": ("mid", "•"), "🟡": ("mid", "•"), "⚠️": ("mid", "!")}
+
+
+def _dotify(m):
+    body = m.group(2).lstrip()
+    for e, (c, g) in _DOT.items():
+        if body.startswith(e):
+            return f"{m.group(1).replace('reason-line', 'reason-line rl', 1)}<i class='dot {c}'>{g}</i><span>{body[len(e):].lstrip()}</span>{m.group(3)}"
+    return m.group(0)
+
+
+def html(s: str):
+    """Gộp HTML thành 1 dòng để Markdown không biến nó thành code block."""
+    s = _RL.sub(_dotify, s)
+    st.markdown("".join(line.strip() for line in s.splitlines()), unsafe_allow_html=True)
+
+
+def format_vn_price(value) -> str:
+    if value is None or pd.isna(value): return "N/A"
+    try: return f"{value:,.2f}".replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+    except Exception: return str(value)
+
+
+def quantum_metric(label, value_str, delta_text=None, is_positive=None, raw=None, dec=2, vn=True):
+    border_color = "rgba(180,170,255,0.16)"
+    text_color = "#ffffff"
+    delta_color = "#8b90a0"
+    glow = "rgba(255,255,255,0.0)"
+    bar = "linear-gradient(90deg,#8b7bff,#38e1ff,#ff5ecb)"
+
+    if is_positive is not None:
+        up = bool(is_positive)
+        text_color = "#2de2a6" if up else "#ff4d7d"
+        delta_color = text_color
+        border_color = "rgba(45,226,166,0.32)" if up else "rgba(255,77,125,0.32)"
+        glow = "rgba(45,226,166,0.5)" if up else "rgba(255,77,125,0.5)"
+        bar = "linear-gradient(90deg,#2de2a6,#38e1ff)" if up else "linear-gradient(90deg,#ff4d7d,#ff9a5c)"
+
+    delta_html = ""
+    if delta_text:
+        if is_positive is None:
+            delta_color = "#2de2a6" if ("+" in str(delta_text) or "MUA" in str(delta_text)) else ("#ff4d7d" if ("-" in str(delta_text) or "BÁN" in str(delta_text)) else "#8b90a0")
+        delta_html = f"<div class='qm-delta' style='color:{delta_color}'>{delta_text}</div>"
+
+    val_cls, val_attr = "qm-val", ""
+    try:
+        if raw is not None and not pd.isna(raw):
+            val_cls = "qm-val nt-count"
+            val_attr = f" data-v='{float(raw)}' data-d='{int(dec)}' data-vn='{1 if vn else 0}'"
+    except Exception:
+        pass
+
+    safe_val = str(value_str).replace("'", "").replace('"', "")
+    _hints = {
+        "GIÁ HIỆN TẠI": "Giá đóng cửa của nến mới nhất. Xanh là tăng so với nến trước, đỏ là giảm.",
+        "RSI (14)": "Trên 70: quá mua, dễ điều chỉnh. Dưới 30: quá bán, dễ hồi. Quanh 50: trung tính.",
+        "ADX (14)": "Đo sức mạnh xu hướng, không đo hướng. Trên 25 là xu hướng mạnh, dưới 20 là đi ngang.",
+        "PHIÊN Á 07–15H": "Giờ VN (xấp xỉ). Thanh khoản vừa, hay đi ngang; Vàng và JPY hoạt động nhiều.",
+        "PHIÊN ÂU 14–23H": "Giờ VN (xấp xỉ). Biên độ lớn, thường tạo xu hướng trong ngày.",
+        "PHIÊN MỸ 20–04H": "Giờ VN (xấp xỉ). Biến động mạnh nhất, nhất là lúc giao phiên với Âu.",
+        "ATR (14)": "Biên độ dao động trung bình 14 nến. Dùng để đặt SL/TP theo độ biến động.",
+        "GIÁ VÀO LỆNH": "Giá đóng cửa nến mới nhất, dùng làm điểm vào tham chiếu.",
+        "CẮT LỖ (SL)": "Vùng thoát lệnh khi thị trường đi sai: ngoài đỉnh/đáy 20 nến, cộng thêm 0,5 ATR.",
+        "CHỐT LỜI (TP)": "Mục tiêu lợi nhuận theo tỷ lệ R:R bạn chọn ở thanh trượt.",
+    }
+    _hint = _hints.get(label, "Chạm lần nữa để lật lại.")
+    html(f"""
+        <div class='flip'><div class='flip-in'><div class='ff'><div class='qm' style='--bc:{border_color}; --tc:{text_color}; --gl:{glow}; --bar:{bar};'>
+            <div class='qm-lbl'>{label}</div>
+            <div class='qm-row'>
+                <span class='{val_cls}'{val_attr}>{value_str}</span>
+                <span class='nt-copy' role='button' tabindex='0' title='Copy' data-copy='{safe_val}'>
+                    <svg class='i-copy' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'></rect><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'></path></svg>
+                    <svg class='i-ok' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4'><polyline points='20 6 9 17 4 12'></polyline></svg>
+                </span>
+            </div>
+            {delta_html}
+        </div></div><div class='fb'><b>{label}</b><span>{_hint}</span></div></div></div>
+    """)
+
+
+def get_trade_diagnosis(df, trade_plan):
+    """Chuẩn đoán chất lượng lệnh và trả về HTML in đậm chuẩn"""
+    last = df.iloc[-1]
+    score = 0
+    reasons = []
+
+    if trade_plan['direction'] == "LONG":
+        if last['EMA20'] > last['EMA50']:
+            score += 30
+            reasons.append("🟢 <b>Xu hướng:</b> EMA20 > EMA50 (Uptrend).")
+        else:
+            reasons.append("🔴 <b>Xu hướng:</b> EMA20 < EMA50 (Ngược xu hướng).")
+    else:
+        if last['EMA20'] < last['EMA50']:
+            score += 30
+            reasons.append("🟢 <b>Xu hướng:</b> EMA20 < EMA50 (Downtrend).")
+        else:
+            reasons.append("🔴 <b>Xu hướng:</b> EMA20 > EMA50 (Ngược xu hướng).")
+
+    if trade_plan['direction'] == "LONG":
+        if 40 < last['RSI'] < 70: score += 10; reasons.append("🟢 <b>RSI:</b> Nằm trong vùng an toàn (40-70).")
+        if last['MACD_hist'] > 0: score += 10; reasons.append("🟢 <b>MACD:</b> Histogram dương (Động lượng tăng).")
+    else:
+        if 30 < last['RSI'] < 60: score += 10; reasons.append("🟢 <b>RSI:</b> Nằm trong vùng an toàn (30-60).")
+        if last['MACD_hist'] < 0: score += 10; reasons.append("🟢 <b>MACD:</b> Histogram âm (Động lượng giảm).")
+
+    if last['ADX'] > 25:
+        score += 20
+        reasons.append(f"🟢 <b>ADX ({last['ADX']:.1f}):</b> Xu hướng mạnh, đáng tin cậy.")
+    elif last['ADX'] > 20:
+        score += 10
+        reasons.append(f"🟡 <b>ADX ({last['ADX']:.1f}):</b> Xu hướng hình thành.")
+    else:
+        reasons.append(f"🔴 <b>ADX ({last['ADX']:.1f}):</b> Thị trường đi ngang, dễ nhiễu.")
+
+    if trade_plan['direction'] == "LONG" and last['Close'] < last['BB_lower']:
+        score += 15; reasons.append("🟢 <b>Bollinger:</b> Giá chạm dải dưới (Quá bán).")
+    elif trade_plan['direction'] == "SHORT" and last['Close'] > last['BB_upper']:
+        score += 15; reasons.append("🟢 <b>Bollinger:</b> Giá chạm dải trên (Quá mua).")
+    else:
+        reasons.append("⚪ <b>Bollinger:</b> Giá đang ở giữa dải (Chưa tối ưu).")
+
+    if last['ADX'] > 25: score += 15
+
+    if score >= 80: quality = "XUẤT SẮC (A+)"
+    elif score >= 60: quality = "TỐT (B)"
+    elif score >= 40: quality = "TRUNG BÌNH (C)"
+    else: quality = "RỦI RO CAO (D)"
+
+    return score, quality, reasons
+
+
+def run_bot_engine(df, ticker, timeframe):
+    latest = df.iloc[-1]
+    current_time = str(latest['Time'])
+    active_trade = get_active_bot_trade(ticker)
+    if active_trade is not None:
+        if active_trade['direction'] == 'LONG':
+            if latest['Low'] <= active_trade['sl']: close_bot_trade(active_trade['id'], current_time, active_trade['sl'], 'LOSS', 'Chạm Cắt Lỗ (SL)')
+            elif latest['High'] >= active_trade['tp']: close_bot_trade(active_trade['id'], current_time, active_trade['tp'], 'WIN', 'Chạm Chốt Lời (TP)')
+            elif latest['EMA20'] < latest['EMA50']: close_bot_trade(active_trade['id'], current_time, latest['Close'], 'CUT_EARLY', 'Cắt sớm do đảo chiều EMA')
+        elif active_trade['direction'] == 'SHORT':
+            if latest['High'] >= active_trade['sl']: close_bot_trade(active_trade['id'], current_time, active_trade['sl'], 'LOSS', 'Chạm Cắt Lỗ (SL)')
+            elif latest['Low'] <= active_trade['tp']: close_bot_trade(active_trade['id'], current_time, active_trade['tp'], 'WIN', 'Chạm Chốt Lời (TP)')
+            elif latest['EMA20'] > latest['EMA50']: close_bot_trade(active_trade['id'], current_time, latest['Close'], 'CUT_EARLY', 'Cắt sớm do đảo chiều EMA')
+        return
+    last_closed = get_last_closed_bot_trade(ticker)
+    if last_closed is not None:
+        last_close_time = to_vn_naive(last_closed['close_time'])
+        cooldown = timedelta(hours=4) if "Giờ" not in timeframe else timedelta(hours=12)
+        if "Ngày" in timeframe or "Tuần" in timeframe: cooldown = timedelta(days=3)
+        if pd.notna(last_close_time) and (to_vn_naive(latest['Time']) - last_close_time) < cooldown: return
+    entry, atr = latest['Close'], latest['ATR']
+    if (latest['EMA20'] > latest['EMA50'] and 55 < latest['RSI'] < 75 and latest['MACD_hist'] > 0 and latest['ADX'] > 20):
+        add_bot_trade(current_time, ticker, 'LONG', entry, latest['Low'] - atr, entry + (entry - (latest['Low'] - atr)) * 2.0)
+    elif (latest['EMA20'] < latest['EMA50'] and 25 < latest['RSI'] < 45 and latest['MACD_hist'] < 0 and latest['ADX'] > 20):
+        add_bot_trade(current_time, ticker, 'SHORT', entry, latest['High'] + atr, entry - ((latest['High'] + atr) - entry) * 2.0)
+
+
+@st.cache_data(ttl=300, show_spinner="⏳ ĐANG TẢI DỮ LIỆU CHÍNH...")
+def load_data(ticker: str, interval: str):
+    period = "1mo" if interval in ["1m", "5m", "15m", "60m"] else "2y"
+    try:
+        df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
+        if df.empty: return None
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+        df = df.reset_index()
+        time_col = "Datetime" if "Datetime" in df.columns else "Date"
+        df = df.rename(columns={time_col: "Time"})
+        df["Time"] = pd.to_datetime(df["Time"])
+        if getattr(df["Time"].dt, "tz", None) is not None:
+            df["Time"] = df["Time"].dt.tz_convert("Asia/Ho_Chi_Minh").dt.tz_localize(None)
+        return df.dropna(subset=["Close"])
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=600, show_spinner="🌐 ĐANG QUÉT ĐA KHUNG THỜI GIAN...")
+def load_mtf_data(ticker: str):
+    mtf_trends = {}
+    intervals = {"15m": "15 Phút", "60m": "1 Giờ", "1d": "1 Ngày"}
+    for interval, name in intervals.items():
+        try:
+            df = yf.download(ticker, period="1mo", interval=interval, progress=False, auto_adjust=True)
+            if not df.empty and len(df) > 50:
+                if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+                df["EMA20"] = EMAIndicator(close=df["Close"], window=20).ema_indicator()
+                df["EMA50"] = EMAIndicator(close=df["Close"], window=50).ema_indicator()
+                last = df.iloc[-1]
+                mtf_trends[name] = "TĂNG" if last["EMA20"] > last["EMA50"] else "GIẢM"
+            else:
+                mtf_trends[name] = "N/A"
+        except Exception:
+            mtf_trends[name] = "N/A"
+    return mtf_trends
+
+
+@st.cache_data(ttl=600, show_spinner="📰 ĐANG TẢI TIN TỨC...")
+def fetch_news(ticker_name: str):
+    feed = feedparser.parse(f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker_name.replace(' ', '+')}&region=US&lang=en-US")
+    return [{"title": e.title, "link": e.link, "published": e.get("published", "N/A")} for e in feed.entries[:5]]
+
+
+def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["EMA20"] = EMAIndicator(close=df["Close"], window=20).ema_indicator()
+    df["EMA50"] = EMAIndicator(close=df["Close"], window=50).ema_indicator()
+    df["RSI"] = RSIIndicator(close=df["Close"], window=14).rsi()
+    macd = MACD(close=df["Close"])
+    df["MACD_hist"] = macd.macd_diff()
+    df["ATR"] = AverageTrueRange(high=df["High"], low=df["Low"], close=df["Close"], window=14).average_true_range()
+    df["ADX"] = ADXIndicator(high=df["High"], low=df["Low"], close=df["Close"], window=14).adx()
+    bb = BollingerBands(close=df["Close"], window=20, window_dev=2)
+    df["BB_upper"] = bb.bollinger_hband()
+    df["BB_lower"] = bb.bollinger_lband()
+    return df
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_ready(ticker: str, interval: str):
+    """Tải + tính chỉ báo một lần, dùng lại cho mọi thao tác trong 5 phút."""
+    d = load_data(ticker, interval)
+    return None if d is None or len(d) < 50 else compute_indicators(d)
+
+
+def calculate_trade_levels(df: pd.DataFrame, risk_reward: float = 2.0) -> dict:
+    if len(df) < 20: return None
+    last, atr = df.iloc[-1], df.iloc[-1]["ATR"]
+    recent_df = df.tail(20)
+    r_high, r_low = recent_df["High"].max(), recent_df["Low"].min()
+    if last["EMA20"] > last["EMA50"]:
+        entry, sl, direction = last["Close"], r_low - (atr * 0.5), "LONG"
+        tp = entry + (entry - sl) * risk_reward
+    else:
+        entry, sl, direction = last["Close"], r_high + (atr * 0.5), "SHORT"
+        tp = entry - (sl - entry) * risk_reward
+    return {"direction": direction, "entry": entry, "sl": sl, "tp": tp, "atr": atr}
+
+
+def calculate_fibonacci(df: pd.DataFrame) -> dict:
+    if len(df) < 100: return None
+    recent_df = df.tail(100)
+    swing_high = recent_df["High"].max()
+    swing_low = recent_df["Low"].min()
+    diff = swing_high - swing_low
+    return {
+        "Swing High": swing_high, "Swing Low": swing_low,
+        "Fib 0.236": swing_high - (diff * 0.236), "Fib 0.382": swing_high - (diff * 0.382),
+        "Fib 0.500": swing_high - (diff * 0.500), "Fib 0.618": swing_high - (diff * 0.618),
+        "Fib 0.786": swing_high - (diff * 0.786)
+    }
+
+
+# ============================================================
+# 3b. AI ENTRY ENGINE (numpy thuần: logistic regression + triple-barrier + kiểm chứng ngoài mẫu)
+# ============================================================
+import threading, time
+SESSIONS_UTC = {"Á": (0, 8), "Âu": (7, 16), "Mỹ": (13, 21)}  # xấp xỉ, lệch ±1h theo DST. Giờ VN = UTC+7
+SESSION_VN = {"Á": "07–15h", "Âu": "14–23h", "Mỹ": "20–04h"}
+
+
+def contract_value(ticker: str, price: float) -> float:
+    """USD lãi/lỗ cho mỗi 1.0 đơn vị giá của 1 lot chuẩn (ước tính, có thể ghi đè)."""
+    if ticker == "GC=F": return 100.0
+    if ticker == "SI=F": return 5000.0
+    if ticker == "CL=F": return 1000.0
+    if ticker == "JPY=X": return 100000.0 / max(price, 1e-9)
+    if ticker.endswith("=X"): return 100000.0
+    return 1.0
+
+
+def market_state(ticker: str, now_vn):
+    """(đang đóng cửa?, danh sách phiên đang mở) tại giờ VN (naive)."""
+    utc = now_vn - timedelta(hours=7)
+    h, wd = utc.hour + utc.minute / 60, utc.weekday()
+    crypto = ticker.endswith("-USD")
+    closed = False
+    if not crypto:
+        if ticker.startswith("^") or ticker.isalpha():
+            closed = wd >= 5 or not (13.5 <= h < 21)
+        else:
+            closed = wd == 5 or (wd == 4 and h >= 22) or (wd == 6 and h < 22)
+    sess = [n for n, (a, b) in SESSIONS_UTC.items() if a <= h < b]
+    return closed, (sess or ["Ngoài giờ"])
+
+
+def ai_features(df: pd.DataFrame) -> pd.DataFrame:
+    c, atr = df["Close"], df["ATR"].replace(0, np.nan)
+    f = pd.DataFrame(index=df.index)
+    f["trend"] = (df["EMA20"] - df["EMA50"]) / atr
+    f["pos"] = (c - df["EMA20"]) / atr
+    f["r1"], f["r5"], f["r20"] = c.diff(1) / atr, c.diff(5) / atr, c.diff(20) / atr
+    f["rsi"] = (df["RSI"] - 50) / 50
+    f["macd"] = df["MACD_hist"] / atr
+    f["adx"] = df["ADX"] / 50
+    f["bb"] = (c - df["BB_lower"]) / (df["BB_upper"] - df["BB_lower"]).replace(0, np.nan) - 0.5
+    f["vol"] = (atr / c).rolling(100, min_periods=30).rank(pct=True) - 0.5
+    f["body"] = (c - df["Open"]) / (df["High"] - df["Low"]).replace(0, np.nan)
+    f["dhi"] = (df["High"].rolling(20).max() - c) / atr
+    f["dlo"] = (c - df["Low"].rolling(20).min()) / atr
+    hr = (df["Time"] - pd.Timedelta(hours=7)).dt.hour
+    f["hs"], f["hc"] = np.sin(2 * np.pi * hr / 24), np.cos(2 * np.pi * hr / 24)
+    return f.replace([np.inf, -np.inf], np.nan).clip(-6, 6)
+
+
+def sl_distance(df: pd.DataFrame, side: str, mode: str, k: float) -> pd.Series:
+    atr = df["ATR"]
+    if mode == "Cấu trúc (swing 10 nến)":
+        sw = (df["Close"] - df["Low"].rolling(10).min() if side == "LONG" else df["High"].rolling(10).max() - df["Close"]) + 0.25 * atr
+        return sw.clip(lower=0.8 * atr, upper=3.5 * atr)
+    return k * atr
+
+
+def triple_barrier(df: pd.DataFrame, side: str, sld: pd.Series, rr: float, horizon: int) -> np.ndarray:
+    """1 nếu chạm TP trước SL trong `horizon` nến (cùng nến = thua, hết hạn = không thắng). Vector hóa bằng cửa sổ trượt."""
+    from numpy.lib.stride_tricks import sliding_window_view as swv
+    hi, lo, cl, d = df["High"].values, df["Low"].values, df["Close"].values, sld.values
+    n, y, big = len(df), np.full(len(df), np.nan), 10 ** 6
+    m = n - horizon - 1
+    if m <= 0: return y
+    H, Lw = swv(hi[1:], horizon)[:m], swv(lo[1:], horizon)[:m]
+    c, dd = cl[:m, None], d[:m, None]
+    if side == "LONG": a, b = Lw <= c - dd, H >= c + dd * rr
+    else: a, b = H >= c + dd, Lw <= c - dd * rr
+    t_sl = np.where(a.any(1), a.argmax(1), big)
+    t_tp = np.where(b.any(1), b.argmax(1), big)
+    ok = np.isfinite(d[:m]) & (d[:m] > 0)
+    y[:m] = np.where(ok, (t_tp < t_sl).astype(float), np.nan)
+    return y
+
+
+def wilson_lb(hit: float, n: int, horizon: int, z: float = 1.28) -> float:
+    """Cận dưới tin cậy của tỷ lệ thắng; n bị chiết khấu vì các lệnh chồng lấn nhau trong `horizon` nến."""
+    ne = max(n / max(horizon / 6.0, 1.0), 1e-9)
+    return float((hit + z * z / (2 * ne) - z * np.sqrt(hit * (1 - hit) / ne + z * z / (4 * ne * ne))) / (1 + z * z / ne)) if n else 0.0
+
+
+def _sig(z): return 1.0 / (1.0 + np.exp(-np.clip(z, -30, 30)))
+
+
+def fit_logit(X, y, l2=5.0, iters=400, lr=0.15):
+    m = float(np.clip(y.mean(), 0.02, 0.98))
+    w, b = np.zeros(X.shape[1]), float(np.log(m / (1 - m)))
+    for _ in range(iters):
+        g = _sig(X @ w + b) - y
+        w -= lr * (X.T @ g / len(y) + l2 * w / len(y))
+        b -= lr * g.mean()
+    return w, b
+
+
+@st.cache_data(ttl=120, show_spinner="🤖 AI ĐANG HUẤN LUYỆN & KIỂM CHỨNG...")
+def ai_predict(df, rr, k, mode, horizon, thr):
+    X, out = ai_features(df).values, {}
+    for side in ("LONG", "SHORT"):
+        sld = sl_distance(df, side, mode, k)
+        y = triple_barrier(df, side, sld, rr, horizon)
+        idx = np.where(np.isfinite(X).all(1) & np.isfinite(y))[0]
+        if len(idx) < 150:
+            out[side] = None
+            continue
+        cut = int(len(idx) * 0.7)
+        tr, te = idx[:max(cut - horizon, 60)], idx[cut:]  # chừa khoảng trống `horizon` nến để không rò rỉ nhãn
+        mu, sd = X[tr].mean(0), X[tr].std(0) + 1e-9
+        w, b = fit_logit((X[tr] - mu) / sd, y[tr])
+        pt, ye = _sig(((X[te] - mu) / sd) @ w + b), y[te]
+        sel = pt >= thr
+        n = int(sel.sum())
+        mu2, sd2 = X[idx].mean(0), X[idx].std(0) + 1e-9
+        w2, b2 = fit_logit((X[idx] - mu2) / sd2, y[idx])
+        p = float(_sig(((X[-1] - mu2) / sd2) @ w2 + b2)) if np.isfinite(X[-1]).all() else None
+        out[side] = dict(p=p, n=n, hit=float(ye[sel].mean()) if n else 0.0,
+                         ev=float((ye[sel] * rr - (1 - ye[sel])).mean()) if n else 0.0,
+                         base=float(ye.mean()), ntest=int(len(te)), sld=float(sld.iloc[-1]),
+                         lb=wilson_lb(float(ye[sel].mean()) if n else 0.0, n, horizon))
+    return out
+
+
+def ai_decide(res, df, mtf, rr, margin, ticker, now_vn, allow_off, split_tp):
+    be, cands = 1 / (1 + rr), {s: r for s, r in res.items() if r and r["p"] is not None}
+    if not cands: return None
+    thr = be + margin
+    side = max(cands, key=lambda s: cands[s]["p"])
+    r, last, sgn = cands[side], df.iloc[-1], (1 if side == "LONG" else -1)
+    want = "TĂNG" if side == "LONG" else "GIẢM"
+    agree = sum(1 for v in mtf.values() if v == want)
+    closed, sess = market_state(ticker, now_vn)
+    vol = ai_features(df.tail(150))["vol"].iloc[-1]
+    sess_ok = allow_off or (not closed and sess != ["Ngoài giờ"])
+    gates = [
+        (r["p"] >= thr, f"Xác suất thắng ước tính <b>{r['p'] * 100:.1f}%</b> (ngưỡng an toàn ≥ {thr * 100:.1f}%, hòa vốn {be * 100:.1f}%)."),
+        (r["n"] >= 8 and r["lb"] > be, f"Kiểm chứng ngoài mẫu: <b>{r['n']}</b> tín hiệu, thắng {r['hit'] * 100:.0f}%, cận dưới tin cậy <b>{r['lb'] * 100:.0f}%</b> (phải > hòa vốn {be * 100:.0f}%, loại bỏ may rủi)."),
+        (sess_ok, "Phiên: <b>" + ("THỊ TRƯỜNG ĐÓNG" if closed else "+".join(sess)) + "</b> (tránh vào lệnh ngoài giờ thanh khoản thấp)."),
+        (float(last["ADX"]) >= 18, f"ADX <b>{last['ADX']:.1f}</b> (cần ≥ 18 để tránh thị trường nhiễu đi ngang)."),
+        (agree >= 2, f"Đồng thuận đa khung: <b>{agree}/3</b> khung cùng {want}."),
+        (bool(vol == vol and vol <= 0.45), "Biến động không nằm trong nhóm 5% cao bất thường."),
+    ]
+    entry, sld = float(last["Close"]), r["sld"]
+    ok = all(g[0] for g in gates)
+    return dict(side=side, ok=ok, p=r["p"], thr=thr, be=be, ev_exp=r["p"] * rr - (1 - r["p"]), gates=gates, r=r,
+                grade=("A" if ok and r["p"] >= thr + 0.07 else "B") if ok else "—",
+                entry=entry, sl=entry - sgn * sld, tp1=entry + sgn * sld, tp2=entry + sgn * sld * rr, sld=sld, atr=float(last["ATR"]))
+
+
+def _fetch_live(ticker: str):
+    try:
+        fi = yf.Ticker(ticker).fast_info
+        return float(fi["last_price"]), float(fi["previous_close"])
+    except Exception:
+        try:
+            d = yf.download(ticker, period="1d", interval="1m", progress=False, auto_adjust=True)
+            if isinstance(d.columns, pd.MultiIndex): d.columns = d.columns.get_level_values(0)
+            return float(d["Close"].iloc[-1]), float(d["Open"].iloc[0])
+        except Exception:
+            return None
+
+
+_LIVE, _LIVE_READ, _LIVE_TH = {}, {}, {}
+
+
+def _poll(ticker: str):
+    while time.time() - _LIVE_READ.get(ticker, 0) < 90:  # dừng khi không còn ai xem
+        v = _fetch_live(ticker)
+        if v: _LIVE[ticker] = (v, time.time())
+        time.sleep(4)
+    _LIVE_TH.pop(ticker, None)
+
+
+def live_price(ticker: str):
+    """Đọc giá từ bộ nhớ (luồng nền cập nhật mỗi ~4s), nên giao diện không bao giờ phải chờ mạng."""
+    _LIVE_READ[ticker] = time.time()
+    th = _LIVE_TH.get(ticker)
+    if th is None or not th.is_alive():
+        if ticker not in _LIVE or time.time() - _LIVE[ticker][1] > 30:
+            v = _fetch_live(ticker)
+            if v: _LIVE[ticker] = (v, time.time())
+        th = threading.Thread(target=_poll, args=(ticker,), daemon=True)
+        _LIVE_TH[ticker] = th
+        th.start()
+    rec = _LIVE.get(ticker)
+    return rec[0] if rec else None
+
+
+@st.fragment(run_every="5s")
+def live_monitor(ticker, plan, lot, cv, atr):
+    lp = live_price(ticker)
+    if lp is None:
+        st.caption("⚠️ Chưa lấy được giá trực tiếp, đang thử lại...")
+        return
+    price, prev = lp
+    now = pd.Timestamp.now("UTC").tz_localize(None) + timedelta(hours=7)
+    chg = (price - prev) / prev * 100 if prev else 0.0
+    closed, sess = market_state(ticker, now)
+    col = "#22d3a0" if chg >= 0 else "#ff5470"
+    state = "THỊ TRƯỜNG ĐÓNG" if closed else "PHIÊN " + "+".join(sess).upper()
+    extra = ""
+    if plan:
+        sgn = 1 if plan["side"] == "LONG" else -1
+        pnl, dist = (price - plan["entry"]) * sgn * lot * cv, (price - plan["entry"]) * sgn / max(atr, 1e-9)
+        if sgn * (price - plan["sl"]) <= 0: msg, mc = "⛔ GIÁ ĐÃ CHẠM SL, kế hoạch hết hiệu lực", "#ff5470"
+        elif sgn * (price - plan["tp2"]) >= 0: msg, mc = "🎯 GIÁ ĐÃ ĐẠT TP", "#22d3a0"
+        elif dist > 0.5: msg, mc = "⚠️ GIÁ ĐÃ CHẠY XA ENTRY, KHÔNG ĐUỔI, chờ hồi về vùng vào lệnh", "#fbbf24"
+        elif dist < -0.5: msg, mc = "🟠 Giá đang đi ngược hướng, chờ xác nhận lại", "#fbbf24"
+        else: msg, mc = "✅ Giá trong vùng vào lệnh", "#22d3a0"
+        extra = (f"<div class='row-item' style='margin-top:10px'><span style='color:{mc};font-weight:700'>{msg}</span>"
+                 f"<span class='val-data' style='color:{'#22d3a0' if pnl >= 0 else '#ff5470'}'>{pnl:+,.2f}$ ({lot:.2f} lot)</span></div>")
+    html(f"""
+        <div class='glass-card' style='padding:12px 18px; margin-bottom:12px'>
+            <div class='row-item'><span><b style='color:#ff5470'>● LIVE</b> &nbsp;<b style='color:#fff;font-size:20px'>{format_vn_price(price)}</b>
+            &nbsp;<span style='color:{col}'>{chg:+.2f}%</span></span>
+            <span style='color:#9a9ab5;font-size:12px'>{state} • {now:%H:%M:%S} (giờ VN)</span></div>{extra}
+        </div>
+    """)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def session_stats(ticker: str):
+    d = load_data(ticker, "60m")
+    if d is None or len(d) < 48: return None
+    hr = (d["Time"] - pd.Timedelta(hours=7)).dt.hour
+    rng = (d["High"] - d["Low"]) / d["Close"] * 100
+    return {n: float(rng[(hr >= a) & (hr < b)].mean()) for n, (a, b) in SESSIONS_UTC.items()}
+
+
+# ------------------------------------------------------------
+# Cấu hình AI (Vốn & Lot, SL/TP): mẫu nhanh + lưu/tải + tự khôi phục lần sau
+# ------------------------------------------------------------
+# ============================================================
+# 3c. BOT AI ĐÁNH GIÁ 20 PHƯƠNG PHÁP (quy tắc đơn giản hóa + backtest triple-barrier)
+# ============================================================
+TF_MIN = {"1m": 1, "5m": 5, "15m": 15, "60m": 60, "1d": 1440, "1wk": 10080}
+
+
+def _pivots(h, l, n=3):
+    """3 đỉnh / 3 đáy swing gần nhất đã được xác nhận tại mỗi nến (trễ n nến nên không nhìn trước tương lai)."""
+    N = len(h)
+    ph, pl = np.full((N, 3), -1), np.full((N, 3), -1)
+    ch, cl = [-1, -1, -1], [-1, -1, -1]
+    for t in range(N):
+        i = t - n
+        if i >= n:
+            wh, wl = h[i - n:i + n + 1], l[i - n:i + n + 1]
+            if h[i] == wh.max() and h[i - 1] != h[i]: ch = [i, ch[0], ch[1]]
+            if l[i] == wl.min() and l[i - 1] != l[i]: cl = [i, cl[0], cl[1]]
+        ph[t], pl[t] = ch, cl
+    return ph, pl
+
+
+def _mctx(df, iv):
+    c, o, h, l = (df[k].astype(float).reset_index(drop=True) for k in ("Close", "Open", "High", "Low"))
+    a = df["ATR"].astype(float).reset_index(drop=True).replace(0, np.nan).ffill().bfill()
+    x = dict(df=df.reset_index(drop=True), c=c, o=o, h=h, l=l, atr=a, n=len(df), iv=iv, tf=TF_MIN.get(iv, 60))
+    for k, col in (("e20", "EMA20"), ("e50", "EMA50"), ("rsi", "RSI"), ("adx", "ADX"), ("bbu", "BB_upper"), ("bbl", "BB_lower")):
+        x[k] = df[col].astype(float).reset_index(drop=True)
+    x["e200"] = c.ewm(span=200, adjust=False).mean()
+    v = df["Volume"].astype(float).reset_index(drop=True).fillna(0) if "Volume" in df else pd.Series(0.0, index=c.index)
+    x["has_vol"] = bool(v.sum() > 0)
+    x["vol"] = v if x["has_vol"] else (h - l)
+    x["ph"], x["pl"] = _pivots(h.values, l.values, 3)
+    x["bull"], x["bear"] = c > o, c < o
+    x["hr"] = x["df"]["Time"].dt.hour
+    return x
+
+
+def _b(s): return np.asarray(pd.Series(s).fillna(False).astype(bool))
+def _rm(s, n): return s.astype(float).rolling(n, min_periods=1).max() > 0
+
+
+def _ssl(x, side, n=8):
+    """SL theo cấu trúc: qua đáy/đỉnh n nến gần nhất + 0.25 ATR, kẹp 0.8–3.5 ATR."""
+    a = x["atr"]
+    s = (x["c"] - x["l"].rolling(n).min() if side == "LONG" else x["h"].rolling(n).max() - x["c"]) + 0.25 * a
+    return s.clip(lower=0.8 * a, upper=3.5 * a)
+
+
+def _sl2(x, n): return _ssl(x, "LONG", n), _ssl(x, "SHORT", n)
+
+
+def m_sweep(x):
+    c, h, l = x["c"], x["h"], x["l"]
+    lo20, hi20 = l.rolling(20).min().shift(1), h.rolling(20).max().shift(1)
+    swL, swS = (l < lo20) & (c > lo20), (h > hi20) & (c < hi20)          # quét thanh khoản rồi đóng cửa lại trong biên
+    mssL, mssS = c > h.rolling(3).max().shift(1), c < l.rolling(3).min().shift(1)  # MSS: phá đỉnh/đáy nhỏ gần nhất
+    return (_b(_rm(swL, 5) & mssL & ~swL), _b(_rm(swS, 5) & mssS & ~swS)) + _sl2(x, 6)
+
+
+def m_fvg_ob(x):
+    c, o, h, l, a = x["c"], x["o"], x["h"], x["l"], x["atr"]
+    bf = (l > h.shift(2)) & (c.shift(1) > o.shift(1)) & x["bear"].shift(2, fill_value=False)   # FVG tăng + nến đầu là OB cầu
+    sf = (h < l.shift(2)) & (c.shift(1) < o.shift(1)) & x["bull"].shift(2, fill_value=False)
+    ix = pd.Series(np.arange(x["n"]), index=c.index)
+    ageB, ageS = ix - ix.where(bf).ffill(), ix - ix.where(sf).ffill()
+    zhi, zlo = l.where(bf).ffill(), l.shift(2).where(bf).ffill()    # vùng = [đáy OB, đỉnh FVG]
+    shi, slo = h.shift(2).where(sf).ffill(), h.where(sf).ffill()
+    L = (ageB >= 1) & (ageB <= 30) & (l <= zhi) & (c > zlo) & x["bull"] & (x["e20"] > x["e50"])
+    S = (ageS >= 1) & (ageS <= 30) & (h >= slo) & (c < shi) & x["bear"] & (x["e20"] < x["e50"])
+    return (_b(L), _b(S)) + _sl2(x, 6)
+
+
+def m_breaker(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    e20, e50, N = x["e20"].values, x["e50"].values, x["n"]
+    L, S, zs = np.zeros(N, bool), np.zeros(N, bool), []
+    for t in range(2, N):
+        if c[t - 1] < o[t - 1] and c[t] > h[t - 1] and c[t] - o[t] > 0.8 * a[t]: zs.append([l[t - 1], h[t - 1], 1, 0, t])    # OB cầu
+        if c[t - 1] > o[t - 1] and c[t] < l[t - 1] and o[t] - c[t] > 0.8 * a[t]: zs.append([l[t - 1], h[t - 1], -1, 0, t])   # OB cung
+        keep = []
+        for z in zs:
+            lo, hi, d, st, b = z
+            if st == 0:
+                if t - b > 60: continue
+                if d == 1 and c[t] < lo: z[2], z[3], z[4] = -1, 1, t     # OB cầu bị phá -> breaker kháng cự
+                elif d == -1 and c[t] > hi: z[2], z[3], z[4] = 1, 1, t   # OB cung bị phá -> breaker hỗ trợ
+            else:
+                if t - b > 40: continue
+                if d == -1 and h[t] >= lo and c[t] < hi and c[t] < o[t] and e20[t] < e50[t]: S[t] = True; continue
+                if d == 1 and l[t] <= hi and c[t] > lo and c[t] > o[t] and e20[t] > e50[t]: L[t] = True; continue
+            keep.append(z)
+        zs = keep[-30:]
+    return (L, S) + _sl2(x, 6)
+
+
+def m_killzone(x):
+    c, h, l, N = x["c"], x["h"], x["l"], x["n"]
+    if x["tf"] > 60: return np.zeros(N, bool), np.zeros(N, bool), None, None   # chỉ áp dụng khung ≤ 1 giờ
+    kz = x["hr"].isin([14, 15, 20, 21])    # London 14–16h, New York 20–22h (giờ VN)
+    L = kz & (x["e20"] > x["e50"]) & x["bull"] & (c > h.rolling(3).max().shift(1))
+    S = kz & (x["e20"] < x["e50"]) & x["bear"] & (c < l.rolling(3).min().shift(1))
+    return (_b(L), _b(S)) + _sl2(x, 6)
+
+
+def m_mitig(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    for t in range(N):
+        a1, a2, b1, b2 = ph[t, 0], ph[t, 1], pl[t, 0], pl[t, 1]
+        if min(a1, a2, b1, b2) < 0: continue
+        if h[a1] < h[a2] and b1 < a1 and t - a1 <= 40 and c[a1:t + 1].min() < l[b1]:     # đỉnh thấp hơn rồi phá đáy
+            if h[t] >= min(o[a1], c[a1]) and c[t] < h[a1] and c[t] < o[t]: S[t] = True
+        if l[b1] > l[b2] and a1 < b1 and t - b1 <= 40 and c[b1:t + 1].max() > h[a1]:     # đáy cao hơn rồi phá đỉnh
+            if l[t] <= max(o[b1], c[b1]) and c[t] > l[b1] and c[t] > o[t]: L[t] = True
+    return (L, S) + _sl2(x, 6)
+
+
+def m_keylevel(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    body, rng = np.abs(c - o), np.maximum(h - l, 1e-9)
+    lw, uw = np.minimum(o, c) - l, h - np.maximum(o, c)
+    pinL, pinS = (lw > 2 * body) & (lw > 0.6 * rng), (uw > 2 * body) & (uw > 0.6 * rng)
+    po, pc = np.roll(o, 1), np.roll(c, 1)
+    engL, engS = (c > o) & (pc < po) & (c >= po) & (o <= pc), (c < o) & (pc > po) & (c <= po) & (o >= pc)
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    for k in range(3):
+        s = np.where(pl[:, k] >= 0, l[np.maximum(pl[:, k], 0)], np.nan)
+        r = np.where(ph[:, k] >= 0, h[np.maximum(ph[:, k], 0)], np.nan)
+        L |= (l <= s + 0.3 * a) & (l >= s - 1.0 * a) & (c > s)
+        S |= (h >= r - 0.3 * a) & (h <= r + 1.0 * a) & (c < r)
+    return (L & (pinL | engL) & (c > o), S & (pinS | engS) & (c < o)) + _sl2(x, 5)
+
+
+def m_rsi_div(x):
+    c, o, h, l, a, rsi = (x[k].values for k in ("c", "o", "h", "l", "atr", "rsi"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    t = np.arange(N)
+    up, dn = (x["e20"] > x["e50"]).values, (x["e20"] < x["e50"]).values
+    p1, p2, q1, q2 = pl[:, 0], pl[:, 1], ph[:, 0], ph[:, 1]
+    i1, i2, j1, j2 = (np.maximum(v, 0) for v in (p1, p2, q1, q2))
+    okL, okS = (p1 >= 0) & (p2 >= 0), (q1 >= 0) & (q2 >= 0)
+    near_lo = l <= pd.Series(l).rolling(50, min_periods=10).min().values + 1.0 * a
+    near_hi = h >= pd.Series(h).rolling(50, min_periods=10).max().values - 1.0 * a
+    regL = okL & (l[i1] < l[i2]) & (rsi[i1] > rsi[i2]) & (rsi[i1] < 45) & near_lo        # phân kỳ thường tăng
+    hidL = okL & (l[i1] > l[i2]) & (rsi[i1] < rsi[i2]) & (rsi[i1] < 55) & up              # phân kỳ ẩn tăng (theo xu hướng)
+    regS = okS & (h[j1] > h[j2]) & (rsi[j1] < rsi[j2]) & (rsi[j1] > 55) & near_hi
+    hidS = okS & (h[j1] < h[j2]) & (rsi[j1] > rsi[j2]) & (rsi[j1] > 45) & dn
+    freshL, freshS = (t - p1 >= 3) & (t - p1 <= 6), (t - q1 >= 3) & (t - q1 <= 6)
+    return ((regL | hidL) & freshL & (c > o), (regS | hidS) & freshS & (c < o)) + _sl2(x, 8)
+
+
+def m_bb_squeeze(x):
+    c, bu, bl, rsi = x["c"], x["bbu"], x["bbl"], x["rsi"]
+    w = (bu - bl) / ((bu + bl) / 2)
+    sq = _rm(w.rolling(120, min_periods=30).rank(pct=True) <= 0.25, 25)     # từng có giai đoạn thu hẹp
+    S = sq & (c.shift(1) > bu.shift(1)) & (c < bu) & x["bear"] & (rsi.shift(1) > 62)
+    L = sq & (c.shift(1) < bl.shift(1)) & (c > bl) & x["bull"] & (rsi.shift(1) < 38)
+    return (_b(L), _b(S)) + _sl2(x, 4)
+
+
+def m_double(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    slL, slS = np.full(N, np.nan), np.full(N, np.nan)
+    for t in range(N):
+        b1, b2, a1, a2 = pl[t, 0], pl[t, 1], ph[t, 0], ph[t, 1]
+        if b1 >= 0 and b2 >= 0 and b1 - b2 >= 6 and t - b1 <= 25 and abs(l[b1] - l[b2]) <= 0.6 * a[t]:   # đáy đôi
+            neck = h[b2:b1 + 1].max()
+            if t > b1 + 1 and c[b1 + 1:t].max() > neck and l[t] <= neck + 0.25 * a[t] and c[t] > neck and c[t] > o[t]:
+                L[t], slL[t] = True, min(max(c[t] - min(l[b1], l[b2]) + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+        if a1 >= 0 and a2 >= 0 and a1 - a2 >= 6 and t - a1 <= 25 and abs(h[a1] - h[a2]) <= 0.6 * a[t]:   # đỉnh đôi
+            neck = l[a2:a1 + 1].min()
+            if t > a1 + 1 and c[a1 + 1:t].min() < neck and h[t] >= neck - 0.25 * a[t] and c[t] < neck and c[t] < o[t]:
+                S[t], slS[t] = True, min(max(max(h[a1], h[a2]) - c[t] + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+    return L, S, pd.Series(slL), pd.Series(slS)
+
+
+def m_qm(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    L, S = np.zeros(N, bool), np.zeros(N, bool)
+    slL, slS = np.full(N, np.nan), np.full(N, np.nan)
+    for t in range(N):
+        A, C = pl[t, 1], pl[t, 0]                      # QM tăng: vai trái A -> đầu C thấp hơn -> phá đỉnh B -> hồi về A
+        if A >= 0 and C >= 0 and l[C] < l[A] and t - C <= 40 and C - A >= 4:
+            B = next((i for i in (ph[t, 0], ph[t, 1]) if i >= 0 and A < i < C), -1)
+            if B >= 0 and t > C + 1 and c[C + 1:t].max() > h[B] and l[t] <= l[A] + 0.3 * a[t] and c[t] > l[A] and c[t] > o[t]:
+                L[t], slL[t] = True, min(max(c[t] - l[C] + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+        A, C = ph[t, 1], ph[t, 0]                      # QM giảm (đối xứng)
+        if A >= 0 and C >= 0 and h[C] > h[A] and t - C <= 40 and C - A >= 4:
+            B = next((i for i in (pl[t, 0], pl[t, 1]) if i >= 0 and A < i < C), -1)
+            if B >= 0 and t > C + 1 and c[C + 1:t].min() < l[B] and h[t] >= h[A] - 0.3 * a[t] and c[t] < h[A] and c[t] < o[t]:
+                S[t], slS[t] = True, min(max(h[C] - c[t] + 0.25 * a[t], 0.8 * a[t]), 3.5 * a[t])
+    return L, S, pd.Series(slL), pd.Series(slS)
+
+
+def m_ema_pb(x):
+    c, l, h, e20, e50 = x["c"], x["l"], x["h"], x["e20"], x["e50"]
+    strong = x["adx"] >= 20
+    L = strong & (e20 > e50) & (e50 > e50.shift(5)) & (l <= e20) & (c > e20) & x["bull"]
+    S = strong & (e20 < e50) & (e50 < e50.shift(5)) & (h >= e20) & (c < e20) & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 8)
+
+
+def m_donchian(x):
+    c, h, l, a = x["c"], x["h"], x["l"], x["atr"]
+    hi20, lo20 = h.rolling(20).max().shift(1), l.rolling(20).min().shift(1)
+    vf = x["vol"] > 1.2 * x["vol"].rolling(20).mean()
+    bL, bS = (c > hi20) & vf, (c < lo20) & vf                 # phá kênh kèm khối lượng
+    ix = pd.Series(np.arange(x["n"]), index=c.index)
+    aL, aS = ix - ix.where(bL).ffill(), ix - ix.where(bS).ffill()
+    vL, vS = hi20.where(bL).ffill(), lo20.where(bS).ffill()
+    L = (aL >= 2) & (aL <= 10) & (l <= vL + 0.25 * a) & (c > vL) & x["bull"]       # retest biên kênh thành công
+    S = (aS >= 2) & (aS <= 10) & (h >= vS - 0.25 * a) & (c < vS) & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 8)
+
+
+def _supertrend(h, l, c, a, m=3.0):
+    N = len(c)
+    hl2 = (h + l) / 2
+    ub, lb = hl2 + m * a, hl2 - m * a
+    fu, fl, d = ub.copy(), lb.copy(), np.ones(N)
+    for i in range(1, N):
+        fu[i] = ub[i] if (ub[i] < fu[i - 1] or c[i - 1] > fu[i - 1]) else fu[i - 1]
+        fl[i] = lb[i] if (lb[i] > fl[i - 1] or c[i - 1] < fl[i - 1]) else fl[i - 1]
+        d[i] = 1 if c[i] > fu[i - 1] else (-1 if c[i] < fl[i - 1] else d[i - 1])
+    return d, fl, fu
+
+
+def m_supertrend(x):
+    c, h, l, a = (x[k].values for k in ("c", "h", "l", "atr"))
+    d, fl, fu = _supertrend(h, l, c, a, 3.0)
+    h4, l4 = pd.Series(h).rolling(4, min_periods=1).max().values, pd.Series(l).rolling(4, min_periods=1).min().values
+    dh, _, _ = _supertrend(h4, l4, c, a * 2, 3.0)             # khung lớn ≈ gộp 4 nến
+    ds = pd.Series(d)
+    flipL, flipS = _rm((ds == 1) & (ds.shift(1) == -1), 4), _rm((ds == -1) & (ds.shift(1) == 1), 4)
+    L, S = _b(flipL & (ds == 1) & (dh == 1)), _b(flipS & (ds == -1) & (dh == -1))
+    aa = x["atr"]
+    slL = (x["c"] - pd.Series(fl)).clip(lower=0.8 * aa, upper=3.5 * aa)
+    slS = (pd.Series(fu) - x["c"]).clip(lower=0.8 * aa, upper=3.5 * aa)
+    return L, S, slL, slS
+
+
+def m_ichimoku(x):
+    c, h, l, a = x["c"], x["h"], x["l"], x["atr"]
+    ten = (h.rolling(9).max() + l.rolling(9).min()) / 2
+    kij = (h.rolling(26).max() + l.rolling(26).min()) / 2
+    sa, sb = ((ten + kij) / 2).shift(26), ((h.rolling(52).max() + l.rolling(52).min()) / 2).shift(26)
+    top, bot = pd.concat([sa, sb], axis=1).max(axis=1, skipna=False), pd.concat([sa, sb], axis=1).min(axis=1, skipna=False)
+    bL, bS = (c > top) & (c.shift(1) <= top.shift(1)), (c < bot) & (c.shift(1) >= bot.shift(1))
+    L = _rm(bL, 4) & (c > top) & (c > h.shift(26))              # Chikou nằm thoáng trên đường giá 26 nến trước
+    S = _rm(bS, 4) & (c < bot) & (c < l.shift(26))
+    slL = (c - bot + 0.25 * a).clip(lower=0.8 * a, upper=3.5 * a)
+    slS = (top - c + 0.25 * a).clip(lower=0.8 * a, upper=3.5 * a)
+    return _b(L), _b(S), slL, slS
+
+
+def m_trendline(x):
+    o, c, h, l, a = (x[k].values for k in ("o", "c", "h", "l", "atr"))
+    ph, pl, N = x["ph"], x["pl"], x["n"]
+    t = np.arange(N)
+    up, dn = (x["e20"] > x["e50"]).values, (x["e20"] < x["e50"]).values
+    p1, p2, q1, q2 = pl[:, 0], pl[:, 1], ph[:, 0], ph[:, 1]
+    i1, i2, j1, j2 = (np.maximum(v, 0) for v in (p1, p2, q1, q2))
+    sL, sS = (l[i1] - l[i2]) / np.maximum(p1 - p2, 1), (h[j1] - h[j2]) / np.maximum(q1 - q2, 1)
+    lnL, lnS = l[i1] + sL * (t - p1), h[j1] + sS * (t - q1)    # đường xu hướng qua 2 điểm, điểm chạm thứ 3 là tín hiệu
+    okL = (p1 >= 0) & (p2 >= 0) & (p1 - p2 >= 5) & (sL > 0) & (t - p1 >= 4) & (t - p1 <= 60) & up
+    okS = (q1 >= 0) & (q2 >= 0) & (q1 - q2 >= 5) & (sS < 0) & (t - q1 >= 4) & (t - q1 <= 60) & dn
+    pc = np.roll(c, 1)
+    L = okL & (l <= lnL + 0.3 * a) & (l >= lnL - 0.8 * a) & (c > lnL) & (pc > lnL) & (c > o)
+    S = okS & (h >= lnS - 0.3 * a) & (h <= lnS + 0.8 * a) & (c < lnS) & (pc < lnS) & (c < o)
+    return (L, S) + _sl2(x, 6)
+
+
+def m_poc(x):
+    c, h, l, a, N = x["c"].values, x["h"].values, x["l"].values, x["atr"].values, x["n"]
+    w, tp = x["vol"].values, (x["h"] + x["l"] + x["c"]).values / 3
+    poc, W, step = np.full(N, np.nan), 100, 5
+    for t in range(W, N, step):                                 # POC tính từ 100 nến TRƯỚC đó, cập nhật mỗi 5 nến
+        hh, ll = h[t - W:t].max(), l[t - W:t].min()
+        if hh <= ll: continue
+        hist, ed = np.histogram(tp[t - W:t], bins=np.linspace(ll, hh, 25), weights=w[t - W:t])
+        if hist.sum() > 0:
+            k = int(hist.argmax())
+            poc[t:t + step] = (ed[k] + ed[k + 1]) / 2
+    pc3 = np.roll(c, 3)
+    L = (l <= poc + 0.2 * a) & (c > poc) & (pc3 > poc) & (c > x["o"].values)      # POC làm hỗ trợ (giá từ trên về)
+    S = (h >= poc - 0.2 * a) & (c < poc) & (pc3 < poc) & (c < x["o"].values)      # POC làm kháng cự (giá từ dưới lên)
+    return (L, S) + _sl2(x, 5)
+
+
+def m_vwap(x):
+    c, tp = x["c"], (x["h"] + x["l"] + x["c"]) / 3
+    w = x["vol"].where(x["vol"] > 0, 1.0)
+    if x["tf"] < 1440:
+        day = x["df"]["Time"].dt.date
+        vw = (tp * w).groupby(day).cumsum() / w.groupby(day).cumsum()      # VWAP theo phiên (reset mỗi ngày)
+    else:
+        vw = (tp * w).rolling(20).sum() / w.rolling(20).sum()              # khung ngày/tuần: VWAP trượt 20 nến
+    dev = c - vw
+    sd = dev.rolling(50, min_periods=20).std()
+    L = (dev.shift(1) < -2 * sd.shift(1)) & (dev > dev.shift(1)) & x["bull"]
+    S = (dev.shift(1) > 2 * sd.shift(1)) & (dev < dev.shift(1)) & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 4)
+
+
+def m_zscore(x):
+    c = x["c"]
+    z = (c - c.rolling(20).mean()) / c.rolling(20).std()
+    rng = x["adx"] < 25                                          # chỉ hồi quy khi thị trường không có xu hướng mạnh
+    L = (z.shift(1) < -2) & (z > z.shift(1)) & rng & x["bull"]
+    S = (z.shift(1) > 2) & (z < z.shift(1)) & rng & x["bear"]
+    return (_b(L), _b(S)) + _sl2(x, 4)
+
+
+def m_inside(x):
+    c, o, h, l, a = x["c"], x["o"], x["h"], x["l"], x["atr"]
+    ib = (h.shift(1) < h.shift(2)) & (l.shift(1) > l.shift(2))     # nến t-1 nằm gọn trong nến mẹ t-2
+    L = ib & (x["e20"] > x["e50"]) & (x["adx"] > 20) & (c > h.shift(2)) & (c > o)
+    S = ib & (x["e20"] < x["e50"]) & (x["adx"] > 20) & (c < l.shift(2)) & (c < o)
+    slL = (c - l.shift(2)).clip(lower=0.8 * a, upper=3.5 * a)      # SL ở đầu kia của nến mẹ
+    slS = (h.shift(2) - c).clip(lower=0.8 * a, upper=3.5 * a)
+    return _b(L), _b(S), slL, slS
+
+
+def m_atrtrail(x):
+    c, a, N = x["c"].values, x["atr"].values, x["n"]
+    tr, d = np.zeros(N), np.ones(N)
+    tr[0] = c[0] - 3 * a[0]
+    for i in range(1, N):
+        if d[i - 1] == 1:
+            if c[i] < tr[i - 1]: d[i], tr[i] = -1, c[i] + 3 * a[i]
+            else: d[i], tr[i] = 1, max(tr[i - 1], c[i] - 3 * a[i])
+        else:
+            if c[i] > tr[i - 1]: d[i], tr[i] = 1, c[i] - 3 * a[i]
+            else: d[i], tr[i] = -1, min(tr[i - 1], c[i] + 3 * a[i])
+    ds, ok = pd.Series(d), (x["adx"] >= 18)
+    L = _b(_rm((ds == 1) & (ds.shift(1) == -1), 3) & (ds == 1) & ok)     # đường trailing vừa đảo lên
+    S = _b(_rm((ds == -1) & (ds.shift(1) == 1), 3) & (ds == -1) & ok)
+    aa = x["atr"]
+    return L, S, (x["c"] - pd.Series(tr)).clip(lower=0.8 * aa, upper=3.5 * aa), (pd.Series(tr) - x["c"]).clip(lower=0.8 * aa, upper=3.5 * aa)
+
+
+MTH_GROUPS = ["Nhóm 1 · Smart Money & Thanh khoản", "Nhóm 2 · Đảo chiều tại vùng cản & Phân kỳ",
+              "Nhóm 3 · Theo xu hướng", "Nhóm 4 · Định lượng, Biến động & Khối lượng"]
+# key, nhóm, icon, tên, mô tả ngắn, mô tả đầy đủ, lưu ý, hệ số kéo dài thời gian kiểm chứng
+MTH_META = [
+    ("sweep", 0, "💧", "Liquidity Sweep + MSS", "Quét thanh khoản rồi đảo cấu trúc",
+     "Chờ giá quét sạch thanh khoản tại đỉnh/đáy cũ (Asian Range hoặc Daily High/Low), sau đó xuất hiện tín hiệu đảo chiều cấu trúc (MSS/ChoCH) rồi mới vào lệnh theo chiều ngược lại.",
+     "Bot nhận diện: nến đâm thủng đáy/đỉnh 20 nến nhưng đóng cửa lại trong biên, sau đó phá đỉnh/đáy nhỏ 3 nến trong vòng 5 nến. Dễ bị quét lần hai nếu tin tức mạnh.", 1),
+    ("fvgob", 0, "🧱", "FVG Retest + Order Block", "Giá hồi về FVG trùng vùng OB",
+     "Chỉ vào lệnh khi giá quay về lấp khoảng trống giá (FVG) nằm trùng lặp hoặc ngay sát vùng Order Block (OB) của khung lớn.",
+     "Bot nhận diện FVG ba nến có nến đầu là OB ngược màu, hiệu lực 30 nến, kèm EMA20/50 cùng chiều. Bot dùng khung đang chọn làm xấp xỉ khung lớn, nên hãy tự đối chiếu khung H4/D1.", 1),
+    ("breaker", 0, "🔁", "Breaker Block Reversal", "OB bị phá thành hỗ trợ/kháng cự",
+     "Sử dụng các vùng Order Block bị phá vỡ (biến thành Breaker Block) làm vùng hỗ trợ/kháng cự cực mạnh để đánh tiếp diễn xu hướng.",
+     "Chỉ vào lệnh khi giá retest breaker theo đúng chiều EMA20/50. Vùng hết hiệu lực sau 40 nến hoặc sau lần chạm đầu tiên.", 1),
+    ("killzone", 0, "⏰", "Kill Zone London / New York", "Giao dịch 1–2 giờ đầu phiên Âu/Mỹ",
+     "Chỉ thực hiện giao dịch trong 1-2 tiếng đầu mở cửa phiên London hoặc phiên Mỹ khi khối lượng giao dịch và hướng đi của dòng tiền đạt độ xác thực cao nhất.",
+     "Bot dùng 14–16h và 20–22h giờ VN (lệch ±1h theo giờ mùa hè). Chỉ áp dụng khung ≤ 1 giờ; khung ngày/tuần sẽ báo không áp dụng. Tránh vào lệnh ngay trước tin lớn.", 1),
+    ("mitig", 0, "🩹", "Mitigation Block Test", "Smart Money quay lại đóng lệnh lỗ",
+     "Vào lệnh tại các vùng giá mà các tổ chức lớn (Smart Money) quay lại để đóng các vị thế lỗ trước đó của họ.",
+     "Bot nhận diện: đỉnh thấp hơn (hoặc đáy cao hơn) rồi phá cấu trúc, vùng mitigation là thân nến đỉnh/đáy đó. Đây là khái niệm chủ quan nhất trong nhóm, nên kết quả chỉ mang tính tham khảo.", 1),
+    ("keylevel", 1, "🎯", "Key Level + Nến đảo chiều", "Hỗ trợ/kháng cự cứng + Pinbar/Engulfing",
+     "Giao dịch tại các mốc hỗ trợ/kháng cự quan trọng trên khung D1/H4 kết hợp mẫu hình nến đảo chiều mạnh (Pinbar, Engulfing).",
+     "Bot lấy 3 đỉnh/đáy swing gần nhất làm mốc, giá chạm trong 0.3 ATR kèm Pinbar hoặc Engulfing. Mốc càng cũ và được test nhiều lần càng mạnh.", 1),
+    ("rsidiv", 1, "📉", "RSI Divergence", "Phân kỳ RSI thường/ẩn tại vùng cản",
+     "Tìm phân kỳ (thường hoặc ẩn) của RSI trên khung H1/H4 tại các vùng cản cứng để bắt sóng đảo chiều an toàn.",
+     "Phân kỳ thường chỉ tính khi giá gần đáy/đỉnh 50 nến; phân kỳ ẩn cần xu hướng EMA cùng chiều. Trong xu hướng rất mạnh phân kỳ có thể kéo dài nhiều lần mà giá vẫn đi tiếp.", 1),
+    ("bbsq", 1, "🎈", "Bollinger Squeeze + Outer Band", "Thu hẹp rồi đảo chiều ở dải ngoài",
+     "Đợi dải Bollinger Bands thu hẹp tích lũy, sau đó đánh đảo chiều khi giá đẩy mạnh ra ngoài dải biên (Outer Band) và chạm vùng cản.",
+     "Bot yêu cầu từng có thu hẹp (25% thấp nhất của 120 nến), giá đóng ngoài dải rồi quay vào, RSI quá mua/bán. Nếu squeeze phá vỡ thật sự, đảo chiều sẽ thua, nên cần SL chặt.", 1),
+    ("double", 1, "⛰️", "Double Top / Bottom", "Hai đỉnh/đáy, phá cổ rồi retest",
+     "Mô hình 2 đỉnh / 2 đáy truyền thống nhưng chỉ vào lệnh sau khi giá đã phá vỡ đường viền cổ (Neckline) và quay lại retest.",
+     "Hai đỉnh/đáy lệch nhau tối đa 0.6 ATR, cách nhau ≥ 6 nến; vào lệnh khi retest neckline và đóng cửa đúng hướng. Mẫu hình hiếm, cần nhiều dữ liệu mới kiểm chứng được.", 1),
+    ("qm", 1, "🔄", "Quasimodo (QM)", "Biến thể nâng cao của Vai-Đầu-Vai",
+     "Đánh theo mô hình Quasimodo, biến thể nâng cao của Vai Đầu Vai giúp tối ưu tỷ lệ R:R và bù rủi ro cực tốt.",
+     "Bot nhận diện: vai trái, đầu tạo đỉnh/đáy mới, phá cấu trúc ngược lại, rồi hồi về mức vai trái. SL đặt ngoài đầu nên R:R thường đẹp nhưng số mẫu rất ít.", 1),
+    ("emapb", 2, "📈", "EMA Cross + Pullback", "Xu hướng EMA20/50, chờ giá hồi về EMA",
+     "Sử dụng cặp đường trung bình (ví dụ EMA 20/50 hoặc EMA 50/200), chờ xu hướng rõ ràng và chỉ vào lệnh khi giá quay lại chạm đường EMA.",
+     "Cần ADX ≥ 20 và EMA50 dốc cùng hướng; nến xác nhận đóng cửa ngoài EMA20. Mất hiệu quả trong thị trường đi ngang.", 2),
+    ("donch", 2, "🚪", "Donchian / Keltner Retest", "Phá kênh có khối lượng, vào ở retest",
+     "Phá vỡ kênh giá đi kèm khối lượng lớn, chỉ mở vị thế khi giá quay về retest biên kênh thành công.",
+     "Bot dùng kênh 20 nến, khối lượng breakout ≥ 1.2 lần trung bình; retest trong 2–10 nến. Với Forex không có khối lượng thật, bot dùng biên độ nến thay thế.", 2),
+    ("supertrend", 2, "🟢", "Supertrend đa khung", "Supertrend khung nhỏ đồng pha khung lớn",
+     "Tín hiệu vào lệnh đạt tỷ lệ thắng cao nhất khi chỉ số Supertrend của khung nhỏ (M15/H1) đồng pha hoàn toàn với Supertrend của khung lớn (H4/D1).",
+     "Khung lớn được xấp xỉ bằng cách gộp 4 nến. Tín hiệu là lúc Supertrend khung nhỏ vừa đảo trong 4 nến gần nhất và đồng pha khung lớn.", 2),
+    ("ichimoku", 2, "☁️", "Ichimoku Kumo + Chikou", "Bứt phá mây có Chikou xác nhận",
+     "Giao dịch theo mây Ichimoku khi giá bùng nổ khỏi mây Kumo và được xác nhận bởi đường trễ Chikou Span nằm thoáng khỏi đường giá.",
+     "Cần ít nhất 78 nến dữ liệu. Mây dày nghĩa là vùng cản mạnh, SL được đặt ở mép mây bên kia. Hiệu quả thấp khi giá đi ngang quanh mây.", 2),
+    ("trendline", 2, "〰️", "Trendline Bounce", "Điểm chạm thứ 3 của đường xu hướng",
+     "Kẻ đường xu hướng (Trendline) qua 3 điểm chạm, đánh tiếp diễn ở điểm chạm thứ 3 trở đi khi có xác nhận nến.",
+     "Bot kẻ đường qua 2 đáy/đỉnh swing gần nhất (dốc cùng xu hướng), vào lệnh khi giá chạm lần 3 và nến đóng cửa xác nhận. Đường vẽ tay của bạn có thể khác đường của bot.", 2),
+    ("poc", 3, "📊", "Volume Profile POC", "POC làm hỗ trợ/kháng cự bật nảy",
+     "Sử dụng mốc giá có khối lượng giao dịch lớn nhất (POC) làm vùng cản cứng để giao dịch bật nảy.",
+     "POC tính trên 100 nến trước đó, chia 24 mức giá. Với tài sản không có khối lượng thật (Forex), bot dùng biên độ nến thay thế, độ tin cậy thấp hơn.", 1),
+    ("vwap", 3, "⚖️", "VWAP Deviation Reversal", "Đảo chiều khi lệch xa VWAP",
+     "Đánh đảo chiều khi giá lệch quá xa dải độ lệch chuẩn của đường giá trung bình theo khối lượng (VWAP) trong ngày.",
+     "Khung trong ngày dùng VWAP reset mỗi ngày; khung ngày/tuần dùng VWAP trượt 20 nến. Chờ nến đảo chiều xác nhận, không bắt dao rơi khi có tin tức.", 1),
+    ("zscore", 3, "🧲", "Mean Reversion Z-Score", "Hồi quy về trung bình khi |Z| > 2",
+     "Giao dịch hồi quy về mức trung bình dựa trên chỉ số thống kê Z-Score khi giá vượt quá xa biên độ dao động tiêu chuẩn.",
+     "Chỉ vào khi ADX < 25 (thị trường đi ngang) và Z-Score quay đầu. Trong xu hướng mạnh, Z-Score có thể ở mức cực đoan rất lâu.", 1),
+    ("inside", 3, "📦", "Inside Bar Breakout", "Nến mẹ + nến nằm trong, ăn theo phá vỡ",
+     "Đợi nến nén Inside Bar hình thành trong một xu hướng mạnh, đặt lệnh chờ (Stop order) ăn theo hướng phá vỡ của nến mẹ.",
+     "Cần EMA20/50 cùng chiều và ADX > 20. Bot kiểm chứng ở giá đóng cửa của nến phá vỡ; SL đặt ở đầu kia của nến mẹ.", 1),
+    ("atrtrail", 3, "🛡️", "ATR Trailing Stop", "Đường trailing 3 ATR đảo chiều",
+     "Chiến lược quản trị vị thế dựa trên biên độ ATR, giúp gặt hái lợi nhuận tối đa trong các đợt sóng dài mà không lo bị quét lệnh sớm.",
+     "Thực chất là công cụ quản lý lệnh nên bot dùng lúc đường trailing 3 ATR vừa đảo chiều làm điểm vào (kèm ADX ≥ 18). Backtest dùng TP cố định, nên sức mạnh thật khi trượt SL theo xu hướng chưa được tính hết.", 2),
+]
+MTH_FUNCS = dict(sweep=m_sweep, fvgob=m_fvg_ob, breaker=m_breaker, killzone=m_killzone, mitig=m_mitig, keylevel=m_keylevel,
+                 rsidiv=m_rsi_div, bbsq=m_bb_squeeze, double=m_double, qm=m_qm, emapb=m_ema_pb, donch=m_donchian,
+                 supertrend=m_supertrend, ichimoku=m_ichimoku, trendline=m_trendline, poc=m_poc, vwap=m_vwap,
+                 zscore=m_zscore, inside=m_inside, atrtrail=m_atrtrail)
+
+
+def _sld_of(sl, x):
+    d = 1.5 * x["atr"]
+    if sl is None: return d
+    s = pd.Series(np.asarray(sl, dtype=float), index=d.index)
+    return s.where(np.isfinite(s) & (s > 0), d)
+
+
+@st.cache_data(ttl=120, show_spinner="🧪 BOT ĐANG ĐÁNH GIÁ 20 PHƯƠNG PHÁP...")
+def evaluate_methods(df, rr, horizon, iv):
+    """Mỗi phương pháp: tín hiệu quá khứ -> triple-barrier (TP/SL theo R:R) -> thống kê; cộng với tín hiệu trên nến đã đóng gần nhất."""
+    x = _mctx(df, iv)
+    d0, N, be, out = x["df"], x["n"], 1.0 / (1.0 + rr), []
+    for key, grp, ic, name, short, desc, tip, hz in MTH_META:
+        r = dict(key=key, grp=grp, ic=ic, name=name, short=short, desc=desc, tip=tip, err=None,
+                 n=0, hit=0.0, ev=0.0, lb=0.0, per100=0.0, be=be, active=False, side=None, na=False)
+        try:
+            L, S, slL, slS = MTH_FUNCS[key](x)
+            if key == "killzone" and x["tf"] > 60: r["na"] = True
+            ys, sig, sld = [], {}, {}
+            for side, sg, sl in (("LONG", L, slL), ("SHORT", S, slS)):
+                sg = np.asarray(sg, dtype=bool)
+                sig[side], sld[side] = sg, _sld_of(sl, x)
+                first = sg & ~np.concatenate([[False], sg[:-1]])                 # chỉ tính nến đầu của chuỗi tín hiệu liên tiếp
+                y = triple_barrier(d0, side, sld[side], rr, max(int(horizon * hz), 3))
+                ys.append(y[np.where(first & np.isfinite(y))[0]])
+            y = np.concatenate(ys)
+            n = int(len(y))
+            if n:
+                hit = float(y.mean())
+                r.update(n=n, hit=hit, ev=hit * rr - (1 - hit), lb=wilson_lb(hit, n, max(int(horizon * hz), 3)))
+            r["per100"] = n / max(N, 1) * 100
+            t = N - 1
+            for side in ("LONG", "SHORT"):                                       # tín hiệu ở nến đã đóng gần nhất hoặc nến liền trước
+                for age in (0, 1):
+                    if t - age >= 0 and sig[side][t - age] and not r["active"]:
+                        sgn = 1 if side == "LONG" else -1
+                        d = float(sld[side].iloc[t - age])
+                        if np.isfinite(d) and d > 0:
+                            e = float(x["c"].iloc[t])
+                            r.update(active=True, side=side, age=age, entry=e, sl=e - sgn * d, tp1=e + sgn * d, tp2=e + sgn * d * rr, sld=d)
+        except Exception as ex:
+            r["err"] = f"{type(ex).__name__}: {ex}"
+        r["edge"] = bool(r["n"] >= 10 and r["ev"] > 0 and r["lb"] > be and not r["na"])
+        r["go"] = bool(r["edge"] and r["active"])
+        out.append(r)
+    return out
+
+
+_COPY_SVG = ("<svg class='i-copy' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><rect x='9' y='9' width='13' height='13' rx='2' ry='2'></rect><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'></path></svg>"
+             "<svg class='i-ok' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4'><polyline points='20 6 9 17 4 12'></polyline></svg>")
+
+
+def _pdec(v) -> int:
+    """Số chữ số thập phân theo độ lớn giá: vàng/BTC/chỉ số 2, JPY & cổ phiếu 3, Forex 5."""
+    v = abs(float(v))
+    return 2 if v >= 1000 else (3 if v >= 100 else 5)
+
+
+def _px(v) -> str:
+    """Hiển thị giá kiểu Việt Nam (1.234,56) với số lẻ đủ để Entry/SL/TP không bị trùng nhau ở Forex."""
+    return f"{float(v):,.{_pdec(v)}f}".replace(",", "TEMP").replace(".", ",").replace("TEMP", ".")
+
+
+def _cp(v) -> str:
+    """Số thô dán được thẳng vào sàn (dấu chấm thập phân, không có dấu phân cách hàng nghìn)."""
+    return f"{float(v):.{_pdec(v)}f}"
+
+
+def _mth_cell(label, v, cls):
+    """Ô giá có nút sao chép; chưa có tín hiệu (v=None) thì hiện gạch và không có nút."""
+    if v is None:
+        return f"<div class='mth-cell'><span>{label}</span><b>—</b></div>"
+    return (f"<div class='mth-cell'><span>{label}</span><div class='mth-cv'><b class='{cls}'>{_px(v)}</b>"
+            f"<i class='nt-copy' role='button' tabindex='0' title='Sao chép {label}' aria-label='Sao chép {label}' data-copy='{_cp(v)}'>{_COPY_SVG}</i></div></div>")
+
+
+def _mth_card(r):
+    side_txt = {"LONG": "MUA", "SHORT": "BÁN"}.get(r["side"], "")
+    if r["na"]: state, tag, tcls = "Không áp dụng cho khung thời gian đang chọn (chỉ dùng khung ≤ 1 giờ).", "N/A", "wait"
+    elif r["go"]: state, tag, tcls = f"✅ CÓ LỢI THẾ: đang có tín hiệu {side_txt} và thống kê backtest dương. Có thể xem xét vào vị thế.", side_txt, "buy" if r["side"] == "LONG" else "sell"
+    elif r["active"]:
+        why = f"mẫu kiểm chứng quá ít (n = {r['n']})" if r["n"] < 10 else "tỷ lệ thắng chưa vượt mức hòa vốn một cách đáng tin"
+        state, tag, tcls = f"⛔ CHƯA CÓ LỢI THẾ: có tín hiệu {side_txt} nhưng {why}. Không nên vào chỉ vì phương pháp này.", side_txt, "wait"
+    elif r["edge"]: state, tag, tcls = "⏳ Thống kê dương nhưng hiện chưa có tín hiệu. Chờ setup hình thành rồi mới vào.", "CHỜ", "wait"
+    else:
+        why = f"mẫu kiểm chứng quá ít (n = {r['n']})" if r["n"] < 10 else "thống kê backtest chưa chứng minh lợi thế"
+        state, tag, tcls = f"⛔ CHƯA CÓ LỢI THẾ: chưa có tín hiệu, {why}.", "CHỜ", "wait"
+    # Nhãn luôn theo màu hướng lệnh: MUA = xanh, BÁN = đỏ, CHỜ / N/A = xám
+    tcls = {"MUA": "buy", "BÁN": "sell"}.get(tag, "wait")
+    on = r["active"] and not r["na"]
+    g1 = "".join(_mth_cell(a, (r[k] if on else None), c) for a, k, c in
+                 (("Entry", "entry", ""), ("Stop Loss", "sl", "dn"), ("TP1 (1R)", "tp1", "up"), (f"TP2 ({r['rr']:g}R)", "tp2", "up")))
+    evc = "up" if r["ev"] > 0 else "dn"
+    st_cells = [("Tỷ lệ thắng", f"{r['hit'] * 100:.0f}%", "up" if r["hit"] > r["be"] else "dn"), ("Hòa vốn", f"{r['be'] * 100:.0f}%", ""),
+                ("Kỳ vọng / lệnh", f"{r['ev']:+.2f}R", evc), ("Số lệnh kiểm chứng", f"{r['n']}", ""),
+                ("Tần suất", f"{r['per100']:.1f} / 100 nến", ""), ("Cận dưới tin cậy 90%", f"{r['lb'] * 100:.0f}%", "up" if r["lb"] > r["be"] else "dn")]
+    g2 = "".join(f"<div class='mth-cell'><span>{a}</span><b class='{c}'>{b}</b></div>" for a, b, c in st_cells)
+    err = f"<div class='mth-note warn'><b>Lỗi tính toán</b>{r['err']}</div>" if r["err"] else ""
+    return (f"<details class='mth {'g' if r['go'] else 'r'}'><summary><span class='mth-ic'>{r['ic']}</span>"
+            f"<span class='mth-nm'><b>{r['name']}</b><em>{r['short']}</em></span><span class='mth-tag {tcls}'>{tag}</span>"
+            f"<span class='mth-wr'>{r['hit'] * 100:.0f}%</span></summary><div class='mth-body'>"
+            f"<div class='mth-state'>{state}</div><div class='mth-grid'>{g1}</div><div class='mth-grid s'>{g2}</div>"
+            f"<div class='mth-note'><b>Phương pháp</b>{r['desc']}</div><div class='mth-note warn'><b>Lưu ý khi dùng</b>{r['tip']}</div>{err}</div></details>")
+
+
+def render_methods(res, rr):
+    go = [r for r in res if r["go"]]
+    nL, nS = sum(r["side"] == "LONG" for r in go), sum(r["side"] == "SHORT" for r in go)
+    n_edge, n_act, n_all = sum(r["edge"] for r in res), sum(r["active"] for r in res), len(res)
+    if not go: verdict = "Chưa phương pháp nào đủ lợi thế. Nên đứng ngoài, chờ setup tốt hơn."
+    elif nL and nS: verdict = f"⚠️ Các phương pháp mâu thuẫn ({nL} MUA / {nS} BÁN). Không nên vào lệnh."
+    else:
+        d = "MUA" if nL else "BÁN"
+        lvl = "đồng thuận mạnh" if len(go) >= 5 else ("đồng thuận khá" if len(go) >= 3 else "đồng thuận yếu, chỉ vào khi có thêm xác nhận")
+        verdict = f"{'🟢' if nL else '🔴'} Thiên về {d}: {lvl}."
+    strip = "".join(f"<i class='{'g' if r['go'] else ''}' title='{r['name']}'></i>" for r in res)
+    html(f"""<div class='mth-sum {'g' if go else ''}'><div class='mth-sum-n'><b>{len(go)}</b><span>/{n_all}</span></div>
+        <div class='mth-sum-t'><strong>phương pháp đang có lợi thế để vào vị thế</strong><em>{verdict}</em>
+        <div class='mth-strip'>{strip}</div>
+        <div class='mth-sum-c'>🟢 MUA {nL} · 🔴 BÁN {nS} · Thống kê dương {n_edge} · Đang có tín hiệu {n_act} · R:R 1:{rr:g}</div></div></div>""")
+    for gi, gname in enumerate(MTH_GROUPS):
+        cards = "".join(_mth_card(dict(r, rr=rr)) for r in res if r["grp"] == gi)
+        html(f"<div class='mth-grp'>{gname}</div><div class='mth-list'>{cards}</div>")
+
+
+AI_SLM = ["ATR (theo biến động)", "Cấu trúc (swing 10 nến)"]
+AI_SAFE = ["Mạo hiểm", "Cân bằng", "Thận trọng"]
+AI_RMODES = ["% vốn", "Số tiền $", "Lot cố định"]
+AI_LEVS = [1, 5, 10, 20, 30, 50, 100, 200, 300, 500, 1000, 2000]
+AI_DEFAULTS = {"ai_slm": AI_SLM[0], "ai_k": 1.5, "ai_rr": 2.0, "ai_split": True, "ai_safe": "Cân bằng", "ai_off": False,
+               "ai_bal": 1000.0, "ai_rmode": "% vốn", "ai_risk": 1.0, "ai_rusd": 10.0, "ai_flot": 0.01, "ai_lev": 100, "ai_step": 0.01}
+AI_TEMPLATES = {
+    "🛡️ Bảo toàn 0,5%": {"ai_rmode": "% vốn", "ai_risk": 0.5, "ai_safe": "Thận trọng", "ai_rr": 2.0, "ai_k": 1.8, "ai_split": True},
+    "⚖️ Cân bằng 1%": {"ai_rmode": "% vốn", "ai_risk": 1.0, "ai_safe": "Cân bằng", "ai_rr": 2.0, "ai_k": 1.5, "ai_split": True},
+    "⚡ Tấn công 3%": {"ai_rmode": "% vốn", "ai_risk": 3.0, "ai_safe": "Mạo hiểm", "ai_rr": 1.5, "ai_k": 1.2, "ai_split": True},
+    "🔥 Liều cao 10%": {"ai_rmode": "% vốn", "ai_risk": 10.0, "ai_safe": "Mạo hiểm", "ai_rr": 1.5, "ai_k": 1.2, "ai_split": False},
+}
+
+
+def ai_db_init():
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS ai_presets (name TEXT PRIMARY KEY, data TEXT)")
+
+
+ai_db_init()
+
+
+def ai_cfg_put(name, data):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("INSERT OR REPLACE INTO ai_presets (name, data) VALUES (?, ?)", (name, json.dumps(data, ensure_ascii=False)))
+
+
+def ai_cfg_get(name):
+    with sqlite3.connect(DB_FILE) as conn:
+        row = conn.execute("SELECT data FROM ai_presets WHERE name=?", (name,)).fetchone()
+    try: return json.loads(row[0]) if row else {}
+    except Exception: return {}
+
+
+def ai_cfg_list():
+    with sqlite3.connect(DB_FILE) as conn:
+        return [r[0] for r in conn.execute("SELECT name FROM ai_presets WHERE name!='__last__' ORDER BY name")]
+
+
+def ai_cfg_del(name):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM ai_presets WHERE name=?", (name,))
+
+
+def ai_clean(cfg):
+    """Ép kiểu, kẹp biên và làm tròn bước để cấu hình cũ/hỏng không làm vỡ widget."""
+    cfg, out = (cfg or {}), {}
+    for k, d in AI_DEFAULTS.items():
+        v = cfg.get(k, d)
+        try:
+            if k == "ai_slm": v = v if v in AI_SLM else d
+            elif k == "ai_safe": v = v if v in AI_SAFE else d
+            elif k == "ai_rmode": v = v if v in AI_RMODES else d
+            elif k in ("ai_split", "ai_off"): v = bool(v)
+            elif k == "ai_lev": v = int(v) if int(v) in AI_LEVS else d
+            elif k == "ai_step": v = float(v) if float(v) in (0.01, 0.1, 1.0) else d
+            else: v = float(v)
+        except Exception:
+            v = d
+        out[k] = v
+    out["ai_k"] = min(max(round(out["ai_k"] * 10) / 10, 0.8), 3.0)
+    out["ai_rr"] = min(max(round(out["ai_rr"] * 2) / 2, 1.0), 4.0)
+    out["ai_risk"] = min(max(round(out["ai_risk"] * 4) / 4, 0.25), 50.0)
+    out["ai_bal"], out["ai_rusd"] = max(out["ai_bal"], 10.0), max(out["ai_rusd"], 1.0)
+    out["ai_flot"] = max(round(out["ai_flot"], 2), 0.01)
+    for k, v in cfg.items():
+        if k.startswith("ai_cv_"):
+            try: out[k] = max(float(v), 1e-4)
+            except Exception: pass
+    return out
+
+
+def ui_set(k, v):
+    d = ai_cfg_get("__ui__"); d[k] = v
+    ai_cfg_put("__ui__", d)
+
+
+def ai_snapshot():
+    snap = {k: st.session_state.get(k, d) for k, d in AI_DEFAULTS.items()}
+    snap.update({k: v for k, v in st.session_state.items() if str(k).startswith("ai_cv_")})
+    return snap
+
+
+def ai_apply(cfg):
+    for k, v in ai_clean({**ai_snapshot(), **cfg}).items(): st.session_state[k] = v
+
+
+def cb_tpl():
+    p = st.session_state.get("ai_tpl")
+    if p in AI_TEMPLATES: ai_apply(AI_TEMPLATES[p]); st.session_state["_ai_msg"] = f"✅ Đã áp dụng mẫu {p}"
+    st.session_state["ai_tpl"] = None
+
+
+def cb_pick(src, dst, cast=float):
+    def _f():
+        v = st.session_state.get(src)
+        if v is not None: st.session_state[dst] = cast(v)
+        st.session_state[src] = None
+    return _f
+
+
+def cb_save():
+    name = (st.session_state.get("ai_cfgname") or "").strip()[:40]
+    if name and name != "__last__": ai_cfg_put(name, ai_snapshot()); st.session_state["_ai_msg"] = f"✅ Đã lưu cấu hình “{name}”"
+    else: st.session_state["_ai_msg"] = "⚠️ Hãy nhập tên cấu hình."
+
+
+def cb_load():
+    name = st.session_state.get("ai_cfgsel")
+    if name: ai_apply(ai_cfg_get(name)); st.session_state["_ai_msg"] = f"📂 Đã tải “{name}”"
+
+
+def cb_del():
+    name = st.session_state.get("ai_cfgsel")
+    if name: ai_cfg_del(name); st.session_state["_ai_msg"] = f"🗑️ Đã xóa “{name}”"
+
+
+# ============================================================
+# 4. SIDEBAR
+# ============================================================
+with st.sidebar:
+    html("""
+        <div class='sidebar-header'>
+            <div class='sidebar-logo'>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+            </div>
+            <div>
+                <h2 class='sidebar-title'>Nghia_Trading</h2>
+                <div class='sidebar-subtitle'>Terminal UI</div>
+            </div>
+        </div>
+    """)
+
+    html("<div class='side-label'>Tài sản giao dịch</div>")
+    selected_asset = st.selectbox("Asset", list(flat_assets.keys()), index=0, label_visibility="collapsed")
+    ticker = flat_assets[selected_asset]
+
+    html("<div style='height:14px'></div><div class='side-label'>Khung thời gian (Biểu đồ)</div>")
+    timeframe = st.selectbox("TF", ["1 Phút", "5 Phút", "15 Phút", "1 Giờ", "1 Ngày", "1 Tuần"], index=4, label_visibility="collapsed")
+    interval = {"1 Phút": "1m", "5 Phút": "5m", "15 Phút": "15m", "1 Giờ": "60m", "1 Ngày": "1d", "1 Tuần": "1wk"}[timeframe]
+
+    html("<div style='height:10px'></div>")
+    if st.button("🔄 Cập nhật dữ liệu", width="stretch"):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.html("<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');</style>")
+    if "ui_full" not in st.session_state:
+        st.session_state["ui_full"] = bool(ai_cfg_get("__ui__").get("full", False))
+    st.toggle("✨ Hiệu ứng đầy đủ (nặng, dễ giật)", key="ui_full",
+              on_change=lambda: ui_set("full", bool(st.session_state["ui_full"])))
+    if not st.session_state["ui_full"]:
+        st.html("<style>" + LITE_CSS + "</style>")
+
+    html(f"""
+        <div class='pro-card'>
+            <h4>Nghia_Trading Pro</h4>
+            <p>Mở khóa tính năng Bot AI và dữ liệu Realtime.</p>
+        </div>
+        <div class='copyright'>© {datetime.now().year} Nghia_Trading.<br>All rights reserved.</div>
+    """)
+
+    if not st.session_state.get("_fx_loaded"):
+        st.session_state["_fx_loaded"] = True
+        inject_js(FX_JS + "\n" + FX_JS2.replace("__MENU__", json.dumps(MENU_ITEMS, ensure_ascii=False)))
+
+# ============================================================
+# 5. MAIN AREA
+# ============================================================
+df = load_ready(ticker, interval)
+
+if df is None or len(df) < 50:
+    st.error(f"❌ Không có dữ liệu cho {selected_asset}.")
+    st.stop()
+
+last_close = df["Close"].iloc[-1]
+prev_close = df["Close"].iloc[-2] if len(df) > 1 else last_close
+change_pct = ((last_close - prev_close) / prev_close) * 100 if prev_close else 0
+
+run_bot_engine(df, ticker, timeframe)
+
+# HERO (khối giá + sparkline)
+_spark = df["Close"].tail(80).astype(float).values
+_n = len(_spark)
+_mn, _mx = float(np.min(_spark)), float(np.max(_spark))
+_rg = (_mx - _mn) or 1.0
+_pts = [(i / max(_n - 1, 1) * 300, 54 - (float(v) - _mn) / _rg * 48) for i, v in enumerate(_spark)]
+_line = "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in _pts)
+_area = _line + " L300,60 L0,60 Z"
+_up = change_pct >= 0
+_c = "#22d3a0" if _up else "#ff5470"
+_cbg = "rgba(34,211,160,.14)" if _up else "rgba(255,84,112,.14)"
+_cbd = "rgba(34,211,160,.35)" if _up else "rgba(255,84,112,.35)"
+_arrow = "▲" if _up else "▼"
+_hi100, _lo100 = df["High"].tail(100).max(), df["Low"].tail(100).min()
+
+html(f"""
+    <div class='hero' style='--c:{_c}; --cbg:{_cbg}; --cbd:{_cbd};'>
+        <div class='hero-in'>
+            <div class='orbit'><i></i><i></i><i></i></div>
+            <div class='hero-top'>
+                <div>
+                    <div class='hero-name'>{selected_asset.split(' - ')[1]}</div>
+                    <div class='hero-sub'>{ticker} • {timeframe}<span class='hint'>✦ kéo để xoay</span></div>
+                </div>
+                <div class='live-pill'><i></i><span>LIVE</span></div>
+            </div>
+            <div class='hero-mid'>
+                <div>
+                    <div class='hero-price nt-count' data-v='{float(last_close)}' data-d='2'>{format_vn_price(last_close)}</div>
+                    <span class='chg'>{_arrow} {change_pct:+.2f}%</span>
+                </div>
+                <svg class='spark' viewBox='0 0 300 60'>
+                    <defs><linearGradient id='sg' x1='0' y1='0' x2='0' y2='1'>
+                        <stop offset='0%' stop-color='{_c}' stop-opacity='.35'/><stop offset='100%' stop-color='{_c}' stop-opacity='0'/>
+                    </linearGradient></defs>
+                    <path class='ar' d='{_area}' fill='url(#sg)'/>
+                    <path class='ln' d='{_line}' pathLength='1'/>
+                </svg>
+            </div>
+            <div class='hero-stats'>
+                <div><span>Cao (100 nến)</span><b>{format_vn_price(_hi100)}</b></div>
+                <div><span>Thấp (100 nến)</span><b>{format_vn_price(_lo100)}</b></div>
+                <div><span>ATR (14)</span><b>{format_vn_price(df['ATR'].iloc[-1])}</b></div>
+            </div>
+        </div>
+    </div>
+""")
+
+# MENU DỌC BÊN TRÁI (chỉ icon, từ dưới lên; chọn mục sẽ tự cuộn lên đầu mục)
+if "nt_view" not in st.session_state:
+    st.session_state["nt_view"] = ai_cfg_get("__ui__").get("view", "Từng mục")
+st.segmented_control("Chế độ xem", ["Từng mục", "Cuộn liên tục"], key="nt_view", label_visibility="collapsed",
+                     on_change=lambda: ui_set("view", st.session_state.get("nt_view") or "Từng mục"))
+feed = st.session_state.get("nt_view") == "Cuộn liên tục"
+if feed:
+    menu_selection = MENU_ITEMS[0]
+else:
+    menu_selection = st.radio("Menu", MENU_ITEMS, horizontal=True, label_visibility="collapsed", key="nt_menu", format_func=lambda m: m.split(" ", 1)[0])
+    html(f"<div class='sec-anchor' data-sec='{menu_selection}'></div>")
+html("<div class='nt-nav' data-mode='" + ("feed" if feed else "single") + "'>" + "".join(
+    f"<div class='nt-navlink{' act' if (not feed and m == menu_selection) else ''}' role='button' tabindex='0' title='{m.split(' ', 1)[1]}' aria-label='{m.split(' ', 1)[1]}' data-sec='{m}'>{m.split(' ', 1)[0]}</div>"
+    for m in MENU_ITEMS) + "</div>")
+html("<div style='height:14px'></div>")
+if feed or menu_selection != "🤖 AI Vào lệnh":
+    live_monitor(ticker, None, 0.0, 1.0, float(df["ATR"].iloc[-1]))
+
+# ------------------------------------------------------------
+# KHU VỰC 1: BIỂU ĐỒ (Bao gồm KPI)
+# ------------------------------------------------------------
+if feed or menu_selection == "📊 Biểu đồ":
+    if feed: html("<div class='sec-anchor' data-sec='📊 Biểu đồ'></div><div class='sec-sep'>📊 Biểu đồ</div>")
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    with kpi1: quantum_metric("GIÁ HIỆN TẠI", format_vn_price(last_close), f"{change_pct:+.2f}%", is_positive=(change_pct >= 0), raw=last_close)
+    with kpi2: quantum_metric("RSI (14)", f"{df['RSI'].iloc[-1]:.1f}", "QUÁ MUA" if df['RSI'].iloc[-1] > 70 else ("QUÁ BÁN" if df['RSI'].iloc[-1] < 30 else "TRUNG TÍNH"), is_positive=(df['RSI'].iloc[-1] < 70), raw=df['RSI'].iloc[-1], dec=1, vn=False)
+    with kpi3: quantum_metric("ADX (14)", f"{df['ADX'].iloc[-1]:.1f}", "XU HƯỚNG MẠNH" if df['ADX'].iloc[-1] > 25 else "ĐI NGANG", is_positive=None, raw=df['ADX'].iloc[-1], dec=1, vn=False)
+    with kpi4: quantum_metric("ATR (14)", format_vn_price(df['ATR'].iloc[-1]), "ĐỘ BIẾN ĐỘNG", is_positive=None, raw=df['ATR'].iloc[-1])
+
+    chart_df = df.tail(300).copy()
+
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2], subplot_titles=("", "RSI (14)", "MACD (12, 26, 9)"))
+
+    fig.add_trace(go.Candlestick(
+        x=chart_df["Time"], open=chart_df["Open"], high=chart_df["High"], low=chart_df["Low"], close=chart_df["Close"], name="PRICE",
+        increasing_line_color="#22d3a0", decreasing_line_color="#ff5470",
+        increasing_fillcolor="#22d3a0", decreasing_fillcolor="#ff5470"
+    ), row=1, col=1)
+
+    active_trade = get_active_bot_trade(ticker)
+    if active_trade is not None:
+        fig.add_hline(y=active_trade['entry_price'], line_dash="solid", line_color="#7c7cff", line_width=1.5, annotation_text="ENTRY", row=1, col=1)
+        fig.add_hline(y=active_trade['sl'], line_dash="dash", line_color="#ff5470", line_width=1, annotation_text="SL", row=1, col=1)
+        fig.add_hline(y=active_trade['tp'], line_dash="dash", line_color="#22d3a0", line_width=1, annotation_text="TP", row=1, col=1)
+
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA20"], name="EMA 20", line=dict(color="#38e1ff", width=2)), row=1, col=1)
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["EMA50"], name="EMA 50", line=dict(color="#ff5ecb", width=1.5, dash='dot')), row=1, col=1)
+
+    fig.add_trace(go.Scatter(x=chart_df["Time"], y=chart_df["RSI"], name="RSI", line=dict(color="#fbbf24", width=1.6), fill="tozeroy", fillcolor="rgba(251,191,36,0.05)"), row=2, col=1)
+    fig.add_hline(y=70, line_dash="dash", line_color="#ff5470", line_width=1, row=2, col=1)
+    fig.add_hline(y=30, line_dash="dash", line_color="#22d3a0", line_width=1, row=2, col=1)
+
+    fig.add_trace(go.Bar(x=chart_df["Time"], y=chart_df["MACD_hist"], name="MACD", marker_color=["#22d3a0" if v >= 0 else "#ff5470" for v in chart_df["MACD_hist"]]), row=3, col=1)
+
+    fig.update_layout(
+        template="plotly_dark", height=720, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        hovermode="x", showlegend=False, margin=dict(l=10, r=50, t=30, b=10), dragmode="pan",
+        font=dict(family="Inter, sans-serif", color="#8b90a0", size=12), uirevision='constant',
+        hoverlabel=dict(bgcolor="rgba(12,13,20,0.92)", bordercolor="rgba(124,124,255,0.5)", font=dict(family="JetBrains Mono, monospace", size=12, color="#eef0f6")),
+        transition=dict(duration=500, easing="cubic-in-out")
+    )
+
+    fig.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", gridwidth=1, rangeslider_visible=False,
+                     showspikes=True, spikecolor="rgba(124,124,255,0.5)", spikethickness=1, spikedash="dot", spikemode="across")
+    fig.update_xaxes(rangeslider=dict(visible=bool(st.session_state.get("ui_full")), bgcolor="rgba(255,255,255,0.02)", bordercolor="rgba(255,255,255,0.1)", borderwidth=1), row=3, col=1)
+    fig.update_xaxes(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1D", step="day", stepmode="backward"),
+                dict(count=7, label="1W", step="day", stepmode="backward"),
+                dict(count=1, label="1M", step="month", stepmode="backward"),
+                dict(step="all", label="TẤT CẢ")
+            ]),
+            bgcolor="rgba(255,255,255,0.05)", activecolor="#7c7cff", font=dict(color="#c4c8d6")
+        ), row=1, col=1
+    )
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", side="right", gridwidth=1)
+
+    st.plotly_chart(fig, width="stretch", config={'scrollZoom': True, 'displayModeBar': True, 'displaylogo': False})
+
+# ------------------------------------------------------------
+# KHU VỰC 2: KẾ HOẠCH GIAO DỊCH & CHUẨN ĐOÁN
+# ------------------------------------------------------------
+if feed or menu_selection == "🎯 Kế hoạch giao dịch":
+    if feed: html("<div class='sec-anchor' data-sec='🎯 Kế hoạch giao dịch'></div><div class='sec-sep'>🎯 Kế hoạch giao dịch</div>")
+    st.subheader("Chuẩn đoán & Kế hoạch giao dịch")
+
+    col_left, col_right = st.columns([1.5, 1], gap="large")
+
+    with col_left:
+        rr_ratio = st.slider("Tỷ lệ R:R", 1.0, 4.0, 2.0, 0.5)
+        trade_plan = calculate_trade_levels(df, risk_reward=rr_ratio)
+
+        if trade_plan:
+            direction_color = "#22d3a0" if trade_plan['direction'] == "LONG" else "#ff5470"
+            direction_vn = "MUA (LONG)" if trade_plan['direction'] == "LONG" else "BÁN (SHORT)"
+
+            score, quality, reasons = get_trade_diagnosis(df, trade_plan)
+            reasons_html = "".join(f"<div class='reason-line' style='animation-delay:{0.1 + i * 0.07:.2f}s'>{r}</div>" for i, r in enumerate(reasons))
+
+            _off = 264 * (1 - min(score, 100) / 100)
+            html(f"""
+                <div class='signal-card' style='--accent: {direction_color};'>
+                    <div class='sig-head'>
+                        <div class='ring'>
+                            <svg viewBox='0 0 100 100'>
+                                <defs><linearGradient id='rg' x1='0' y1='0' x2='1' y2='1'>
+                                    <stop offset='0%' stop-color='#7c7cff'/><stop offset='100%' stop-color='#22d3a0'/>
+                                </linearGradient></defs>
+                                <circle cx='50' cy='50' r='42' class='ring-bg'/>
+                                <circle cx='50' cy='50' r='42' class='ring-fg' stroke='url(#rg)' style='--off:{_off:.1f}'/>
+                            </svg>
+                            <div class='ring-num'><span class='nt-count' data-v='{score}' data-d='0'>{score}</span><small>/100</small></div>
+                        </div>
+                        <div class='sig-info'>
+                            <div class='sig-kicker'>ĐIỂM CHẤT LƯỢNG</div>
+                            <h3 style='color: {direction_color} !important;'>Tín hiệu: {direction_vn}</h3>
+                            <div class='score-badge'>{quality}</div>
+                        </div>
+                    </div>
+                    {reasons_html}
+                </div>
+            """)
+
+            col_entry, col_sl, col_tp = st.columns(3)
+            with col_entry: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(trade_plan['entry']), "THỰC THI", is_positive=None, raw=trade_plan['entry'])
+            with col_sl: quantum_metric("CẮT LỖ (SL)", format_vn_price(trade_plan['sl']), "BẢO VỆ VỐN", is_positive=False, raw=trade_plan['sl'])
+            with col_tp: quantum_metric("CHỐT LỜI (TP)", format_vn_price(trade_plan['tp']), "MỤC TIÊU", is_positive=True, raw=trade_plan['tp'])
+
+            be_wr = (1 / (1 + rr_ratio)) * 100
+            html(f"""
+                <div class='math-box'>
+                    <b style='color:#fff;'>Toán học Giao dịch:</b> Với tỷ lệ R:R = 1:{rr_ratio:.1f}, bạn cần tỷ lệ thắng (Win rate) tối thiểu là <b style='color:#fbbf24;'>{be_wr:.1f}%</b> để hòa vốn. Nếu lịch sử của bạn cao hơn mức này, chiến lược này có lãi.
+                </div>
+            """)
+
+    with col_right:
+        balance = st.number_input("Số dư tài khoản ($)", value=1000.0, step=100.0)
+        risk_pct = st.number_input("Rủi ro mỗi lệnh (%)", value=1.0, step=0.5)
+
+        if trade_plan:
+            risk_amount = balance * (risk_pct / 100)
+            sl_dist = abs(trade_plan['entry'] - trade_plan['sl'])
+
+            if sl_dist > 0:
+                position_size = risk_amount / sl_dist
+                leverage = (position_size * trade_plan['entry']) / balance if balance > 0 else 0
+
+                html(f"""
+                    <div class='glass-card'>
+                        <div class='card-title'>🧮 Máy Tính Vị Thế</div>
+                        <div class='row-item'><span>Tiền rủi ro tối đa:</span> <span class='val-data val-down'>${risk_amount:,.2f}</span></div>
+                        <div class='row-item'><span>Khoảng cách SL:</span> <span class='val-data'>{format_vn_price(sl_dist)}</span></div>
+                        <div class='row-item' style='margin-top: 14px; padding-top: 14px; border-top: 1px dashed rgba(255,255,255,0.1);'><span style='color: #fff; font-weight: 700;'>Khối lượng (Size):</span> <span class='val-data val-up' style='font-size: 20px;'>{position_size:,.4f}</span></div>
+                        <div class='row-item'><span>Đòn bẩy (Leverage) khuyến nghị:</span> <span class='val-data' style='color: #fbbf24;'>x{leverage:.1f}</span></div>
+                    </div>
+                """)
+
+    html("<div style='height:18px'></div>")
+    st.subheader("Nhật ký Bot tự động")
+
+    col_bot_btn, _ = st.columns([1, 3])
+    with col_bot_btn:
+        if st.button("🔄 Cập nhật Bot", key="reload_bot_btn"):
+            with st.spinner("⏳ Đang quét tín hiệu..."):
+                st.cache_data.clear()
+                st.rerun()
+
+    active_bot = get_active_bot_trade(ticker)
+    bot_df = get_bot_history(ticker)
+
+    if active_bot is not None:
+        dir_vn = "MUA" if active_bot['direction'] == "LONG" else "BÁN"
+        html(f"""
+            <div class='bot-active'>
+                <div style='color: #c4a8ff; font-weight: 700; margin-bottom: 6px;'>⚡ BOT ĐANG GIỮ LỆNH: {dir_vn}</div>
+                <div style='color: #e4e4e7; font-size: 14px;'>Vào lệnh: <b>{format_vn_price(active_bot['entry_price'])}</b> |
+                SL: <span style='color:#ff5470'>{format_vn_price(active_bot['sl'])}</span> |
+                TP: <span style='color:#22d3a0'>{format_vn_price(active_bot['tp'])}</span></div>
+            </div>
+        """)
+    else:
+        st.info("Bot đang đứng ngoài chờ tín hiệu.")
+
+    if not bot_df.empty:
+        closed_trades = bot_df[bot_df['status'] != 'ACTIVE']
+        total_closed = len(closed_trades)
+        wins = len(closed_trades[closed_trades['status'] == 'WIN'])
+        win_rate = (wins / total_closed * 100) if total_closed > 0 else 0
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Tổng lệnh đã đóng", total_closed)
+        c2.metric("Tỷ lệ thắng", f"{win_rate:.1f}%")
+        c3.metric("Lệnh cắt sớm", len(closed_trades[closed_trades['status'] == 'CUT_EARLY']))
+
+        html("<div style='height:14px'></div>")
+        display_df = bot_df.copy()
+        display_df['open_time'] = pd.to_datetime(display_df['open_time'].apply(to_vn_naive)).dt.strftime('%d/%m/%Y %H:%M')
+        display_df['close_time'] = pd.to_datetime(display_df['close_time'].apply(to_vn_naive)).dt.strftime('%d/%m/%Y %H:%M').fillna('-')
+        display_df['direction'] = display_df['direction'].replace({'LONG': 'MUA', 'SHORT': 'BÁN'})
+        display_df['status'] = display_df['status'].replace({'WIN': 'THẮNG', 'LOSS': 'THUA', 'CUT_EARLY': 'CẮT SỚM', 'ACTIVE': 'ĐANG MỞ'})
+        for col in ['entry_price', 'exit_price', 'sl', 'tp']:
+            display_df[col] = display_df[col].apply(lambda x: format_vn_price(x) if pd.notna(x) else '-')
+
+        def color_bot_status(val):
+            if val == 'THẮNG': return 'color: #22d3a0; font-weight: bold;'
+            if val == 'THUA': return 'color: #ff5470; font-weight: bold;'
+            if val == 'CẮT SỚM': return 'color: #8b90a0; font-weight: bold;'
+            return ''
+
+        st.dataframe(display_df[['open_time', 'close_time', 'direction', 'entry_price', 'exit_price', 'sl', 'tp', 'status', 'reason']].style.map(color_bot_status, subset=['status']), hide_index=True, width="stretch")
+
+# ------------------------------------------------------------
+# KHU VỰC 3: PHÂN TÍCH SMC
+# ------------------------------------------------------------
+if feed or menu_selection == "🤖 AI Vào lệnh":
+    if feed: html("<div class='sec-anchor' data-sec='🤖 AI Vào lệnh'></div><div class='sec-sep'>🤖 AI Vào lệnh</div>")
+    st.subheader("AI Vào lệnh: chọn lọc, có kiểm chứng, an toàn vốn")
+    if "_ai_store" not in st.session_state:
+        st.session_state["_ai_store"] = ai_clean(ai_cfg_get("__last__"))
+    for _k, _v in st.session_state["_ai_store"].items():
+        if _k not in st.session_state: st.session_state[_k] = _v
+    col_l, col_r = st.columns([1.5, 1], gap="large")
+    with col_r:
+        html("<div class='side-label'>Tùy biến SL / TP</div>")
+        sl_mode = st.selectbox("Kiểu SL", AI_SLM, key="ai_slm")
+        k_sl = st.slider("Hệ số ATR cho SL", 0.8, 3.0, step=0.1, key="ai_k", disabled=sl_mode.startswith("Cấu trúc"))
+        rr_ai = st.slider("Tỷ lệ R:R (TP)", 1.0, 4.0, step=0.5, key="ai_rr")
+        split_tp = st.toggle("Chia 2 mục tiêu (TP1 = 1R, dời SL về hòa vốn)", key="ai_split")
+        safety = st.select_slider("Mức an toàn", AI_SAFE, key="ai_safe")
+        allow_off = st.toggle("Cho phép vào lệnh ngoài giờ / đóng cửa", key="ai_off")
+        html("<div class='side-label' style='margin-top:10px'>Vốn & Lot</div>")
+        st.pills("Mẫu nhanh", list(AI_TEMPLATES), key="ai_tpl", on_change=cb_tpl)
+        st.number_input("Số dư ($)", min_value=10.0, step=100.0, format="%.2f", key="ai_bal")
+        st.pills("Gợi ý vốn", [50, 100, 500, 1000, 5000, 10000, 50000], format_func=lambda v: f"${v:,}", key="ai_balpick", on_change=cb_pick("ai_balpick", "ai_bal"))
+        st.segmented_control("Cách đặt rủi ro", AI_RMODES, key="ai_rmode")
+        rmode = st.session_state.get("ai_rmode") or "% vốn"
+        if rmode == "% vốn":
+            st.slider("Rủi ro mỗi lệnh (% vốn)", 0.25, 50.0, step=0.25, key="ai_risk")
+            st.pills("Gợi ý %", [0.5, 1, 2, 3, 5, 10, 25, 50], format_func=lambda v: f"{v:g}%", key="ai_riskpick", on_change=cb_pick("ai_riskpick", "ai_risk"))
+        elif rmode == "Số tiền $":
+            st.number_input("Chấp nhận mất tối đa ($)", min_value=1.0, step=5.0, format="%.2f", key="ai_rusd")
+            st.pills("Gợi ý $", [5, 10, 25, 50, 100, 250, 500], format_func=lambda v: f"${v}", key="ai_rusdpick", on_change=cb_pick("ai_rusdpick", "ai_rusd"))
+        else:
+            st.number_input("Lot cố định", min_value=0.01, step=0.01, format="%.2f", key="ai_flot")
+            st.pills("Gợi ý lot", [0.01, 0.02, 0.05, 0.1, 0.5, 1.0], format_func=lambda v: f"{v:g}", key="ai_flotpick", on_change=cb_pick("ai_flotpick", "ai_flot"))
+        lev_ai = int(st.selectbox("Đòn bẩy tài khoản", AI_LEVS, format_func=lambda v: f"1:{v}", key="ai_lev"))
+        lot_step = float(st.segmented_control("Bước lot", [0.01, 0.1, 1.0], key="ai_step") or 0.01)
+        bal_ai, risk_ai = float(st.session_state["ai_bal"]), float(st.session_state["ai_risk"])
+        rusd_ai, flot_ai = float(st.session_state["ai_rusd"]), float(st.session_state["ai_flot"])
+        cv_auto = contract_value(ticker, float(last_close))
+        _cvk = f"ai_cv_{ticker}"
+        if _cvk not in st.session_state: st.session_state[_cvk] = st.session_state["_ai_store"].get(_cvk, float(round(cv_auto, 4)))
+        cv = st.number_input("USD / 1.0 giá / 1 lot (ghi đè nếu broker khác)", min_value=0.0001, format="%.4f", key=_cvk)
+        with st.expander("💾 Cấu hình đã lưu"):
+            st.text_input("Tên cấu hình", placeholder="vd: Vàng - an toàn", key="ai_cfgname")
+            st.button("💾 Lưu cấu hình hiện tại", on_click=cb_save, width="stretch", key="ai_btn_save")
+            _names = ai_cfg_list()
+            if _names:
+                st.selectbox("Cấu hình đã lưu", _names, key="ai_cfgsel")
+                _col_load, _col_del = st.columns(2)   # không đặt tên _a/_b: _b là hàm trợ giúp của bộ đánh giá phương pháp
+                _col_load.button("📂 Tải", on_click=cb_load, width="stretch", key="ai_btn_load")
+                _col_del.button("🗑️ Xóa", on_click=cb_del, width="stretch", key="ai_btn_del")
+            _m = st.session_state.pop("_ai_msg", None)
+            st.caption(_m or "Mọi lựa chọn được tự động lưu và khôi phục ở lần mở sau.")
+        _snap = ai_snapshot()
+        if _snap != st.session_state["_ai_store"]:
+            st.session_state["_ai_store"] = _snap
+            ai_cfg_put("__last__", _snap)
+
+    iv_h = {"1m": 48, "5m": 48, "15m": 48, "60m": 24, "1d": 10, "1wk": 6}[interval]
+    margin = {"Mạo hiểm": 0.02, "Cân bằng": 0.05, "Thận trọng": 0.08}[safety]
+    dfa = df.iloc[:-1].reset_index(drop=True)  # chỉ dùng nến đã đóng
+    res = ai_predict(dfa, rr_ai, k_sl, sl_mode, iv_h, 1 / (1 + rr_ai) + margin)
+    mtf_ai = load_mtf_data(ticker)
+    now_vn = pd.Timestamp.now("UTC").tz_localize(None) + timedelta(hours=7)
+    dec = ai_decide(res, dfa, mtf_ai, rr_ai, margin, ticker, now_vn, allow_off, split_tp)
+
+    with col_l:
+        if dec is None:
+            st.warning("Chưa đủ dữ liệu lịch sử để huấn luyện (cần ≥ 150 mẫu hợp lệ). Hãy chọn khung thời gian nhỏ hơn.")
+        else:
+            side_vn = "MUA (LONG)" if dec["side"] == "LONG" else "BÁN (SHORT)"
+            accent = ("#22d3a0" if dec["side"] == "LONG" else "#ff5470") if dec["ok"] else "#fbbf24"
+            title = f"Tín hiệu: {side_vn}" if dec["ok"] else f"ĐỨNG NGOÀI (nghiêng về {side_vn})"
+            off_ = 264 * (1 - min(dec["p"], 1.0))
+            reasons = "".join(f"<div class='reason-line' style='animation-delay:{0.1 + i * 0.07:.2f}s'>{'🟢' if ok else '⛔'} {t}</div>" for i, (ok, t) in enumerate(dec["gates"]))
+            html(f"""
+                <div class='signal-card' style='--accent: {accent};'>
+                    <div class='sig-head'>
+                        <div class='ring'><svg viewBox='0 0 100 100'>
+                            <defs><linearGradient id='rg2' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='#7c7cff'/><stop offset='100%' stop-color='#22d3a0'/></linearGradient></defs>
+                            <circle cx='50' cy='50' r='42' class='ring-bg'/><circle cx='50' cy='50' r='42' class='ring-fg' stroke='url(#rg2)' style='--off:{off_:.1f}'/></svg>
+                            <div class='ring-num'><span class='nt-count' data-v='{dec["p"] * 100:.1f}' data-d='1'>{dec["p"] * 100:.1f}</span><small>%</small></div></div>
+                        <div class='sig-info'><div class='sig-kicker'>XÁC SUẤT THẮNG (AI)</div>
+                            <h3 style='color: {accent} !important;'>{title}</h3>
+                            <div class='score-badge'>{'HẠNG ' + dec['grade'] if dec['ok'] else 'CHƯA ĐỦ ĐIỀU KIỆN AN TOÀN'}</div></div>
+                    </div>{reasons}
+                </div>
+            """)
+            step = lot_step
+            if rmode == "Lot cố định":
+                lot_raw = flot_ai; lot = max(np.round(lot_raw / step) * step, step)
+                risk_usd = lot * dec["sld"] * cv
+            else:
+                risk_usd = rusd_ai if rmode == "Số tiền $" else bal_ai * risk_ai / 100
+                lot_raw = risk_usd / max(dec["sld"] * cv, 1e-12); lot = max(np.floor(lot_raw / step) * step, step)
+            lot_cap = np.floor(bal_ai * lev_ai / max(cv * dec["entry"], 1e-12) / step) * step
+            capped = lot > lot_cap
+            if capped: lot = max(lot_cap, step)
+            real_risk = lot * dec["sld"] * cv
+            rp = min(real_risk / max(bal_ai, 1e-9), 1.0)
+            tier, tcol = (("AN TOÀN", "#22d3a0") if rp <= 0.02 else ("CAO", "#fbbf24") if rp <= 0.05 else ("RẤT CAO", "#fb923c") if rp <= 0.10
+                          else ("NGUY HIỂM", "#ff5470") if rp <= 0.25 else ("CỰC KỲ NGUY HIỂM", "#ff2d55"))
+            n50 = 1 if rp >= 0.5 else int(np.ceil(np.log(0.5) / np.log(1 - rp))) if rp > 0 else 999
+            risk_html = f"""
+                <div class='row-item' style='margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.1);'><span>Mức rủi ro:</span><span class='val-data' style='color:{tcol};font-weight:800'>{tier} ({rp * 100:.1f}% vốn)</span></div>
+                <div class='row-item'><span>Vốn còn lại sau 1 / 3 lệnh thua liên tiếp:</span><span class='val-data'>{(1 - rp) * 100:.0f}% / {(1 - rp) ** 3 * 100:.0f}%</span></div>
+                <div class='row-item'><span>Số lệnh thua liên tiếp để mất 50% vốn:</span><span class='val-data' style='color:{tcol}'>{n50}</span></div>"""
+            if rp > 0.10:
+                risk_html += "<div class='row-item'><span style='color:#ff5470'>⚠️ Rủi ro rất cao: một chuỗi thua ngắn có thể xóa phần lớn tài khoản. Chỉ dùng số tiền bạn sẵn sàng mất.</span></div>"
+            c1, c2, c3 = st.columns(3)
+            with c1: quantum_metric("GIÁ VÀO LỆNH", format_vn_price(dec["entry"]), "NẾN ĐÃ ĐÓNG", is_positive=None, raw=dec["entry"])
+            with c2: quantum_metric("CẮT LỖ (SL)", format_vn_price(dec["sl"]), f"-{real_risk:,.2f}$", is_positive=False, raw=dec["sl"])
+            with c3: quantum_metric("CHỐT LỜI (TP)", format_vn_price(dec["tp2"]), f"+{real_risk * rr_ai:,.2f}$", is_positive=True, raw=dec["tp2"])
+            if split_tp:
+                html(f"<div class='math-box'><b style='color:#fff;'>Kế hoạch 2 mục tiêu:</b> chốt 50% tại TP1 <b style='color:#22d3a0'>{format_vn_price(dec['tp1'])}</b> (1R), dời SL về giá vào lệnh, phần còn lại chạy tới TP <b style='color:#22d3a0'>{format_vn_price(dec['tp2'])}</b>.</div>")
+            warn = ""
+            if rmode != "Lot cố định" and lot_raw < step: warn += "<div class='row-item'><span style='color:#fbbf24'>⚠️ SL quá xa so với vốn: lot tối thiểu đã vượt mức rủi ro bạn đặt.</span></div>"
+            if capped: warn += "<div class='row-item'><span style='color:#fbbf24'>⚠️ Lot đã bị giới hạn theo ký quỹ (đòn bẩy 1:" + str(lev_ai) + "), nên rủi ro thực tế thấp hơn mục tiêu.</span></div>"
+            notional = lot * cv * dec["entry"]
+            html(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>🧮 Khối lượng (Lot) & Rủi ro</div>
+                    <div class='row-item'><span>Tiền rủi ro mục tiêu:</span><span class='val-data'>${risk_usd:,.2f}</span></div>
+                    <div class='row-item'><span>Khoảng cách SL:</span><span class='val-data'>{format_vn_price(dec['sld'])}</span></div>
+                    <div class='row-item' style='margin-top:12px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.1);'><span style='color:#fff;font-weight:700'>Lot đề xuất:</span><span class='val-data val-up' style='font-size:22px'>{lot:.2f}</span></div>
+                    <div class='row-item'><span>Rủi ro thực tế sau làm tròn:</span><span class='val-data val-down'>${real_risk:,.2f} ({real_risk / max(bal_ai, 1e-9) * 100:.2f}%)</span></div>
+                    <div class='row-item'><span>Giá trị vị thế / Ký quỹ ước tính (1:{lev_ai}):</span><span class='val-data'>${notional:,.0f} / ${notional / lev_ai:,.2f}</span></div>{warn}{risk_html}
+                </div>
+            """)
+            r = dec["r"]
+            html(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>🔬 Kiểm chứng ngoài mẫu (30% dữ liệu mới nhất, mô hình chưa từng thấy)</div>
+                    <div class='row-item'><span>Tỷ lệ thắng nền (mọi nến):</span><span class='val-data'>{r['base'] * 100:.1f}%</span></div>
+                    <div class='row-item'><span>Khi AI chọn vào lệnh:</span><span class='val-data val-up'>{r['hit'] * 100:.1f}% ({r['n']} / {r['ntest']} nến)</span></div>
+                    <div class='row-item'><span>Kỳ vọng lịch sử / lệnh:</span><span class='val-data' style='color:{"#22d3a0" if r["ev"] > 0 else "#ff5470"}'>{r['ev']:+.2f}R</span></div>
+                </div>
+            """)
+            html("<div class='math-box'><b style='color:#fff;'>Lưu ý trung thực:</b> đây là xác suất ước lượng từ lịch sử, không phải lời đảm bảo. Không mô hình nào thắng chắc. Lợi thế đến từ việc <b>chỉ vào lệnh khi nhiều điều kiện cùng đúng</b>, SL đặt theo biến động và rủi ro cố định mỗi lệnh. Tránh vào lệnh quanh giờ công bố tin lớn.</div>")
+
+    st_s = session_stats(ticker)
+    html("<div style='height:6px'></div>")
+    s1, s2, s3 = st.columns(3)
+    _cl, _se = market_state(ticker, now_vn)
+    for cc, nm in zip((s1, s2, s3), ("Á", "Âu", "Mỹ")):
+        with cc:
+            quantum_metric(f"PHIÊN {nm} {SESSION_VN[nm]}".upper(), f"{st_s[nm]:.2f}%" if st_s else "N/A", "ĐANG MỞ" if (nm in _se and not _cl) else "ĐÓNG", is_positive=(nm in _se and not _cl) or None)
+    st.caption("Biên độ trung bình mỗi nến 1 giờ theo phiên (giờ VN, xấp xỉ, lệch ±1h khi đổi giờ mùa hè).")
+
+    if dec is not None:
+        plan = dict(side=dec["side"], entry=dec["entry"], sl=dec["sl"], tp2=dec["tp2"])
+        live_monitor(ticker, plan if dec["ok"] else None, float(lot), float(cv), float(dec["atr"]))
+
+if feed or menu_selection == "🧪 Đánh giá phương pháp":
+    if feed: html("<div class='sec-anchor' data-sec='🧪 Đánh giá phương pháp'></div><div class='sec-sep'>🧪 Đánh giá phương pháp</div>")
+    st.subheader("Bot AI đánh giá 20 phương pháp giao dịch")
+    if "mth_rr" not in st.session_state: st.session_state["mth_rr"] = 2.0
+    st.segmented_control("Tỷ lệ R:R dùng để kiểm chứng", [1.5, 2.0, 3.0], format_func=lambda v: f"1 : {v:g}", key="mth_rr")
+    _mrr = float(st.session_state.get("mth_rr") or 2.0)
+    _mhz = {"1m": 48, "5m": 48, "15m": 48, "60m": 24, "1d": 10, "1wk": 6}[interval]
+    render_methods(evaluate_methods(df.iloc[:-1].reset_index(drop=True), _mrr, _mhz, interval), _mrr)
+    st.caption("Cách đánh giá: bot dò tín hiệu của từng phương pháp trên toàn bộ lịch sử của tài sản và khung đang chọn, rồi mô phỏng TP/SL theo R:R. Hết hạn mà chưa chạm TP tính là thua. "
+               "Quy tắc nhận diện đã được đơn giản hóa để máy chạy được, không thay thế việc tự xem biểu đồ. Không phải lời khuyên đầu tư.")
+
+if feed or menu_selection == "🧠 Phân tích SMC":
+    if feed: html("<div class='sec-anchor' data-sec='🧠 Phân tích SMC'></div><div class='sec-sep'>🧠 Phân tích SMC</div>")
+    st.subheader("Phân tích Cấu trúc Thị trường (SMC)")
+    if not HAS_SMC:
+        st.warning("Thư viện `pyvsmc` chưa được cài đặt.")
+    else:
+        with st.spinner("🔎 Đang quét cấu trúc..."):
+            try:
+                high_arr, low_arr, close_arr, open_arr = df["High"].values, df["Low"].values, df["Close"].values, df["Open"].values
+                fvg = smc.detect_fvg(high_arr, low_arr, close=close_arr, compute_mitigation=True)
+                obs = smc.detect_order_blocks(open_arr, high_arr, low_arr, close_arr, lookback=5, zone_mode="body")
+                structure = smc.detect_structure(high_arr, low_arr, close_arr, window_size=2, break_mode="close")
+
+                trend_val = structure.trend[-1] if len(structure.trend) > 0 else 0
+                trend_text = "TĂNG" if trend_val == 1 else ("GIẢM" if trend_val == -1 else "ĐI NGANG")
+                trend_color = "#22d3a0" if trend_val == 1 else ("#ff5470" if trend_val == -1 else "#8b90a0")
+
+                bos_bull = structure.bos_bullish[-1] if isinstance(structure.bos_bullish, np.ndarray) else structure.bos_bullish
+                bos_bear = structure.bos_bearish[-1] if isinstance(structure.bos_bearish, np.ndarray) else structure.bos_bearish
+                choch_val = 0
+                if hasattr(structure, 'choch'): choch_val = structure.choch[-1] if isinstance(structure.choch, np.ndarray) else structure.choch
+
+                col_fvg, col_obs, col_struct = st.columns(3)
+                with col_fvg:
+                    html(f"""
+                        <div class='glass-card'>
+                            <div class='card-title'>📊 Fair Value Gaps</div>
+                            <div class='row-item'><span>FVG Tăng:</span> <span class='val-data val-up'>{len(fvg.bullish)}</span></div>
+                            <div class='row-item'><span>FVG Giảm:</span> <span class='val-data val-down'>{len(fvg.bearish)}</span></div>
+                            <div class='row-item'><span>Đã lấp đầy:</span> <span class='val-data'>{len(fvg.mitigated_50)}</span></div>
+                        </div>
+                    """)
+                with col_obs:
+                    html(f"""
+                        <div class='glass-card'>
+                            <div class='card-title'>📦 Order Blocks</div>
+                            <div class='row-item'><span>OB Cầu:</span> <span class='val-data val-up'>{len(obs.bullish_ob)}</span></div>
+                            <div class='row-item'><span>OB Cung:</span> <span class='val-data val-down'>{len(obs.bearish_ob)}</span></div>
+                            <div class='row-item'><span>OB Phá vỡ:</span> <span class='val-data'>{len(obs.is_breaker)}</span></div>
+                        </div>
+                    """)
+                with col_struct:
+                    html(f"""
+                        <div class='glass-card'>
+                            <div class='card-title'>📈 Cấu Trúc Giá</div>
+                            <div class='row-item'><span>Xu hướng:</span> <span class='val-data' style='color: {trend_color};'>{trend_text}</span></div>
+                            <div class='row-item'><span>BOS Tăng:</span> <span class='val-data val-up'>{'CÓ' if bos_bull else 'KHÔNG'}</span></div>
+                            <div class='row-item'><span>BOS Giảm:</span> <span class='val-data val-down'>{'CÓ' if bos_bear else 'KHÔNG'}</span></div>
+                            <div class='row-item'><span>CHOCH:</span> <span class='val-data'>{'CÓ' if choch_val != 0 else 'KHÔNG'}</span></div>
+                        </div>
+                    """)
+            except Exception as e:
+                st.error(f"Lỗi phân tích SMC: {e}")
+
+# ------------------------------------------------------------
+# KHU VỰC 4: ĐA KHUNG THỜI GIAN (MTF)
+# ------------------------------------------------------------
+if feed or menu_selection == "🌐 Đa Khung Thời Gian":
+    if feed: html("<div class='sec-anchor' data-sec='🌐 Đa Khung Thời Gian'></div><div class='sec-sep'>🌐 Đa Khung Thời Gian</div>")
+    st.subheader("Phân Tích Đa Khung Thời Gian (MTF)")
+
+    mtf_data = load_mtf_data(ticker)
+    col1, col2, col3 = st.columns(3)
+
+    def render_mtf_card(col, tf_name, trend_val):
+        color = "#22d3a0" if trend_val == "TĂNG" else ("#ff5470" if trend_val == "GIẢM" else "#8b90a0")
+        icon = "📈" if trend_val == "TĂNG" else ("📉" if trend_val == "GIẢM" else "➖")
+        _back = {"TĂNG": "EMA20 nằm trên EMA50, xu hướng tăng. Ưu tiên tìm điểm MUA khi các khung cùng đồng thuận.",
+                 "GIẢM": "EMA20 nằm dưới EMA50, xu hướng giảm. Ưu tiên tìm điểm BÁN khi các khung cùng đồng thuận."}.get(trend_val, "Chưa đủ dữ liệu (cần hơn 50 nến) để xác định xu hướng.")
+        with col:
+            html(f"""
+                <div class='flip'><div class='flip-in'><div class='ff'><div class='glass-card mtf-card' style='border-top: 3px solid {color};'>
+                    <div style='color: #8b90a0; font-size: 12px; font-weight: 700; letter-spacing: 1.2px;'>{tf_name}</div>
+                    <div class='mtf-icon'>{icon}</div>
+                    <div style='color: {color}; font-size: 21px; font-weight: 800;'>{trend_val}</div>
+                </div></div><div class='fb'><b>{tf_name}</b><span>{_back}</span></div></div></div>
+            """)
+
+    render_mtf_card(col1, "KHUNG 15 PHÚT", mtf_data.get("15 Phút", "N/A"))
+    render_mtf_card(col2, "KHUNG 1 GIỜ", mtf_data.get("1 Giờ", "N/A"))
+    render_mtf_card(col3, "KHUNG 1 NGÀY", mtf_data.get("1 Ngày", "N/A"))
+
+    up_count = list(mtf_data.values()).count("TĂNG")
+    down_count = list(mtf_data.values()).count("GIẢM")
+
+    if up_count == 3: st.success("🔥 **ĐỒNG QUY TĂNG MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng tăng. Ưu tiên tìm điểm MUA (LONG).")
+    elif down_count == 3: st.error("🩸 **ĐỒNG QUY GIẢM MẠNH:** Cả 3 khung thời gian đều đang trong xu hướng giảm. Ưu tiên tìm điểm BÁN (SHORT).")
+    else: st.warning("⚠️ **XUNG ĐỘT XU HƯỚNG:** Các khung thời gian chưa đồng nhất. Nên đứng ngoài chờ đợi tín hiệu rõ ràng hơn.")
+
+# ------------------------------------------------------------
+# KHU VỰC 5: FIBONACCI
+# ------------------------------------------------------------
+if feed or menu_selection == "📏 Fibonacci":
+    if feed: html("<div class='sec-anchor' data-sec='📏 Fibonacci'></div><div class='sec-sep'>📏 Fibonacci</div>")
+    st.subheader("Fibonacci Retracement (100 nến gần nhất)")
+    fib_data = calculate_fibonacci(df)
+
+    if fib_data:
+        col_info, col_levels = st.columns([1, 2])
+        with col_info:
+            html(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>📍 Điểm Neo (Swing)</div>
+                    <div class='row-item'><span>Đỉnh (Swing High):</span> <span class='val-data val-down'>{format_vn_price(fib_data['Swing High'])}</span></div>
+                    <div class='row-item'><span>Đáy (Swing Low):</span> <span class='val-data val-up'>{format_vn_price(fib_data['Swing Low'])}</span></div>
+                </div>
+            """)
+        with col_levels:
+            html(f"""
+                <div class='glass-card'>
+                    <div class='card-title'>📏 Các Mức Hỗ Trợ / Kháng Cự</div>
+                    <div class='row-item'><span>Fib 0.236:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.236'])}</span></div>
+                    <div class='row-item'><span>Fib 0.382:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.382'])}</span></div>
+                    <div class='row-item'><span>Fib 0.500 (Vàng):</span> <span class='val-data' style='color: #fbbf24;'>{format_vn_price(fib_data['Fib 0.500'])}</span></div>
+                    <div class='row-item'><span>Fib 0.618 (Vàng):</span> <span class='val-data' style='color: #fbbf24;'>{format_vn_price(fib_data['Fib 0.618'])}</span></div>
+                    <div class='row-item'><span>Fib 0.786:</span> <span class='val-data'>{format_vn_price(fib_data['Fib 0.786'])}</span></div>
+                </div>
+            """)
+        st.info("💡 **Mẹo:** Mức 0.5 và 0.618 (Golden Ratio) là những vùng phản ứng giá rất mạnh. Nếu giá hồi về đây và có tín hiệu đảo chiều, đó là điểm vào lệnh tuyệt vời.")
+    else:
+        st.warning("Không đủ dữ liệu để tính Fibonacci.")
+
+# ------------------------------------------------------------
+# KHU VỰC 6: TIN TỨC
+# ------------------------------------------------------------
+if feed or menu_selection == "📰 Tin tức":
+    if feed: html("<div class='sec-anchor' data-sec='📰 Tin tức'></div><div class='sec-sep'>📰 Tin tức</div>")
+    st.subheader(f"Tin tức: {selected_asset.split(' - ')[1]}")
+    news = fetch_news(ticker)
+    if not news:
+        st.info("Hiện chưa có tin tức cho tài sản này.")
+    for item in news:
+        safe_link = str(item['link']).replace("'", "%27")
+        html(f"""
+            <a class='glass-card news-card' href='{safe_link}' target='_blank' rel='noopener noreferrer'>
+                <div class='news-title'>{item['title']}</div>
+                <div style='color: #8b90a0; font-size: 12px; display: flex; align-items: center; gap: 6px;'>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    {item['published']}
+                </div>
+            </a>
+        """)
+
+# ------------------------------------------------------------
+# KHU VỰC 7: NHẬT KÝ GIAO DỊCH
+# ------------------------------------------------------------
+if feed or menu_selection == "📓 Nhật ký":
+    if feed: html("<div class='sec-anchor' data-sec='📓 Nhật ký'></div><div class='sec-sep'>📓 Nhật ký</div>")
+    st.subheader("Nhật ký giao dịch thủ công")
+    col_form, col_history = st.columns([1, 2], gap="large")
+
+    with col_form:
+        with st.form("journal_form", clear_on_submit=True):
+            html("<p style='color: #ffffff; font-weight: 700; margin-bottom: 12px;'>➕ Ghi nhận lệnh mới</p>")
+            trade_date = st.date_input("Ngày")
+            asset_name = st.text_input("Tài sản", value=selected_asset.split(' - ')[1])
+            direction = st.selectbox("Hướng", ["LONG", "SHORT"])
+            result = st.selectbox("Kết quả", ["THẮNG", "THUA", "HÒA"])
+            pnl_val = st.number_input("PnL", value=0.0, step=0.1)
+            reason = st.text_area("Lý do", placeholder="Nhập ghi chú...")
+            if st.form_submit_button("Lưu dữ liệu", width="stretch"):
+                add_trade(str(trade_date), asset_name.upper(), direction, result, reason, pnl_val)
+                st.rerun()
+
+        journal_df = get_trades()
+        if not journal_df.empty:
+            csv = journal_df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Xuất file CSV", data=csv, file_name="nhat_ky.csv", mime="text/csv", width="stretch")
+
+    with col_history:
+        if journal_df.empty:
+            st.info("Chưa có dữ liệu giao dịch.")
+        else:
+            journal_df['date'] = pd.to_datetime(journal_df['date'], errors='coerce')
+            journal_df['pnl'] = pd.to_numeric(journal_df['pnl'], errors='coerce')
+            total_trades = len(journal_df)
+            win_rate = (len(journal_df[journal_df['result'] == 'THẮNG']) / total_trades) * 100 if total_trades > 0 else 0
+            total_pnl = journal_df['pnl'].sum()
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Tổng số lệnh", total_trades)
+            c2.metric("Tỷ lệ thắng", f"{win_rate:.1f}%")
+            c3.metric("Tổng PnL", f"{total_pnl:+.2f}", delta_color="normal" if total_pnl >= 0 else "inverse")
+
+            html("<div style='height:14px'></div>")
+
+            col_filter1, col_filter2 = st.columns(2)
+            years = journal_df['date'].dt.year.dropna().unique()
+            if len(years) > 0:
+                selected_year = col_filter1.selectbox("Năm", sorted(years, reverse=True))
+                months = journal_df[journal_df['date'].dt.year == selected_year]['date'].dt.month.dropna().unique()
+                selected_month = col_filter2.selectbox("Tháng", sorted(months, reverse=True))
+
+                filtered_df = journal_df[(journal_df['date'].dt.year == selected_year) & (journal_df['date'].dt.month == selected_month)].copy()
+                filtered_df['date'] = filtered_df['date'].dt.strftime('%d/%m/%Y')
+
+                def color_result(val):
+                    if val == 'THẮNG': return 'color: #22d3a0; font-weight: bold;'
+                    elif val == 'THUA': return 'color: #ff5470; font-weight: bold;'
+                    return 'color: #8b90a0;'
+
+                def color_pnl(val):
+                    try:
+                        val = float(val)
+                        if val > 0: return 'color: #22d3a0;'
+                        elif val < 0: return 'color: #ff5470;'
+                    except Exception: pass
+                    return 'color: #8b90a0;'
+
+                st.dataframe(filtered_df[['date', 'asset', 'direction', 'result', 'pnl', 'reason']].style.map(color_result, subset=['result']).map(color_pnl, subset=['pnl']), hide_index=True, width="stretch")
